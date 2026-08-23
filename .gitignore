@@ -1,0 +1,81 @@
+# ── Build outputs ──────────────────────────────────────────────────────
+build/
+out/
+[Bb]in/
+[Dd]ebug/
+[Rr]elease/
+x64/
+
+*.obj
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.exp
+*.ipch
+*.log
+*.Build.CppClean.log
+*.db
+
+# ── Vendored third-party binaries (tracked intentionally) ──────────────
+!VostaEngine/thirdparty/premake/premake5.exe
+!VostaEngine/thirdparty/GLFW/lib/glfw3.dll
+
+# ── Visual Studio ───────────────────────────────────────────────────────
+.vs/
+*.user
+*.suo
+*.vcxproj.FileListAbsolute.txt
+
+# ── ImGui runtime state ──────────────────────────────────────────────────
+imgui.ini
+
+# ── CMake ───────────────────────────────────────────────────────────────
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+
+# ── IDE / editors ───────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── OS ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Python ──────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+
+# ── AI assistant ────────────────────────────────────────────────────────
+.claude/
+
+# ── Snapshot backups (snapshot_gui.py output, full project copies) ──────
+.snapshot/
+
+# ── Dev-only scripts (keep local, not for distribution) ────────────────
+snapshot_gui.py
+open_claude.py
+
+# ── Editor runtime artifacts (regenerated on launch, written to cwd) ────
+_mesh_thumb_default.veasset
+sphere_initialShadingGroup.veasset
+
+# ── Engine temp resources (transient, not for distribution) ─────────────
+VostaEngine/resources/temps/
+
+# ── Third-party / unknown-origin assets (private, not for distribution) ──
+# Quarantined here so they never get committed. Origin/license unverified.
+ThirdPartyResources/
+
+# ── SandBox test scenes (reference quarantined assets, would not load) ──
+SandBox/assets/scenes/
+
+# ── Engine-owned mesh files (the *.obj rule above is for compiler outputs) ──
+!SandBox/assets/models/sphere.obj
+!VostaEditor/assets/models/sphere.obj

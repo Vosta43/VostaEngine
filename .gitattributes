@@ -1,0 +1,42 @@
+# Auto-detect text files, normalize line endings to LF on commit
+* text=auto
+
+# Source code
+*.cpp text eol=lf
+*.h   text eol=lf
+*.hpp text eol=lf
+*.c   text eol=lf
+*.inl text eol=lf
+
+# Build system
+CMakeLists.txt     text eol=lf
+*.cmake            text eol=lf
+*.txt              text eol=lf
+
+# Scripts
+*.py  text eol=lf
+*.sh  text eol=lf
+*.bat text eol=crlf
+
+# Shaders
+*.glsl text eol=lf
+*.vert text eol=lf
+*.frag text eol=lf
+*.comp text eol=lf
+
+# Markdown / docs
+*.md   text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+
+# Binary files
+*.png  binary
+*.jpg  binary
+*.ico  binary
+*.dll  binary
+*.lib  binary
+*.exe  binary
+*.ttf  binary
+*.obj  binary
+*.mesh binary

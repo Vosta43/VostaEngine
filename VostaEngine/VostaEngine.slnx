@@ -1,0 +1,10 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="../Imgui/Imgui.vcxproj" Id="f1de6857-ebc8-49c9-bcf7-7b1be5d1beb4" />
+  <Project Path="../SandBox/SandBox.vcxproj" Id="69dfdaf3-9100-42d0-8832-4b3dcac0fa81" />
+  <Project Path="../VostaEditor/VostaEditor.vcxproj" Id="0086d3fb-dd2f-452f-ab54-84da9fa66c00" />
+  <Project Path="VostaEngine.vcxproj" Id="d785d540-5557-434a-9d5b-119948540da9" />
+</Solution>
