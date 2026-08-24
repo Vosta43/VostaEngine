@@ -61,10 +61,19 @@ __pycache__/
 # ── Dev-only scripts (keep local, not for distribution) ────────────────
 snapshot_gui.py
 open_claude.py
+cns_scanner.py
+chinese_in_cpp.txt
+
+# ── imgui-node-editor: only the core files the engine compiles are kept ─
+VostaEngine/thirdparty/imgui-node-editor/examples/
+VostaEngine/thirdparty/imgui-node-editor/external/
+VostaEngine/thirdparty/imgui-node-editor/.github/
+VostaEngine/thirdparty/imgui-node-editor/docs/
 
 # ── Editor runtime artifacts (regenerated on launch, written to cwd) ────
 _mesh_thumb_default.veasset
 sphere_initialShadingGroup.veasset
+cube_default.veasset
 
 # ── Engine temp resources (transient, not for distribution) ─────────────
 VostaEngine/resources/temps/
@@ -78,4 +87,5 @@ SandBox/assets/scenes/
 
 # ── Engine-owned mesh files (the *.obj rule above is for compiler outputs) ──
 !SandBox/assets/models/sphere.obj
+!SandBox/assets/models/cube.obj
 !VostaEditor/assets/models/sphere.obj

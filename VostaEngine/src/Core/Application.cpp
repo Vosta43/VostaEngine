@@ -28,7 +28,7 @@ namespace ve {
         m_dispatcher = std::make_unique<EventDispatcher>();
         VE_CORE_SUCCESS("Event dispatcher initialized");
 
-        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.1 dev", m_dispatcher.get());
+        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.2 dev", m_dispatcher.get());
         VE_CORE_SUCCESS("Window created");
 
         m_camera.setAspectRatio((float)1500 / (float)980);

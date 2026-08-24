@@ -106,6 +106,7 @@ namespace ve {
         // Load editor infrastructure assets (icons for light billboards, etc.)
         m_pointLightIcon = ResourceManager::store<Texture2D>("VostaEngine/resources/icons/point_light.png");
         ve::ResourceManager::store<ve::StaticMesh>("SandBox/assets/models/sphere.obj");
+        ve::ResourceManager::store<ve::StaticMesh>("SandBox/assets/models/cube.obj");
 
         // Bake BRDF LUT (scene-independent, needed by PBR pipeline)
         m_brdfLUT = IBLBaker::bakeBRDFLUT();

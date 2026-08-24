@@ -220,12 +220,43 @@ void main()
             Lo += (kD * albedo / PI + specular) * radiance * NdotL;
         }
 
-        // Specular IBL — split-sum approximation
+        // Atmospheric sun as a directional light. The radiance is the physical
+        // sun color attenuated by the atmosphere along the sun ray (transmittance
+        // LUT, the same call the sky branch uses): white at zenith, reddened at
+        // dusk. Without an atmosphere the LUT is unbound and sunRadiance is 0,
+        // so this term is a no-op and the surface keeps its IBL-only look.
+        vec3 sunDir   = normalize(u_SunDirection);
+        float NdotSun = max(dot(normal, sunDir), 0.0);
+        vec3 sunHalfDir = normalize(viewDir + sunDir);
+        float NdotVSun  = max(dot(normal, viewDir), 0.0);
+        vec3 Fsun    = fresnelSchlick(max(dot(sunHalfDir, viewDir), 0.0), F0);
+        float Dsun   = distributionGGX(normal, sunHalfDir, roughness);
+        float Gsun   = geometrySmith(normal, viewDir, sunHalfDir, roughness);
+        vec3 specSun = Dsun * Gsun * Fsun / (4.0 * NdotVSun * NdotSun + 0.0001);
+        vec3 kDSun   = (1.0 - Fsun) * (1.0 - metallic);
+        vec3 sunRadiance = u_SunIntensity * sunTransmittance(worldPos - u_PlanetCenter, sunDir);
+        Lo += (kDSun * albedo / PI + specSun) * sunRadiance * NdotSun;
+
+        // Specular IBL — split-sum approximation. The prefiltered cubemap is
+        // baked once from the static skybox, so its sky region goes stale once
+        // the atmosphere's sun moves. Glossy reflections instead evaluate the
+        // analytic atmosphere in the reflection direction (the same LUTs the sky
+        // branch uses, ~7 lookups) — the physical sky, sun disk included, at any
+        // time of day. The cubemap still supplies reflections of the ground and
+        // scene geometry below the horizon.
         const float MAX_REFLECTION_LOD = 4.0;
         vec3 R = reflect(-viewDir, normal);
         vec3 prefilteredColor = textureLod(u_PrefilteredEnvMap, R, roughness * MAX_REFLECTION_LOD).rgb;
         vec2 envBRDF = texture(u_BRDFLUT, vec2(max(dot(normal, viewDir), 0.0), roughness)).rg;
-        vec3 specularIBL = prefilteredColor * (F0 * envBRDF.x + envBRDF.y) * ao;
+
+        // Reflect the analytic atmosphere + sun disk in the reflection direction
+        // (atmosphere-domain logic, extracted to atmosphere.glsl). The blend
+        // amount in alpha drops to 0 below the horizon (cubemap takes over) and
+        // on rough surfaces (a single ray has no mip blur).
+        vec4 skyRefl = reflectedSkyRadiance(u_CameraPos - u_PlanetCenter, R, roughness);
+        vec3 reflectedSky = skyRefl.rgb;
+        float skyAmount   = skyRefl.a;
+        vec3 specularIBL = mix(prefilteredColor, reflectedSky, skyAmount) * (F0 * envBRDF.x + envBRDF.y) * ao;
 
         vec3 color = diffuseIBL + specularIBL + Lo;
 
@@ -246,10 +277,10 @@ void main()
     }
     finalColor = cloud.rgb + cloud.a * finalColor;
 
-    // Exposure AFTER the cloud blend — scoped to the sky branch, matching the
-    // pre-pass behavior (geometry was never exposed; clouds inherit sky exposure).
-    if (depth >= 1.0)
-        finalColor *= u_Exposure;
+    // Exposure AFTER the cloud blend, applied to the whole frame. The geometry
+    // branch now carries the same atmospheric sun as the sky, so both must live
+    // in the same exposure space or they split apart at the horizon.
+    finalColor *= u_Exposure;
 
     o_FragColor = vec4(finalColor, 1.0);
 }

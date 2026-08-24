@@ -211,3 +211,27 @@ vec3 computeAtmosphereLUT(vec3 origin, vec3 dir) {
 float sunDisk(float mu){
     return smoothstep(0.9995, 0.99995, mu);
 }
+
+// Sky radiance reflected along dir — the analytic atmosphere + sun disk evaluated
+// in the reflection direction, with a blend amount packed in alpha: 0 where dir
+// points below the horizon (the scene cubemap takes over there) and fading to 0
+// on rough surfaces (a single direction sample has no mip blur — the cubemap's
+// mip blur is the right answer). planetCenteredOrigin = (camera - planet center).
+vec4 reflectedSkyRadiance(vec3 planetCenteredOrigin, vec3 dir, float roughness) {
+    vec3 sky = vec3(0.0);
+    float amount = 0.0;
+    if (u_PlanetRadius > 0.0) {   // an atmosphere entity is present
+        vec3 sunColor = u_SunIntensity * sunTransmittance(planetCenteredOrigin, u_SunDirection);
+        sky = computeAtmosphereLUT(planetCenteredOrigin, dir)
+            + sunColor * sunDisk(dot(dir, u_SunDirection));
+        // Reflection ray toward the planet -> ground/geometry (keep the cubemap);
+        // toward open space -> sky (analytic atmosphere). raySphere returns (1,-1)
+        // on a miss (far < near), so a hit in front of the camera needs
+        // far >= near && near > 0.
+        vec2 planetHit = raySphere(planetCenteredOrigin, dir, u_PlanetRadius);
+        bool hitsGround = (planetHit.y >= planetHit.x) && (planetHit.x > 0.0);
+        amount = smoothstep(0.0, 10000.0, hitsGround ? planetHit.x : 1.0e9);
+        amount *= 1.0 - smoothstep(0.1, 0.3, roughness);
+    }
+    return vec4(sky, amount);
+}

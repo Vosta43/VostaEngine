@@ -71,7 +71,7 @@ namespace ve {
 
 			const CloudParams& c = ctx.clouds;
 			// Cloud layer bounds stay here — the occlusion test in this shader
-			// (rayCloudLayer) needs them. All other cloud params move to CloudPass.
+			// (rayCloudLayer) and the glossy-sky reflection march both need them.
 			m_HDRBufferShader->setFloat("u_CloudInnerRadius", a.planetRadius + c.bottomAltitude);
 			m_HDRBufferShader->setFloat("u_CloudOuterRadius", a.planetRadius + c.topAltitude);
 
