@@ -38,6 +38,9 @@ namespace ve {
         virtual void init() = 0;
         virtual void setClearColor(const glm::vec4& color) = 0;
         virtual void clear() = 0;
+        // Clear the color attachment as a signed integer (for integer buffers,
+        // e.g. the R32I picking target), then clear depth.
+        virtual void clearInt(int32_t value) = 0;
         virtual void setViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height) = 0;
         // Submit an indexed draw call. The VertexArray must be bound and its index buffer populated before calling.
         virtual void drawIndexed(const Ref<VertexArray>& vertexArray) = 0;

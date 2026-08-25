@@ -536,5 +536,8 @@
     <ClInclude Include="src\Renderer\Preprocess\WeatherMapBaker.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Core\ComponentRegistry.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

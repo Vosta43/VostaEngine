@@ -30,20 +30,42 @@ namespace ve {
         if (idx >= m_entities.size()) return;
         if (m_entities[idx].m_generation != entity.m_generation) return;
 
-        //removeComponent<Transform>(entity);
-        //removeComponent<SpriteRenderer>(entity);
-        //removeComponent<RigidBody>(entity);
-        // FIXME: Every time a new component type is added to the engine, a
-        // corresponding removeComponent<T>(entity) call must be manually added
-        // here. This is fragile and will cause silent leaks if forgotten.
-        // A better approach: store a type-erased function pointer per component
-        // type during emplace(), then iterate and call those here. See notes below.
+        // Remove every component the entity owns. The storages (and their
+        // removeFn callbacks) were recorded at emplace time, so no concrete
+        // component type is hardcoded here; each removal is O(1) via the
+        // per-type swap-and-pop in removeComponent<T>.
+        if (auto it = m_entityStorages.find(idx); it != m_entityStorages.end()) {
+            for (ComponentStorage* storage : it->second)
+                storage->removeFn(idx);
+            m_entityStorages.erase(it);
+        }
 
         m_freeSlots.push_back(idx);
         m_entities[idx].m_id = 0xFFFFFFFF;
         m_liveEntityCount--;
     }
 
+    Entity EntityRegistry::getEntity(uint32_t entityId) {
+        if (entityId >= m_entities.size()) return Entity{};
+        return m_entities[entityId];
+    }
+
+    Entity EntityRegistry::duplicate(Entity source) {
+        uint32_t srcId = source.m_id;
+        if (srcId >= m_entities.size()) return Entity{};
+        if (m_entities[srcId].m_generation != source.m_generation) return Entity{};
+
+        // create() may reuse a freed slot; the fresh handle is clean because
+        // destroy() erased the source id's storage list.
+        Entity dst = create();
+
+        if (auto it = m_entityStorages.find(srcId); it != m_entityStorages.end()) {
+            for (ComponentStorage* storage : it->second) {
+                if (storage->copyFn) storage->copyFn(srcId, dst.m_id);
+            }
+        }
+        return dst;
+    }
 
 }
 

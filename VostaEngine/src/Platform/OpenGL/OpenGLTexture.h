@@ -46,6 +46,7 @@ namespace ve {
 		OpenGLTextureCube(uint32_t faceSize);
 		// Creates an empty RGBA16F cubemap with the given face size and mip level count.
 		OpenGLTextureCube(uint32_t faceSize, uint32_t mipLevels);
+		~OpenGLTextureCube();
 
 		uint32_t getWidth() const override { return m_width; }
 		uint32_t getHeight() const override { return m_height; }

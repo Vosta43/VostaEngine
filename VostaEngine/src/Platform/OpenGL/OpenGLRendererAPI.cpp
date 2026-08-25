@@ -20,6 +20,14 @@ namespace ve {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
+    void OpenGLRendererAPI::clearInt(int32_t value) {
+        // glClearColor is unspecified for integer color buffers; the spec-correct
+        // path is glClearBufferiv. Depth is a separate (fixed-point) attachment,
+        // so clear it with the ordinary glClear.
+        glClearBufferiv(GL_COLOR, 0, &value);
+        glClear(GL_DEPTH_BUFFER_BIT);
+    }
+
     void OpenGLRendererAPI::setViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
         //VE_CORE_SUCCESS_PRINT("glViewport called: %d %d %d %d", x, y, width, height);
         glViewport(x, y, width, height);

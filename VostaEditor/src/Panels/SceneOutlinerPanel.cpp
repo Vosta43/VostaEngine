@@ -35,6 +35,25 @@ void SceneOutliner::onGuiRender(uint32_t& selectedEntity)
                 selectedEntity = entityId;
             }
 
+            // Right-clicking an entity also selects it, then opens its context menu.
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+                selectedEntity = entityId;
+            }
+            if (ImGui::BeginPopupContextItem()) {
+                if (ImGui::MenuItem("Delete")) {
+                    Entity e = m_sceneContext->getEntity(entityId);
+                    m_sceneContext->destroyEntity(e);
+                    if (entityId == selectedEntity)
+                        selectedEntity = 0xFFFFFFFF;
+                }
+                if (ImGui::MenuItem("Copy")) {
+                    Entity e = m_sceneContext->getEntity(entityId);
+                    Entity copy = m_sceneContext->duplicateEntity(e);
+                    selectedEntity = copy.m_id;
+                }
+                ImGui::EndPopup();
+            }
+
             ImGui::PopID();
         }
     }
@@ -53,28 +72,33 @@ void SceneOutliner::onGuiRender(uint32_t& selectedEntity)
         ImGui::SetNextWindowSize(popupSize, ImGuiCond_Appearing);
         ImGui::OpenPopup("Create Entity");
         if (ImGui::BeginPopupModal("Create Entity", &m_showEntityCreatePopup, ImGuiWindowFlags_NoResize)) {
-            if (ImGui::Button("Light")) {
+            if (ImGui::Button("Empty", ImVec2(-1.0f, 0.0f))) {
+                Entity newEntity = m_sceneContext->createEntity();
+                m_sceneContext->assignComponent<TransformComponent>(newEntity, glm::mat4(1.0f));
+                selectedEntity = newEntity.m_id;
+            }
+            if (ImGui::Button("Light", ImVec2(-1.0f, 0.0f))) {
                 Entity newEntity = m_sceneContext->createEntity();
                 m_sceneContext->assignComponent<NameComponent>(newEntity, "Light");
                 m_sceneContext->assignComponent<TransformComponent>(newEntity, glm::mat4(1.0f));
                 m_sceneContext->assignComponent<LightComponent>(newEntity);
                 selectedEntity = newEntity.m_id;
             }
-            if (ImGui::Button("Static Mesh")) {
+            if (ImGui::Button("Static Mesh", ImVec2(-1.0f, 0.0f))) {
                 Entity newEntity = m_sceneContext->createEntity();
                 m_sceneContext->assignComponent<NameComponent>(newEntity, "Mesh");
                 m_sceneContext->assignComponent<TransformComponent>(newEntity, glm::mat4(1.0f));
                 m_sceneContext->assignComponent<StaticMeshComponent>(newEntity);
                 selectedEntity = newEntity.m_id;
             }
-            if (ImGui::Button("Skybox")) {
+            if (ImGui::Button("Skybox", ImVec2(-1.0f, 0.0f))) {
                 Entity newEntity = m_sceneContext->createEntity();
                 m_sceneContext->assignComponent<NameComponent>(newEntity, "Skybox");
                 m_sceneContext->assignComponent<TransformComponent>(newEntity, glm::mat4(1.0f));
                 m_sceneContext->assignComponent<SkyBoxComponent>(newEntity);
                 selectedEntity = newEntity.m_id;
             }
-            if (ImGui::Button("Atmosphere")) {
+            if (ImGui::Button("Atmosphere", ImVec2(-1.0f, 0.0f))) {
                 Entity newEntity = m_sceneContext->createEntity();
                 m_sceneContext->assignComponent<NameComponent>(newEntity, "Atmosphere");
 
@@ -87,14 +111,14 @@ void SceneOutliner::onGuiRender(uint32_t& selectedEntity)
                 m_sceneContext->assignComponent<AtmosphereComponent>(newEntity);
                 selectedEntity = newEntity.m_id;
             }
-            if (ImGui::Button("Sprite")) {
+            if (ImGui::Button("Sprite", ImVec2(-1.0f, 0.0f))) {
                 Entity newEntity = m_sceneContext->createEntity();
                 m_sceneContext->assignComponent<NameComponent>(newEntity, "Sprite");
                 m_sceneContext->assignComponent<TransformComponent>(newEntity, glm::mat4(1.0f));
                 m_sceneContext->assignComponent<SpriteRendererComponent>(newEntity);
                 selectedEntity = newEntity.m_id;
             }
-            if (ImGui::Button("Terrain")) {
+            if (ImGui::Button("Terrain", ImVec2(-1.0f, 0.0f))) {
                 Entity newEntity = m_sceneContext->createEntity();
                 m_sceneContext->assignComponent<NameComponent>(newEntity, "Terrain");
                 m_sceneContext->assignComponent<TransformComponent>(newEntity, glm::mat4(1.0f));

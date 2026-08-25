@@ -8,6 +8,7 @@ namespace ve {
 	public:
 		
 		OpenGLStorageBuffer(size_t size, const void* data);
+		~OpenGLStorageBuffer();
 
 		OpenGLStorageBuffer(const OpenGLStorageBuffer&) = delete;
 		OpenGLStorageBuffer& operator=(const OpenGLStorageBuffer&) = delete;

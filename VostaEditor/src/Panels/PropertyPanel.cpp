@@ -6,6 +6,9 @@
 
 #include "imgui.h"
 
+#include <algorithm>
+#include <cctype>
+
 #define GLM_ENABLE_EXPERIMENTAL
 #include <gtc/matrix_transform.hpp>
 #include <gtc/matrix_inverse.hpp>
@@ -52,6 +55,60 @@ void PropertyPanel::onGuiRender(uint32_t selectedEntity)
             for (auto& prop : props) {
                 drawProperty(typeName, compPtr, prop);
             }
+        }
+    }
+
+    ImGui::Separator();
+
+    if (ImGui::Button("Add Component", ImVec2(-1.0f, 0.0f))) {
+        m_showAddComponentPopup = true;
+        m_componentSearch[0] = '\0';
+    }
+
+    if (m_showAddComponentPopup) {
+        ImVec2 popupSize(320.0f, 400.0f);
+        ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(popupSize, ImGuiCond_Appearing);
+        ImGui::OpenPopup("Add Component");
+        if (ImGui::BeginPopupModal("Add Component", &m_showAddComponentPopup, ImGuiWindowFlags_NoResize)) {
+            ImGui::SetNextItemWidth(-1.0f);
+            ImGui::InputTextWithHint("##componentSearch", "Search component...", m_componentSearch, sizeof(m_componentSearch));
+            ImGui::Separator();
+
+            // Lowercase the query once for case-insensitive matching.
+            std::string query = m_componentSearch;
+            std::transform(query.begin(), query.end(), query.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+            auto& registry = m_sceneContext->getRegistry();
+            Entity entity = m_sceneContext->getEntity(selectedEntity);
+
+            ImGui::BeginChild("##componentList");
+            std::string currentCategory;
+            for (const auto& info : componentRegistry()) {
+                // Hide components the entity already has.
+                if (info.present(registry, entity)) continue;
+
+                std::string lowerName = info.displayName;
+                std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
+                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                if (lowerName.find(query) == std::string::npos) continue;
+
+                if (info.category != currentCategory) {
+                    currentCategory = info.category;
+                    ImGui::Separator();
+                    ImGui::TextDisabled("%s", currentCategory.c_str());
+                }
+
+                if (ImGui::Selectable(info.displayName)) {
+                    info.add(registry, entity);
+                    m_showAddComponentPopup = false;
+                }
+            }
+            ImGui::EndChild();
+
+            ImGui::EndPopup();
         }
     }
 

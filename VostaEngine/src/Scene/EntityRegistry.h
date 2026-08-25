@@ -15,6 +15,12 @@ namespace ve {
 
 		Entity create();
 		void destroy(Entity entity);
+		// Returns the live handle stored for entityId (correct m_generation),
+		// or an invalid handle if the id is out of range.
+		Entity getEntity(uint32_t entityId);
+		// Creates a new entity that is a copy of source: same components, same
+		// values. Component copying is type-erased via each storage's copyFn.
+		Entity duplicate(Entity source);
 
         //template<typename T, typename... Args>
         //T& emplace(Entity entity, Args&&... args) {
@@ -51,10 +57,45 @@ namespace ve {
                     };
             }
 
+            // Store the type-erased remove callback once. destroy() uses it to
+            // remove this component type from an entity without the caller
+            // knowing T.
+            if (!storage.removeFn) {
+                storage.removeFn = [this](uint32_t eid) {
+                    Entity e; e.m_id = eid;
+                    removeComponent<T>(e);
+                };
+            }
+
+            // Store the type-erased copy callback once. duplicate() uses it to
+            // copy this component type from a source entity to a new one.
+            if (!storage.copyFn) {
+                storage.copyFn = [this](uint32_t srcId, uint32_t dstId) {
+                    auto& cMap = getComponentMap<T>();
+                    auto& cVec = getComponentVector<T>();
+                    auto iter = cMap.find(srcId);
+                    if (iter == cMap.end()) return;
+                    Entity dst; dst.m_id = dstId;
+                    emplace<T>(dst, cVec[iter->second]);
+                };
+            }
+
+            // has<T> must be checked before the map insert below — otherwise it
+            // is always true after inserting, and the storage would never be
+            // recorded, leaving destroy() with nothing to remove.
+            bool alreadyHad = has<T>(entity);
+
             compVec.emplace_back(std::forward<Args>(args)...);
             size_t index = compVec.size() - 1;
             compMap[entity.m_id] = index;
             idxToEntity.push_back(entity.m_id);
+
+            // Record this component type as owned by the entity, so destroy()
+            // can find it. Guarded so re-emplacing the same type on the same
+            // entity doesn't double-register.
+            if (!alreadyHad)
+                m_entityStorages[entity.m_id].push_back(&storage);
+
             return compVec.back();
         }
 
@@ -212,6 +253,7 @@ namespace ve {
 
         void clearAllEntity() {
 
+            m_entityStorages.clear();
             m_storage.clear();
             m_entities.clear();
             m_freeSlots.clear();
@@ -225,14 +267,22 @@ namespace ve {
             std::any vector;             // Component array
             std::any map;                // EntityID to component array index. Lazily created via getComponentMap<T>().
             std::any indexToEntity;      // Component array index to EntityID. Reverse mapping used during swap-and-pop removal to locate the moved entity.
-            
+
             std::function<void* (uint32_t)> getPtr;  // returns void* to component
+            std::function<void(uint32_t)> removeFn;  // removes this component type from an entity by id
+            std::function<void(uint32_t, uint32_t)> copyFn;  // copies this component type from src entity id to dst entity id
         };
 
         // Type-erased component registry. Keyed by std::type_index, which is a
         // globally unique identifier per C++ type. This allows O(1) lookup of any
         // component's backing store by its type alone.
         std::unordered_map<std::type_index, ComponentStorage> m_storage;
+
+        // Per-entity list of the component storages it owns, populated at
+        // emplace time. destroy() iterates it to remove every component without
+        // hardcoding any concrete type. Stored as pointers because
+        // std::unordered_map keeps element addresses stable across rehashes.
+        std::unordered_map<uint32_t, std::vector<ComponentStorage*>> m_entityStorages;
 
         // Returns the EntityID-to-index map for component type T.
         // Key: entity's unique ID (uint32_t). Value: index into the corresponding

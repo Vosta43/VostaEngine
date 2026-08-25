@@ -236,6 +236,7 @@
     <ClInclude Include="src\Core\Application.h" />
     <ClInclude Include="src\Core\AssetConfig.h" />
     <ClInclude Include="src\Core\AssetHandle.h" />
+    <ClInclude Include="src\Core\ComponentRegistry.h" />
     <ClInclude Include="src\Core\Core.h" />
     <ClInclude Include="src\Core\Deltatime.h" />
     <ClInclude Include="src\Core\Events\Event.h" />

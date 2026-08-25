@@ -40,6 +40,10 @@ private:
     glm::vec3 m_editRotation = glm::vec3(0.0f);
     glm::vec3 m_editScale = glm::vec3(1.0f);
     char m_nameBuffer[256] = "";
+
+    // "Add Component" popup state.
+    bool m_showAddComponentPopup = false;
+    char m_componentSearch[256] = "";
 };
 
 } // namespace ve

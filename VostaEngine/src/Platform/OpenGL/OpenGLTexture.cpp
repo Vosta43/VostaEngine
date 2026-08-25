@@ -182,8 +182,11 @@ namespace ve {
     }
 
     OpenGLTexture2D::~OpenGLTexture2D() {
-        VE_CORE_SUCCESS("Deleting texture: %s (rendererId=%u)", m_path.c_str(), m_rendererId);
-        if (m_rendererId != 0) {
+        // Only delete the GL name when this wrapper actually owns it. The FBO
+        // wraps its own color/depth textures with ownsTexture=false (see
+        // Texture2D::create(rendererID, w, h)) and is the sole owner of those
+        // names, so a non-owning wrapper must not delete them too.
+        if (m_ownsTexture && m_rendererId != 0) {
             glDeleteTextures(1, &m_rendererId);
         }
     }
@@ -266,6 +269,15 @@ namespace ve {
         glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    }
+
+    // Every OpenGLTextureCube creates its own GL cubemap; the FBO only binds
+    // faces to it (attachCubemapFace) and never takes ownership, so the wrapper
+    // is always the owner and must free the name.
+    OpenGLTextureCube::~OpenGLTextureCube() {
+        if (m_rendererId != 0) {
+            glDeleteTextures(1, &m_rendererId);
+        }
     }
 
     void OpenGLTextureCube::bind(uint32_t slot) const {

@@ -37,9 +37,16 @@ namespace ve {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER,static_cast<GLuint>(point),m_rendererID);
     }
 
-    void OpenGLStorageBuffer::unbind(size_t point) const{
+    OpenGLStorageBuffer::~OpenGLStorageBuffer() {
+        if (m_rendererID != 0) {
+            glDeleteBuffers(1, &m_rendererID);
+            m_rendererID = 0;
+            m_mappedPtr = nullptr;
+        }
+    }
 
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<GLuint>(point), m_rendererID);
+    void OpenGLStorageBuffer::unbind(size_t point) const{
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<GLuint>(point), 0);
     }
 
 }

@@ -18,6 +18,10 @@ namespace ve {
         s_RendererAPI->clear();
     }
 
+    void RenderCommand::clearInt(int32_t value) {
+        s_RendererAPI->clearInt(value);
+    }
+
     void RenderCommand::setViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
         s_RendererAPI->setViewport(x, y, width, height);
     }

@@ -16,6 +16,8 @@ namespace ve {
         static void init();
         static void setClearColor(float r, float g, float b, float a);
         static void clear();
+        // Clear the bound framebuffer's integer color attachment to `value`.
+        static void clearInt(int32_t value);
         static void setViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
         static void drawIndexed(const Ref<VertexArray>& vertexArray);
 

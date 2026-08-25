@@ -14,6 +14,7 @@
 #include "Renderer/Clouds.h"
 #include "Renderer/StaticMesh.h"
 #include "Renderer/Material.h"
+#include "Core/ComponentRegistry.h"
 
 namespace ve {
 	
@@ -39,6 +40,7 @@ namespace ve {
 		}
 
 	};
+	VECOMPONENT(NameComponent, "Name", "Core")
 
 	VESTRUCT(TransformComponent)
 	struct TransformComponent {
@@ -68,6 +70,7 @@ namespace ve {
 		}
 
 	};
+	VECOMPONENT(TransformComponent, "Transform", "Core")
 	// DEBUG
 	VESTRUCT(Abilities)
 	struct Abilities{
@@ -118,6 +121,7 @@ namespace ve {
 			light.deserialize(ar);
 		}
 	};
+	VECOMPONENT(LightComponent, "Light", "Rendering")
 
 	VESTRUCT(SubmeshEntry)
 		struct SubmeshEntry {
@@ -197,6 +201,7 @@ namespace ve {
 		}
 
 	};
+	VECOMPONENT(StaticMeshComponent, "Static Mesh", "Rendering")
 
 	VESTRUCT(SkyBoxComponent)
 	struct SkyBoxComponent {
@@ -223,6 +228,7 @@ namespace ve {
 			}
 		}
 	};
+	VECOMPONENT(SkyBoxComponent, "Skybox", "Rendering")
 
 	VESTRUCT(SpriteRendererComponent)
 	struct SpriteRendererComponent {
@@ -257,8 +263,9 @@ namespace ve {
 				textureHandle = ResourceManager::store<Texture2D>(texturePath);
 			}
 		}
-		
+
 	};
+	VECOMPONENT(SpriteRendererComponent, "Sprite", "Rendering")
 
 	VESTRUCT(AtmosphereComponent)
 	struct AtmosphereComponent {
@@ -280,6 +287,7 @@ namespace ve {
 			clouds.deserialize(ar);
 		}
 	};
+	VECOMPONENT(AtmosphereComponent, "Atmosphere", "Environment")
 
 	VESTRUCT(TerrainComponent)
 	struct TerrainComponent {
@@ -333,6 +341,7 @@ namespace ve {
 		}
 
 	};
+	VECOMPONENT(TerrainComponent, "Terrain", "Environment")
 
 
 }

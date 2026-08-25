@@ -415,16 +415,14 @@ namespace ve {
 
     void EditorLayer::onEntitySelected(uint32_t entityID){
 
-        auto& cp = m_editorView.getScene()->getComponent<NameComponent>(entityID);
-
         m_selectedEntity = entityID;
-        VE_CORE_SUCCESS_PRINT("Clicked entity %s", cp.name);
     }
 
     void EditorLayer::performPicking() {
         m_pickingFramebuffer->bind();
-        RenderCommand::setClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        RenderCommand::clear();
+        // The picking target is R32I; -1 means "nothing" so entity id 0 is not
+        // ambiguous with cleared background.
+        RenderCommand::clearInt(-1);
 
         Renderer2D::beginPickingScene(m_cameraController.getCamera().getViewProjectionMatrix(), m_pickingShader);
         Renderer3D::beginPickingScene(m_cameraController.getCamera().getViewProjectionMatrix());
@@ -456,7 +454,7 @@ namespace ve {
 
         int32_t entityId = m_pickingFramebuffer->readPixel((uint32_t)m_pickPos.x, (uint32_t)m_pickPos.y);
 
-        VE_CORE_SUCCESS_PRINT("Pick pos: (%d, %d), Raw read: %d", (int)m_pickPos.x, (int)m_pickPos.y, entityId);
+        // VE_CORE_SUCCESS_PRINT("Pick pos: (%d, %d), Raw read: %d", (int)m_pickPos.x, (int)m_pickPos.y, entityId);
         m_pickingFramebuffer->unbind();
 
         if (entityId != -1) {

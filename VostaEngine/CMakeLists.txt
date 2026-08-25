@@ -63,7 +63,8 @@ set(ENGINE_SOURCES
 
     # Scene / ECS
     src/Scene/Archive.cpp
-    src/Scene/ECSystem.cpp
+    src/Scene/ECSystems/ECSystem.cpp
+    src/Scene/ECSystems/ECSystemGraph.cpp
     src/Scene/Entity.cpp
     src/Scene/EntityRegistry.cpp
     src/Scene/Scene.cpp

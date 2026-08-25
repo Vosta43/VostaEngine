@@ -16,8 +16,18 @@ namespace ve {
 
 
     OpenGLFramebuffer::~OpenGLFramebuffer() {
+        // The FBO owns the GL names of its internally created color/depth
+        // textures. Their Texture2D wrappers are non-owning (ownsTexture=false),
+        // so the FBO must free them here; m_attachedTextures holds external
+        // textures whose owners remain responsible for them.
+        for (auto& data : m_colorData) {
+            if (data.textureID) glDeleteTextures(1, &data.textureID);
+        }
+        if (m_depthTexture && m_depthTexture->getRendererID()) {
+            GLuint depthID = m_depthTexture->getRendererID();
+            glDeleteTextures(1, &depthID);
+        }
         if (m_rendererID) glDeleteFramebuffers(1, &m_rendererID);
-       
         if (m_depthAttachment) glDeleteRenderbuffers(1, &m_depthAttachment);
     }
 
@@ -177,6 +187,11 @@ namespace ve {
             if (data.textureID) glDeleteTextures(1, &data.textureID);
         }
         m_colorData.clear();
+        if (m_depthTexture) {
+            GLuint depthID = m_depthTexture->getRendererID();
+            if (depthID) glDeleteTextures(1, &depthID);
+            m_depthTexture = nullptr;
+        }
         if (m_depthAttachment) {
             glDeleteRenderbuffers(1, &m_depthAttachment);
             m_depthAttachment = 0;

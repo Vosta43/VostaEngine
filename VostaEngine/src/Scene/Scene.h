@@ -24,6 +24,18 @@ namespace ve {
 
         Entity createEntity();
 		
+        void destroyEntity(Entity entity) {
+            m_entityRegistry.destroy(entity);
+        }
+
+        Entity duplicateEntity(Entity entity) {
+            return m_entityRegistry.duplicate(entity);
+        }
+
+        Entity getEntity(uint32_t entityId) {
+            return m_entityRegistry.getEntity(entityId);
+        }
+
         template<typename T, typename... Args>
         T& assignComponent(Entity entity, Args&&... args) {
             return m_entityRegistry.emplace<T>(entity, std::forward<Args>(args)...);
