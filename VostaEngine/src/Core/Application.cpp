@@ -13,95 +13,46 @@
 #include "MouseButtonCodes.h"
 #include "Deltatime.h"
 
-#include "Renderer/Renderer.h"
-#include "Renderer/RenderCommand.h"
+#include "Gui/Gui.h"
+#include "Renderer/Shader.h"
+#include "Renderer/SplashScreen.h"
 
 namespace ve {
 
     Application* Application::s_instance = nullptr;
-    
-    Application::Application()
-        : m_camera(-1.0f,1.0f,-1.0f,1.0f) {
-        
+
+    Application::Application() {
+
         s_instance = this;
 
         m_dispatcher = std::make_unique<EventDispatcher>();
         VE_CORE_SUCCESS("Event dispatcher initialized");
 
-        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.3 dev", m_dispatcher.get());
+        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.4 dev", m_dispatcher.get());
         VE_CORE_SUCCESS("Window created");
 
-        m_camera.setAspectRatio((float)1500 / (float)980);
-        //m_renderer = std::make_unique<Renderer>();
-        //m_renderer->init(m_window.get());
-        //VE_CORE_SUCCESS("Renderer initialized");
+        m_shaderLibrary = std::make_unique<ShaderLibrary>();
+        m_splash = std::make_unique<SplashScreen>(*m_shaderLibrary);
 
-        m_GuiLayer = new GuiLayer;
-        pushOverLay(m_GuiLayer);
+        m_GuiLayer = std::make_unique<GuiLayer>();
+        pushOverLay(m_GuiLayer.get());
 
     }
 
     void Application::splashScreen(bool show) {
         if (show) {
-            if (!m_splashTexture) {
-                m_splashTexture = Texture2D::create("SandBox/assets/textures/ve.png");
-            }
-            if (!m_splashShader) {
-                auto& shaderLib = getShaderLibrary();
-                shaderLib.load("SandBox/assets/shaders/Texture.glsl");
-                m_splashShader = shaderLib.get("Texture");
-            }
-            if (!m_splashVA) {
-
-                float vertices[] = {
-                    -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-                     1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-                     1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-                    -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-                };
-                uint32_t indices[] = { 0, 1, 2, 2, 3, 0 };
-
-                auto vb = VertexBuffer::create(vertices, sizeof(vertices));
-                vb->setLayout({
-                    { ShaderDataType::Float3, "a_Position" },
-                    { ShaderDataType::Float2, "a_TexCoord" },
-                    });
-                auto ib = IndexBuffer::create(indices, 6);
-                m_splashVA = VertexArray::create();
-                m_splashVA->addVertexBuffer(vb);
-                m_splashVA->setIndexBuffer(ib);
-            }
-            m_splashVisible = true;
-
-            renderSplash();
+            m_splash->show();
+            m_splash->render();
             m_window->swapBuffers();
         }
         else {
-            m_splashVisible = false;
+            m_splash->hide();
         }
     }
 
-    void Application::renderSplash() {
-        if (!m_splashVisible || !m_splashTexture || !m_splashShader) return;
-
-        RenderCommand::setClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        RenderCommand::clear();
-
-        m_splashShader->bind();
-        m_splashTexture->bind(0);
-        m_splashShader->setInt("u_Texture", 0);
-        m_splashShader->setMat4("u_ViewProjection", glm::mat4(1.0f));
-        m_splashShader->setMat4("u_Transform", glm::mat4(1.0f));
-
-        m_splashVA->bind();
-        RenderCommand::drawIndexed(m_splashVA);
-        m_splashVA->unbind();
-
-        //m_splashTexture->unbind();
-        m_splashShader->unbind();
+    Application::~Application() {
+        m_layerStack.popOverlay(m_GuiLayer.get());
     }
-
-    Application::~Application() = default;
 
     void Application::run() {
         VE_CORE_SUCCESS("Application running");
@@ -109,8 +60,8 @@ namespace ve {
         while (!m_window->shouldClose()) {
             m_window->processEvents();
 
-            if (m_splashVisible) {
-                renderSplash();
+            if (m_splash->isVisible()) {
+                m_splash->render();
                 m_window->swapBuffers();
                 continue;
             }
@@ -136,6 +87,18 @@ namespace ve {
 
     Window* Application::getWindow() const {
         return m_window.get();
+    }
+
+    bool Application::isViewportHovered() const {
+        return m_GuiLayer->isViewportHovered();
+    }
+
+    ShaderLibrary& Application::getShaderLibrary() {
+        return *m_shaderLibrary;
+    }
+
+    GuiLayer* Application::getGuiLayer() {
+        return m_GuiLayer.get();
     }
 
 }

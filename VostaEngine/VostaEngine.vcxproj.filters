@@ -237,6 +237,15 @@
     <ClCompile Include="src\Renderer\Preprocess\WeatherMapBaker.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Renderer\SplashScreen.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\Preprocess\BakeService.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\SceneViewRenderer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Core\Window.h">
@@ -537,6 +546,15 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Core\ComponentRegistry.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\SplashScreen.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\Preprocess\BakeService.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\SceneViewRenderer.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

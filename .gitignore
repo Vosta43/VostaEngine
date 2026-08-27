@@ -74,6 +74,8 @@ VostaEngine/thirdparty/imgui-node-editor/docs/
 _mesh_thumb_default.veasset
 sphere_initialShadingGroup.veasset
 cube_default.veasset
+n.veasset
+s.veasset
 
 # ── Engine temp resources (transient, not for distribution) ─────────────
 VostaEngine/resources/temps/

@@ -2,10 +2,14 @@
 
 #include "Core.h"
 
+#include <chrono>
+
 namespace ve {
 
     class VE_API DeltaTime {
     public:
+        using Clock = std::chrono::steady_clock;
+
         static DeltaTime& get() {
             static DeltaTime instance;
             return instance;
@@ -18,7 +22,8 @@ namespace ve {
     private:
         DeltaTime();
 
-        float m_lastFrameTime;
+        std::chrono::time_point<Clock> m_startTime;
+        std::chrono::time_point<Clock> m_lastFrameTime;
         float m_deltaTime;
     };
 

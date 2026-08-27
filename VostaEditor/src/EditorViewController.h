@@ -24,14 +24,14 @@ public:
     // Renders the outliner and property panels.
     void onGuiRender(uint32_t& selectedEntity);
 
-    Ref<Scene>       getScene()        { return m_scene; }
-    SceneRenderer&   getSceneRenderer() { return *m_sceneRenderer; }
+    Ref<Scene>             getScene()       { return m_scene; }
+    Ref<SceneViewRenderer> getViewRenderer() { return m_viewRenderer; }
 
 private:
-    Ref<Scene>        m_scene;
-    SceneOutliner     m_outliner;
-    PropertyPanel     m_propertyPanel;
-    Ref<SceneRenderer> m_sceneRenderer;
+    Ref<Scene>               m_scene;
+    SceneOutliner            m_outliner;
+    PropertyPanel            m_propertyPanel;
+    Ref<SceneViewRenderer>   m_viewRenderer;
 };
 
 } // namespace ve

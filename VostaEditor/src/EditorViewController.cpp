@@ -6,7 +6,7 @@ EditorViewController::EditorViewController(Ref<Scene> scene, OpenMaterialEditorF
     : m_scene(std::move(scene))
     , m_outliner(m_scene)
     , m_propertyPanel(m_scene)
-    , m_sceneRenderer(CreateRef<SceneRenderer>(m_scene))
+    , m_viewRenderer(CreateRef<SceneViewRenderer>(m_scene))
 {
     m_propertyPanel.setOnOpenMaterialEditor(std::move(onOpenMaterial));
     
@@ -21,7 +21,7 @@ void EditorViewController::rebind(Ref<Scene> newScene, OpenMaterialEditorFn onOp
     m_outliner      = SceneOutliner(m_scene);
     m_propertyPanel = PropertyPanel(m_scene);
     m_propertyPanel.setOnOpenMaterialEditor(std::move(onOpenMaterial));
-    m_sceneRenderer = CreateRef<SceneRenderer>(m_scene);
+    m_viewRenderer = CreateRef<SceneViewRenderer>(m_scene);
 }
 
 void EditorViewController::onGuiRender(uint32_t& selectedEntity)

@@ -8,12 +8,6 @@
 #include "Core/ResourceManager.h"
 #include "Core/AssetConfig.h"
 
-#include "Scene/Components.h"
-#include "Renderer/Material.h"
-#include "Renderer/Preprocess/IBLBaker.h"
-#include "Renderer/Preprocess/WorleyNoiseBaker.h"
-#include "Renderer/Preprocess/AtmosphereBaker.h"
-#include "Renderer/Preprocess/WeatherMapBaker.h"
 #include "imguizmo.h"
 
 namespace ve {
@@ -108,11 +102,6 @@ namespace ve {
         ve::ResourceManager::store<ve::StaticMesh>("SandBox/assets/models/sphere.obj");
         ve::ResourceManager::store<ve::StaticMesh>("SandBox/assets/models/cube.obj");
 
-        // Bake BRDF LUT (scene-independent, needed by PBR pipeline)
-        m_brdfLUT = IBLBaker::bakeBRDFLUT();
-        if (!m_brdfLUT) {
-            VE_CORE_ERROR_PRINT("%s", "Editor: BRDF LUT bake failed, specular IBL will be missing");
-        }
     }
 
     void EditorLayer::onImGuiRender() {
@@ -475,178 +464,14 @@ namespace ve {
         m_cameraController.getCamera().setAspectRatio((float)fbW / (float)fbH);
         m_cameraController.getCamera().setViewportSize(fbW, fbH);
 
-        if (m_usePBRPipeline && m_renderPipeline) {
+        if (m_renderPipeline) {
+            m_editorView.getViewRenderer()->render(
+                m_cameraController.getCamera(), m_renderPipeline, m_framebuffer);
 
-            m_renderPipeline->resize(fbW, fbH);
-            RenderContext ctx;
-            ctx.viewPortWidth = fbW;
-            ctx.viewPortHeight = fbH;
-            ctx.viewMatrix = m_cameraController.getCamera().getViewMatrix();
-            ctx.projMatrix = m_cameraController.getCamera().getJitteredProjectionMatrix();
-            ctx.prevViewProjMatrix = m_cameraController.getCamera().getPrevViewProjectionMatrix();
-            ctx.cameraPosition = m_cameraController.getCamera().getPosition();
-            ctx.totalTime = DeltaTime::get().getCurrentTime();
-            ctx.frameIndex = m_cameraController.getCamera().getFrameIndex();
-
-            m_editorView.getScene()->setCameraMatrices(ctx.viewMatrix, ctx.projMatrix);
-            m_editorView.getScene()->setCameraPosition(ctx.cameraPosition);
-
-            // Collect all Mesh & Light draw command.
-            ctx.drawMeshCommands.clear();
-            ctx.drawLightCommands.clear();
-
-            m_editorView.getSceneRenderer().collectAllMesh(ctx);
-            m_editorView.getSceneRenderer().collectAllLight(ctx);
-            m_editorView.getSceneRenderer().collectAllSprites(ctx);
-
-            // Retrieve skybox cubemap and pass IBL data into the render context
-            Ref<TextureCubeMap> cubemap;
-            auto skyView = m_editorView.getScene()->getRegistry().view<SkyBoxComponent>();
-            if (!skyView.empty()) {
-                auto entity = *skyView.begin();
-                auto& skyComp = m_editorView.getScene()->getComponent<SkyBoxComponent>(entity);
-                cubemap = ResourceManager::get<TextureCubeMap>(skyComp.textureCubeMapHandle);
-
-                // Re-bake IBL maps when the skybox texture changes
-                if (skyComp.textureCubeMapHandle != m_bakedSkyboxHandle) {
-                    m_bakedSkyboxHandle = skyComp.textureCubeMapHandle;
-                    if (cubemap) {
-                        VE_CORE_SUCCESS_PRINT("%s", "Editor: skybox changed, re-baking IBL...");
-                        m_irradianceMap = IBLBaker::bakeIrradianceMap(cubemap);
-                        m_prefilteredEnvMap = IBLBaker::bakePrefilteredEnvMap(cubemap);
-                        if (!m_irradianceMap)  m_irradianceMap = cubemap;
-                        if (!m_prefilteredEnvMap) m_prefilteredEnvMap = cubemap;
-                    }
-                }
-            }
-
-            ctx.skyboxTexture     = cubemap;
-            ctx.irradianceMap     = m_irradianceMap;
-            ctx.prefilteredEnvMap = m_prefilteredEnvMap;
-            ctx.brdfLUT           = m_brdfLUT;
-
-            // Atmosphere (single global entity, like the skybox)
-            auto atmosphereView = m_editorView.getScene()->getRegistry().group<TransformComponent, AtmosphereComponent>();
-            if (!atmosphereView.empty()) {
-                auto entity = *atmosphereView.begin();
-                auto& transform = m_editorView.getScene()->getComponent<TransformComponent>(entity);
-                auto& atmosphereComp = m_editorView.getScene()->getComponent<AtmosphereComponent>(entity);
-                ctx.atmosphere = atmosphereComp.atmosphere;
-                ctx.clouds = atmosphereComp.clouds;
-                ctx.planetCenter = glm::vec3(transform.transform[3]);
-                ctx.hasAtmosphere = true;
-
-                // Re-bake the transmittance LUT only when the atmosphere params
-                // change; a single bake is <10ms but the LUT would otherwise go
-                // stale while the inspector edits stay live.
-                if (!m_hasCachedAtmosphere ||
-                    memcmp(&m_cachedAtmosphereParams, &atmosphereComp.atmosphere, sizeof(AtmosphereParams)) != 0) {
-                    m_cachedAtmosphereParams = atmosphereComp.atmosphere;
-                    m_hasCachedAtmosphere = true;
-                    m_transmittanceTexture = AtmosphereBaker::bakeTransmittanceLUT(atmosphereComp.atmosphere);
-                }
-                ctx.transmittanceTexture = m_transmittanceTexture;
-
-                // The single-scattering LUT is baked once (2-5s on the CPU), so it
-                // is not re-baked on param edits like the cheap transmittance LUT;
-                // restart the editor to re-bake with new atmosphere params.
-                if (!m_scatteringTexture) {
-                    AtmosphereBaker::ScatteringLUTPair pair = AtmosphereBaker::bakeScatteringLUT(atmosphereComp.atmosphere);
-                    m_scatteringTexture = pair.rayleighTexture;
-                    m_mieScatteringTexture = pair.mieTexture;
-                }
-                ctx.scatteringTexture = m_scatteringTexture;
-                ctx.mieScatteringTexture = m_mieScatteringTexture;
-
-                // Multiple scattering: baked once like the single-scattering LUT.
-                if (!m_multipleScatteringTexture) {
-                    m_multipleScatteringTexture = AtmosphereBaker::bakeMultipleScatteringLUT(atmosphereComp.atmosphere);
-                }
-                ctx.multipleScatteringTexture = m_multipleScatteringTexture;
-
-                if (!m_cloudNoiseTexture) {
-                    m_cloudNoiseTexture = WorleyNoiseBaker::bakeMultiOctave(8, 128, 0, 4, m_cloudWorleyCells);
-                }
-                ctx.cloudNoiseTexture = m_cloudNoiseTexture;
-                ctx.cloudWorleyCells = (float)m_cloudWorleyCells;
-
-                if (!m_cloudDetailTexture) {
-                    m_cloudDetailTexture = WorleyNoiseBaker::bakeDetailWorley(4, 64, 1, 3, m_cloudDetailCells);
-                }
-                ctx.cloudDetailTexture = m_cloudDetailTexture;
-                ctx.cloudDetailCells = (float)m_cloudDetailCells;
-
-                if (!m_cloudWarpTexture) {
-                    m_cloudWarpTexture = WorleyNoiseBaker::bakeWarp(4, 64, 2, m_cloudWarpCells);
-                }
-                ctx.cloudWarpTexture = m_cloudWarpTexture;
-                ctx.cloudWarpCells = (float)m_cloudWarpCells;
-
-                if (!m_cloudWeatherMap) {
-                    m_cloudWeatherMap = WeatherMapBaker::bake(512, 4, 3);
-                }
-                ctx.cloudWeatherMap = m_cloudWeatherMap;
-            }
-
-            m_renderPipeline->render(ctx);
-            m_cameraController.getCamera().endFrame();
-
-            m_framebuffer->bind();
-            RenderCommand::setClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-            RenderCommand::clear();
-
-            auto hdrIt = ctx.inputTextures.find("hdrColor");
-            if (hdrIt != ctx.inputTextures.end()) {
-                m_renderPipeline->bindScreenShader();
-                auto depthIt = ctx.inputTextures.find("depth");
-                if (depthIt != ctx.inputTextures.end()) {
-                    m_renderPipeline->getScreenShader()->setTexture("u_DepthMap", depthIt->second, 1);
-                }
-                m_renderPipeline->getScreenShader()->setTexture("u_ScreenTexture", hdrIt->second, 0);
-                m_renderPipeline->drawFullscreenQuad();
-                m_renderPipeline->unbindScreenShader();
-            }
-
-            if (cubemap) {
-                Renderer3D::setSkyboxTexture(cubemap);
-                Renderer3D::drawSkybox(ctx.viewMatrix, ctx.projMatrix);
-            }
-
-            // Overlay: light billboard icons
-            renderLightBillboards(ctx.viewMatrix, ctx.projMatrix, ctx.cameraPosition);
-
-            // Overlay: sprite quads (Renderer2D independent of PBR pipeline)
-            if (!ctx.drawSpriteCommands.empty()) {
-                Renderer2D::beginScene(ctx.projMatrix * ctx.viewMatrix);
-                for (auto& cmd : ctx.drawSpriteCommands) {
-                    Renderer2D::drawQuad(cmd.transform, cmd.size, cmd.textureHandle);
-                }
-                Renderer2D::endScene();
-            }
-
-            m_framebuffer->unbind();
-        }
-        else {
-            if (m_framebuffer) {
-                m_framebuffer->bind();
-                RenderCommand::setClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-                RenderCommand::clear();
-                Renderer2D::beginScene(m_cameraController.getCamera().getViewProjectionMatrix());
-                Renderer3D::beginScene(m_cameraController.getCamera().getViewProjectionMatrix());
-                m_editorView.getScene()->setCameraMatrices(m_cameraController.getCamera().getViewMatrix(), m_cameraController.getCamera().getProjectionMatrix());
-                m_editorView.getScene()->onUpdate(DeltaTime::get().getDeltaTime());
-                Renderer2D::endScene();
-                Renderer3D::endScene();
-
-                // Overlay: light billboard icons
-                renderLightBillboards(
-                    m_cameraController.getCamera().getViewMatrix(),
-                    m_cameraController.getCamera().getProjectionMatrix(),
-                    m_cameraController.getCamera().getPosition()
-                );
-
-                m_framebuffer->unbind();
-            }
+            // Overlay: light billboard icons (editor gizmo)
+            renderLightBillboards(m_cameraController.getCamera().getViewMatrix(),
+                                  m_cameraController.getCamera().getProjectionMatrix(),
+                                  m_cameraController.getCamera().getPosition());
         }
 
         if (m_needsPicking && m_pickingFramebuffer) {

@@ -1,0 +1,131 @@
+#include "vepch.h"
+#include "SceneViewRenderer.h"
+
+#include "Renderer/RenderPipeline.h"
+#include "Renderer/SceneRenderer.h"
+#include "Renderer/Renderer2D.h"
+#include "Renderer/Renderer3D.h"
+#include "Renderer/RenderCommand.h"
+#include "Renderer/Shader.h"
+#include "Renderer/Preprocess/BakeService.h"
+#include "Core/Deltatime.h"
+#include "Core/ResourceManager.h"
+#include "Scene/Scene.h"
+#include "Scene/Components.h"
+
+namespace ve {
+
+SceneViewRenderer::SceneViewRenderer(const Ref<Scene>& scene)
+    : m_scene(scene)
+    , m_sceneRenderer(CreateRef<SceneRenderer>(scene))
+{
+}
+
+SceneViewRenderer::~SceneViewRenderer() = default;
+
+void SceneViewRenderer::render(Camera& camera, const Ref<RenderPipeline>& pipeline,
+                               const Ref<Framebuffer>& target)
+{
+    uint32_t fbW = target->getWidth();
+    uint32_t fbH = target->getHeight();
+
+    pipeline->resize(fbW, fbH);
+
+    RenderContext ctx;
+    ctx.viewPortWidth  = fbW;
+    ctx.viewPortHeight = fbH;
+    ctx.viewMatrix     = camera.getViewMatrix();
+    ctx.projMatrix     = camera.getJitteredProjectionMatrix();
+    ctx.prevViewProjMatrix = camera.getPrevViewProjectionMatrix();
+    ctx.cameraPosition = camera.getPosition();
+    ctx.totalTime      = DeltaTime::get().getCurrentTime();
+    ctx.frameIndex     = camera.getFrameIndex();
+
+    m_scene->setCameraMatrices(ctx.viewMatrix, ctx.projMatrix);
+    m_scene->setCameraPosition(ctx.cameraPosition);
+
+    ctx.drawMeshCommands.clear();
+    ctx.drawLightCommands.clear();
+
+    m_sceneRenderer->collectAllMesh(ctx);
+    m_sceneRenderer->collectAllLight(ctx);
+    m_sceneRenderer->collectAllSprites(ctx);
+
+    // Skybox + IBL
+    Ref<TextureCubeMap> cubemap;
+    auto skyView = m_scene->getRegistry().view<SkyBoxComponent>();
+    if (!skyView.empty()) {
+        auto entity = *skyView.begin();
+        auto& skyComp = m_scene->getComponent<SkyBoxComponent>(entity);
+        cubemap = ResourceManager::get<TextureCubeMap>(skyComp.textureCubeMapHandle);
+        BakeService::get().setSkybox(cubemap);
+    }
+    ctx.skyboxTexture     = cubemap;
+    ctx.irradianceMap     = BakeService::get().getIrradianceMap();
+    ctx.prefilteredEnvMap = BakeService::get().getPrefilteredEnvMap();
+    ctx.brdfLUT           = BakeService::get().getBRDFLUT();
+
+    // Atmosphere (single global entity, like the skybox) + clouds
+    auto& bake = BakeService::get();
+    auto atmosphereView = m_scene->getRegistry().group<TransformComponent, AtmosphereComponent>();
+    if (!atmosphereView.empty()) {
+        auto entity = *atmosphereView.begin();
+        auto& transform = m_scene->getComponent<TransformComponent>(entity);
+        auto& atmosphereComp = m_scene->getComponent<AtmosphereComponent>(entity);
+        ctx.atmosphere = atmosphereComp.atmosphere;
+        ctx.clouds = atmosphereComp.clouds;
+        ctx.planetCenter = glm::vec3(transform.transform[3]);
+        ctx.hasAtmosphere = true;
+
+        ctx.transmittanceTexture = bake.getTransmittanceLUT(atmosphereComp.atmosphere);
+        ctx.scatteringTexture = bake.getScatteringLUT(atmosphereComp.atmosphere);
+        ctx.mieScatteringTexture = bake.getMieScatteringLUT(atmosphereComp.atmosphere);
+        ctx.multipleScatteringTexture = bake.getMultipleScatteringLUT(atmosphereComp.atmosphere);
+
+        const auto& clouds = bake.getCloudTextures();
+        ctx.cloudNoiseTexture  = clouds.noise;
+        ctx.cloudWorleyCells   = clouds.worleyCells;
+        ctx.cloudDetailTexture = clouds.detail;
+        ctx.cloudDetailCells   = clouds.detailCells;
+        ctx.cloudWarpTexture   = clouds.warp;
+        ctx.cloudWarpCells     = clouds.warpCells;
+        ctx.cloudWeatherMap    = clouds.weatherMap;
+    }
+
+    pipeline->render(ctx);
+    camera.endFrame();
+
+    target->bind();
+    RenderCommand::setClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    RenderCommand::clear();
+
+    auto hdrIt = ctx.inputTextures.find("hdrColor");
+    if (hdrIt != ctx.inputTextures.end()) {
+        pipeline->bindScreenShader();
+        auto depthIt = ctx.inputTextures.find("depth");
+        if (depthIt != ctx.inputTextures.end()) {
+            pipeline->getScreenShader()->setTexture("u_DepthMap", depthIt->second, 1);
+        }
+        pipeline->getScreenShader()->setTexture("u_ScreenTexture", hdrIt->second, 0);
+        pipeline->drawFullscreenQuad();
+        pipeline->unbindScreenShader();
+    }
+
+    if (cubemap) {
+        Renderer3D::setSkyboxTexture(cubemap);
+        Renderer3D::drawSkybox(ctx.viewMatrix, ctx.projMatrix);
+    }
+
+    // Sprite quads are game content drawn on top of the PBR output.
+    if (!ctx.drawSpriteCommands.empty()) {
+        Renderer2D::beginScene(ctx.projMatrix * ctx.viewMatrix);
+        for (auto& cmd : ctx.drawSpriteCommands) {
+            Renderer2D::drawQuad(cmd.transform, cmd.size, cmd.textureHandle);
+        }
+        Renderer2D::endScene();
+    }
+
+    target->unbind();
+}
+
+}

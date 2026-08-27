@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(VostaEngine VERSION 0.2.3 LANGUAGES CXX)
+project(VostaEngine VERSION 0.2.4 LANGUAGES CXX)
 
 option(VE_BUILD_SANDBOX "Build SandBox demo application" ON)
 option(VE_BUILD_EDITOR "Build VostaEditor application" ON)

@@ -66,35 +66,6 @@ namespace ve {
         char m_loadFileNameBuffer[256] = "";
 
         Ref<RenderPipeline> m_renderPipeline;
-        bool m_usePBRPipeline = true;
-
-        // Pre-baked IBL irradiance map for diffuse ambient lighting
-        Ref<TextureCubeMap> m_irradianceMap;
-        Ref<TextureCubeMap> m_prefilteredEnvMap;
-        Ref<Texture2D> m_brdfLUT;
-        AssetHandle m_bakedSkyboxHandle; // track skybox handle for IBL re-bake on change
-
-        // Cloud noise volumes (baked once, same role as IBL). The shape volume
-        // is a multi-octave RGBA Worley field; the detail volume is a second
-        // independent Worley field (finer cells + different seed); the warp
-        // volume holds two pre-summed FBM fields that bend the shape position.
-        Ref<Texture3D> m_cloudNoiseTexture;
-        uint32_t m_cloudWorleyCells = 1;
-        Ref<Texture3D> m_cloudDetailTexture;
-        uint32_t m_cloudDetailCells = 1;
-        Ref<Texture3D> m_cloudWarpTexture;
-        uint32_t m_cloudWarpCells = 1;
-        // 2D weather map (R = per-position coverage, see WeatherMapBaker)
-        Ref<Texture2D> m_cloudWeatherMap;
-
-        // Atmosphere transmittance LUT, re-baked when the params change so the
-        // inspector edits still react live (the analytic sky used to).
-        Ref<Texture2D> m_transmittanceTexture;
-        Ref<Texture3D> m_scatteringTexture;
-        Ref<Texture3D> m_mieScatteringTexture;
-        Ref<Texture3D> m_multipleScatteringTexture;
-        AtmosphereParams m_cachedAtmosphereParams;
-        bool m_hasCachedAtmosphere = false;
 
         // Light icon billboard
         AssetHandle m_pointLightIcon;

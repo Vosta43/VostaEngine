@@ -1,18 +1,18 @@
 #include "vepch.h"
 #include "DeltaTime.h"
-#include <GLFW/glfw3.h>
 
 namespace ve {
 
     DeltaTime::DeltaTime()
-        : m_lastFrameTime(0.0f)
+        : m_startTime(Clock::now())
+        , m_lastFrameTime(Clock::now())
         , m_deltaTime(0.0f) {
     }
 
     void DeltaTime::update() {
-        float currentFrame = static_cast<float>(glfwGetTime());
-        m_deltaTime = currentFrame - m_lastFrameTime;
-        m_lastFrameTime = currentFrame;
+        auto now = Clock::now();
+        m_deltaTime = std::chrono::duration<float>(now - m_lastFrameTime).count();
+        m_lastFrameTime = now;
     }
 
     float DeltaTime::getDeltaTime() const {
@@ -20,7 +20,7 @@ namespace ve {
     }
 
     float DeltaTime::getCurrentTime() const {
-        return static_cast<float>(glfwGetTime());
+        return std::chrono::duration<float>(Clock::now() - m_startTime).count();
     }
 
 }

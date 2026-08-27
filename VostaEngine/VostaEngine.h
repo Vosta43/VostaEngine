@@ -47,6 +47,8 @@
 #include "src/Renderer/FrameBuffer.h"
 #include "src/Renderer/RenderPipeline.h"
 #include "src/Renderer/SceneRenderer.h"
+#include "src/Renderer/SceneViewRenderer.h"
 #include "src/Renderer/ThumbnailRenderer.h"
+#include "src/Renderer/Preprocess/BakeService.h"
 
 #pragma warning(pop)

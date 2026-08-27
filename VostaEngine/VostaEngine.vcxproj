@@ -179,6 +179,7 @@
     <ClCompile Include="src\Renderer\MaterialGraph.cpp" />
     <ClCompile Include="src\Renderer\MaterialNodes.cpp" />
     <ClCompile Include="src\Renderer\Preprocess\AtmosphereBaker.cpp" />
+    <ClCompile Include="src\Renderer\Preprocess\BakeService.cpp" />
     <ClCompile Include="src\Renderer\Preprocess\IBLBaker.cpp" />
     <ClCompile Include="src\Renderer\Preprocess\WeatherMapBaker.cpp" />
     <ClCompile Include="src\Renderer\Preprocess\WorleyNoiseBaker.cpp" />
@@ -195,8 +196,10 @@
     <ClCompile Include="src\Renderer\RenderPass\TAAPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPipeline.cpp" />
     <ClCompile Include="src\Renderer\SceneRenderer.cpp" />
+    <ClCompile Include="src\Renderer\SceneViewRenderer.cpp" />
     <ClCompile Include="src\Renderer\Shader.cpp" />
     <ClCompile Include="src\Renderer\ShaderGenerator.cpp" />
+    <ClCompile Include="src\Renderer\SplashScreen.cpp" />
     <ClCompile Include="src\Renderer\StaticMesh.cpp" />
     <ClCompile Include="src\Renderer\StorageBuffer.cpp" />
     <ClCompile Include="src\Renderer\SubTexture2D.cpp" />
@@ -287,6 +290,7 @@
     <ClInclude Include="src\Renderer\MaterialGraph.h" />
     <ClInclude Include="src\Renderer\MaterialNodes.h" />
     <ClInclude Include="src\Renderer\Preprocess\AtmosphereBaker.h" />
+    <ClInclude Include="src\Renderer\Preprocess\BakeService.h" />
     <ClInclude Include="src\Renderer\Preprocess\IBLBaker.h" />
     <ClInclude Include="src\Renderer\Preprocess\WeatherMapBaker.h" />
     <ClInclude Include="src\Renderer\Preprocess\WorleyNoiseBaker.h" />
@@ -305,8 +309,10 @@
     <ClInclude Include="src\Renderer\RenderPass\TAAPass.h" />
     <ClInclude Include="src\Renderer\RenderPipeline.h" />
     <ClInclude Include="src\Renderer\SceneRenderer.h" />
+    <ClInclude Include="src\Renderer\SceneViewRenderer.h" />
     <ClInclude Include="src\Renderer\Shader.h" />
     <ClInclude Include="src\Renderer\ShaderGenerator.h" />
+    <ClInclude Include="src\Renderer\SplashScreen.h" />
     <ClInclude Include="src\Renderer\StaticMesh.h" />
     <ClInclude Include="src\Renderer\StorageBuffer.h" />
     <ClInclude Include="src\Renderer\SubTexture2D.h" />

@@ -42,8 +42,10 @@ set(ENGINE_SOURCES
     src/Renderer/Renderer3D.cpp
     src/Renderer/RenderPipeline.cpp
     src/Renderer/SceneRenderer.cpp
+    src/Renderer/SceneViewRenderer.cpp
     src/Renderer/Shader.cpp
     src/Renderer/ShaderGenerator.cpp
+    src/Renderer/SplashScreen.cpp
     src/Renderer/StaticMesh.cpp
     src/Renderer/StorageBuffer.cpp
     src/Renderer/SubTexture2D.cpp
@@ -56,6 +58,7 @@ set(ENGINE_SOURCES
     src/Renderer/RenderPass/CloudPass.cpp
     src/Renderer/RenderPass/TAAPass.cpp
     src/Renderer/RenderPass/PostBufferPass.cpp
+    src/Renderer/Preprocess/BakeService.cpp
     src/Renderer/Preprocess/IBLBaker.cpp
     src/Renderer/Preprocess/WorleyNoiseBaker.cpp
     src/Renderer/Preprocess/AtmosphereBaker.cpp
