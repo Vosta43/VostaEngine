@@ -106,24 +106,38 @@ namespace {
 
 Ref<Texture3D> WorleyNoiseBaker::bake(uint32_t cellsPerEdge, uint32_t resolution,
                                        uint32_t seed, uint32_t& outCells) {
+	outCells = cellsPerEdge;
+	return build(resolution, compute(cellsPerEdge, resolution, seed));
+}
+
+std::vector<float> WorleyNoiseBaker::compute(uint32_t cellsPerEdge, uint32_t resolution,
+                                              uint32_t seed) {
 	std::vector<float> data(resolution * resolution * resolution, 0.0f);
 	addWorleyOctave(data, 1, 0, cellsPerEdge, resolution, seed, 1.0f);
 
+	VE_CORE_SUCCESS_PRINT("WorleyNoiseBaker: baked %ux%ux%u Worley noise (%u cells/edge, seed %u)",
+	                      resolution, resolution, resolution, cellsPerEdge, seed);
+	return data;
+}
+
+Ref<Texture3D> WorleyNoiseBaker::build(uint32_t resolution, const std::vector<float>& data) {
 	Ref<Texture3D> texture = Texture3D::create(resolution, resolution, resolution, data.data());
 	if (!texture) {
 		VE_CORE_ERROR_PRINT("%s", "WorleyNoiseBaker: failed to create 3D noise texture");
 		return nullptr;
 	}
-
-	outCells = cellsPerEdge;
-	VE_CORE_SUCCESS_PRINT("WorleyNoiseBaker: baked %ux%ux%u Worley noise (%u cells/edge, seed %u)",
-	                      resolution, resolution, resolution, cellsPerEdge, seed);
 	return texture;
 }
 
 Ref<Texture3D> WorleyNoiseBaker::bakeMultiOctave(uint32_t cellsPerEdge, uint32_t resolution,
                                                   uint32_t seed, uint32_t octaves,
                                                   uint32_t& outCells) {
+	outCells = cellsPerEdge;
+	return buildMultiOctave(resolution, computeMultiOctave(cellsPerEdge, resolution, seed, octaves));
+}
+
+std::vector<float> WorleyNoiseBaker::computeMultiOctave(uint32_t cellsPerEdge, uint32_t resolution,
+                                                         uint32_t seed, uint32_t octaves) {
 	const uint32_t n = std::min(octaves, 4u);
 	std::vector<float> data(resolution * resolution * resolution * 4, 0.0f);
 	// R = base billow (Perlin, one octave at cellsPerEdge); G/B/A = finer
@@ -135,22 +149,30 @@ Ref<Texture3D> WorleyNoiseBaker::bakeMultiOctave(uint32_t cellsPerEdge, uint32_t
 	for (uint32_t k = 1; k < n; k++)
 		addWorleyOctave(data, 4, k, cellsPerEdge << k, resolution, seed, 1.0f);
 
+	VE_CORE_SUCCESS_PRINT("WorleyNoiseBaker: baked %ux%ux%u Perlin-Worley shape (%u base cells/edge, %u octaves, seed %u)",
+	                      resolution, resolution, resolution, cellsPerEdge, n, seed);
+	return data;
+}
+
+Ref<Texture3D> WorleyNoiseBaker::buildMultiOctave(uint32_t resolution, const std::vector<float>& data) {
 	Ref<Texture3D> texture = Texture3D::create(resolution, resolution, resolution,
 	                                           TextureFormat::RGBA16F, data.data(), true);
 	if (!texture) {
 		VE_CORE_ERROR_PRINT("%s", "WorleyNoiseBaker: failed to create multi-octave 3D noise texture");
 		return nullptr;
 	}
-
-	outCells = cellsPerEdge;
-	VE_CORE_SUCCESS_PRINT("WorleyNoiseBaker: baked %ux%ux%u Perlin-Worley shape (%u base cells/edge, %u octaves, seed %u)",
-	                      resolution, resolution, resolution, cellsPerEdge, n, seed);
 	return texture;
 }
 
 Ref<Texture3D> WorleyNoiseBaker::bakeDetailWorley(uint32_t cellsPerEdge, uint32_t resolution,
                                                   uint32_t seed, uint32_t octaves,
                                                   uint32_t& outCells) {
+	outCells = cellsPerEdge;
+	return buildDetailWorley(resolution, computeDetailWorley(cellsPerEdge, resolution, seed, octaves));
+}
+
+std::vector<float> WorleyNoiseBaker::computeDetailWorley(uint32_t cellsPerEdge, uint32_t resolution,
+                                                          uint32_t seed, uint32_t octaves) {
 	const uint32_t n = std::min(octaves, 4u);
 	std::vector<float> data(resolution * resolution * resolution * 4, 0.0f);
 	// All-Worley erosion band: every channel is Worley F1 at (base << k) cells/edge.
@@ -161,21 +183,29 @@ Ref<Texture3D> WorleyNoiseBaker::bakeDetailWorley(uint32_t cellsPerEdge, uint32_
 	for (uint32_t k = 0; k < n; k++)
 		addWorleyOctave(data, 4, k, cellsPerEdge << k, resolution, seed, 1.0f);
 
+	VE_CORE_SUCCESS_PRINT("WorleyNoiseBaker: baked %ux%ux%u all-Worley detail (%u base cells/edge, %u octaves, seed %u)",
+	                      resolution, resolution, resolution, cellsPerEdge, n, seed);
+	return data;
+}
+
+Ref<Texture3D> WorleyNoiseBaker::buildDetailWorley(uint32_t resolution, const std::vector<float>& data) {
 	Ref<Texture3D> texture = Texture3D::create(resolution, resolution, resolution,
 	                                           TextureFormat::RGBA16F, data.data(), true);
 	if (!texture) {
 		VE_CORE_ERROR_PRINT("%s", "WorleyNoiseBaker: failed to create detail Worley 3D noise texture");
 		return nullptr;
 	}
-
-	outCells = cellsPerEdge;
-	VE_CORE_SUCCESS_PRINT("WorleyNoiseBaker: baked %ux%ux%u all-Worley detail (%u base cells/edge, %u octaves, seed %u)",
-	                      resolution, resolution, resolution, cellsPerEdge, n, seed);
 	return texture;
 }
 
 Ref<Texture3D> WorleyNoiseBaker::bakeWarp(uint32_t cellsPerEdge, uint32_t resolution,
                                            uint32_t seed, uint32_t& outCells) {
+	outCells = cellsPerEdge;
+	return buildWarp(resolution, computeWarp(cellsPerEdge, resolution, seed));
+}
+
+std::vector<float> WorleyNoiseBaker::computeWarp(uint32_t cellsPerEdge, uint32_t resolution,
+                                                  uint32_t seed) {
 	// Two fields share the octave grids but use different hash seeds, so field B
 	// is a structurally independent FBM instead of a copy of field A. Weights
 	// mirror the shader's old 4-octave FBM (0.5, 0.25, 0.125, 0.0625) so the
@@ -189,16 +219,18 @@ Ref<Texture3D> WorleyNoiseBaker::bakeWarp(uint32_t cellsPerEdge, uint32_t resolu
 		weight *= 0.5f;
 	}
 
+	VE_CORE_SUCCESS_PRINT("WorleyNoiseBaker: baked %ux%ux%u warp FBM (%u cells/edge, seed %u)",
+	                      resolution, resolution, resolution, cellsPerEdge, seed);
+	return data;
+}
+
+Ref<Texture3D> WorleyNoiseBaker::buildWarp(uint32_t resolution, const std::vector<float>& data) {
 	Ref<Texture3D> texture = Texture3D::create(resolution, resolution, resolution,
 	                                           TextureFormat::RG16F, data.data(), true);
 	if (!texture) {
 		VE_CORE_ERROR_PRINT("%s", "WorleyNoiseBaker: failed to create warp 3D noise texture");
 		return nullptr;
 	}
-
-	outCells = cellsPerEdge;
-	VE_CORE_SUCCESS_PRINT("WorleyNoiseBaker: baked %ux%ux%u warp FBM (%u cells/edge, seed %u)",
-	                      resolution, resolution, resolution, cellsPerEdge, seed);
 	return texture;
 }
 

@@ -142,6 +142,10 @@ namespace ve {
         return m_name;
     }
 
+    bool OpenGLShader::isValid() const {
+        return shaderId != 0;
+    }
+
     void OpenGLShader::setFloat(const std::string& name, float value)
     {
         uploadUniformFloat(name, value);

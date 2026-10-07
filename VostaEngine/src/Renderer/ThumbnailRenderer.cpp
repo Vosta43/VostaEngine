@@ -1,6 +1,7 @@
 #include "vepch.h"
 #include "ThumbnailRenderer.h"
 #include "Core/ResourceManager.h"
+#include "Renderer/Preprocess/BakeService.h"
 
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
@@ -10,6 +11,33 @@ namespace ve {
 
     std::unordered_map<uint32_t, ThumbnailRenderer::CachedThumbnail> ThumbnailRenderer::s_cache;
     std::unordered_map<uint32_t, ThumbnailRenderer::CachedThumbnail> ThumbnailRenderer::s_meshCache;
+
+    namespace {
+
+        // Give a thumbnail context the same lighting inputs the scene view uses.
+        // Without hasAtmosphere the HDR pass never writes u_Exposure (or the sun
+        // direction), so the PBR shader's "finalColor *= u_Exposure" collapses to
+        // black and normalize(0) feeds NaN into the sky term. BakeService is a
+        // singleton, so previews get real IBL and LUTs with no scene.
+        void setupThumbnailLighting(RenderContext& ctx)
+        {
+            auto& bake = BakeService::get();
+
+            ctx.hasAtmosphere = true;
+            ctx.atmosphere = AtmosphereParams{};
+            ctx.planetCenter = glm::vec3(0.0f);
+
+            ctx.brdfLUT = bake.getBRDFLUT();
+            ctx.irradianceMap = bake.getIrradianceMap();
+            ctx.prefilteredEnvMap = bake.getPrefilteredEnvMap();
+
+            ctx.transmittanceTexture = bake.getTransmittanceLUT(ctx.atmosphere);
+            ctx.scatteringTexture = bake.getScatteringLUT(ctx.atmosphere);
+            ctx.mieScatteringTexture = bake.getMieScatteringLUT(ctx.atmosphere);
+            ctx.multipleScatteringTexture = bake.getMultipleScatteringLUT(ctx.atmosphere);
+        }
+
+    }
 
     Ref<Texture2D> ThumbnailRenderer::getMaterialThumbnail(AssetHandle materialHandle)
     {
@@ -56,29 +84,19 @@ namespace ve {
         dlcmd.position = glm::vec3(0.0f, 1.2f, 5.5f);
         ctx.drawLightCommands.push_back(dlcmd);
 
-        ppl.render(ctx);
+        setupThumbnailLighting(ctx);
 
-        // Screen pass to output FBO
+        // The pipeline's present pass renders into a fresh output FBO, discarding
+        // sky pixels so the preview sits on a transparent background.
         auto outputFBO = Framebuffer::create(512, 512);
-        outputFBO->bind();
-        RenderCommand::setClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        RenderCommand::clear();
+        ctx.outputFrameBuffer = outputFBO;
+        ctx.presentDiscardBackground = true;
 
-        ppl.bindScreenShader();
-
-        auto depthIt = ctx.inputTextures.find("depth");
-        if (depthIt != ctx.inputTextures.end())
-            ppl.getScreenShader()->setTexture("u_DepthMap", depthIt->second, 1);
-
-        ppl.getScreenShader()->setTexture("u_ScreenTexture", ctx.inputTextures["hdrColor"], 0);
-
-        ppl.drawFullscreenQuad();
-        ppl.unbindScreenShader();
-        outputFBO->unbind();
+        ppl.render(ctx);
 
         // Store in cache
         Ref<Texture2D> result = outputFBO->getColorTexture(0);
-        s_cache[materialHandle.index()] = { result };
+        s_cache[materialHandle.index()] = { result, outputFBO };
 
         return result;
     }
@@ -156,31 +174,34 @@ namespace ve {
         dlcmd.position = glm::vec3(0.0f, 1.2f, 5.5f);
         ctx.drawLightCommands.push_back(dlcmd);
 
-        ppl.render(ctx);
+        setupThumbnailLighting(ctx);
 
-        // Screen pass to output FBO
+        // The pipeline's present pass renders into a fresh output FBO, discarding
+        // sky pixels so the preview sits on a transparent background.
         auto outputFBO = Framebuffer::create(512, 512);
-        outputFBO->bind();
-        RenderCommand::setClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        RenderCommand::clear();
+        ctx.outputFrameBuffer = outputFBO;
+        ctx.presentDiscardBackground = true;
 
-        ppl.bindScreenShader();
-
-        auto depthIt = ctx.inputTextures.find("depth");
-        if (depthIt != ctx.inputTextures.end())
-            ppl.getScreenShader()->setTexture("u_DepthMap", depthIt->second, 1);
-
-        ppl.getScreenShader()->setTexture("u_ScreenTexture", ctx.inputTextures["hdrColor"], 0);
-
-        ppl.drawFullscreenQuad();
-        ppl.unbindScreenShader();
-        outputFBO->unbind();
+        ppl.render(ctx);
 
         // Store in cache
         Ref<Texture2D> result = outputFBO->getColorTexture(0);
-        s_meshCache[staticMeshHandle.index()] = { result };
+        s_meshCache[staticMeshHandle.index()] = { result, outputFBO };
 
         return result;
+    }
+
+    void ThumbnailRenderer::bakeAllLoaded()
+    {
+        // Collect first: baking can store new resources, and the callback runs
+        // while the storage's map is being walked.
+        std::vector<AssetHandle> materials;
+        std::vector<AssetHandle> meshes;
+        ResourceManager::forEach<Material>([&](AssetHandle h, const std::string&) { materials.push_back(h); });
+        ResourceManager::forEach<StaticMesh>([&](AssetHandle h, const std::string&) { meshes.push_back(h); });
+
+        for (AssetHandle h : materials) getMaterialThumbnail(h);
+        for (AssetHandle h : meshes) getStaticMeshThumbnail(h);
     }
 
     void ThumbnailRenderer::invalidate(AssetHandle materialHandle)

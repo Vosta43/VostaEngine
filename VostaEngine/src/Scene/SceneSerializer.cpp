@@ -1,166 +1,89 @@
 #include "vepch.h"
 #include "SceneSerializer.h"
 #include "Components.h"
+#include "Core/ComponentRegistry.h"
 
 namespace ve {
 
+    // Bumped whenever the emitted layout changes incompatibly. Files carrying
+    // any other value are rejected rather than half-loaded.
+    static constexpr int kSceneVersion = 2;
+
     bool SceneSerializer::saveToFile(const std::string& filepath) {
-        TextArchive ar(filepath, ArchiveMode::write);
-        if (!ar.isGood()) return false;
-        serialize(ar);
+        JsonWriter w;
+        serialize(w);
+        if (!w.writeToFile(filepath)) {
+            VE_CORE_ERROR_PRINT("SceneSerializer: could not write scene to '%s'", filepath.c_str());
+            return false;
+        }
         return true;
     }
 
     bool SceneSerializer::loadFromFile(const std::string& filepath) {
-        TextArchive ar(filepath, ArchiveMode::read);
-        if (!ar.isGood()) return false;
-        deserialize(ar);
-        return true;
+        JsonReader reader;
+        if (!JsonReader::load(filepath, reader) || !reader.valid()) {
+            VE_CORE_ERROR_PRINT("SceneSerializer: could not read scene from '%s'", filepath.c_str());
+            return false;
+        }
+        return deserialize(reader);
     }
 
-    void SceneSerializer::serialize(Archive& ar) {
+    void SceneSerializer::serialize(JsonWriter& w) {
         auto& registry = m_scene->getRegistry();
         auto entities = registry.each();
 
-        ar << "version" << 1;
-        ar << "entity_count" << (int32_t)entities.size();
+        w.set("version", kSceneVersion);
+        w.beginArray("entities", entities.size());
 
         for (uint32_t id : entities) {
-            ar << "{";
+            const Entity entity = registry.getEntity(id);
 
-            if (registry.has<NameComponent>(id)) {
-                ar << "NameComponent";
-                ar << "{";
-                registry.get<NameComponent>(id).serialize(ar);
-                ar << "}";
+            w.beginObject();
+            w.beginObject("components");
+
+            // The registry is the single source of truth for what a component
+            // looks like in the file; adding a VECOMPONENT is all it takes for
+            // a new type to be saved and loaded.
+            for (const auto& info : componentRegistry()) {
+                if (!info.present(registry, entity))
+                    continue;
+                w.beginObject(info.typeKey);
+                info.serialize(registry, entity, w);
+                w.end();
             }
 
-            if (registry.has<TransformComponent>(id)) {
-                ar << "TransformComponent";
-                ar << "{";
-                registry.get<TransformComponent>(id).serialize(ar);
-                ar << "}";
-            }
-
-            if (registry.has<SpriteRendererComponent>(id)) {
-                ar << "SpriteRendererComponent";
-                ar << "{";
-                registry.get<SpriteRendererComponent>(id).serialize(ar);
-                ar << "}";
-            }
-
-            if (registry.has<StaticMeshComponent>(id)) {
-                ar << "StaticMeshComponent";
-                ar << "{";
-                registry.get<StaticMeshComponent>(id).serialize(ar);
-                ar << "}";
-            }
-
-            if (registry.has<SkyBoxComponent>(id)) {
-                ar << "SkyBoxComponent";
-                ar << "{";
-                registry.get<SkyBoxComponent>(id).serialize(ar);
-                ar << "}";
-            }
-
-            if (registry.has<LightComponent>(id)) {
-                ar << "LightComponent";
-                ar << "{";
-                registry.get<LightComponent>(id).serialize(ar);
-                ar << "}";
-            }
-
-            if (registry.has<TerrainComponent>(id)) {
-                ar << "TerrainComponent";
-                ar << "{";
-                registry.get<TerrainComponent>(id).serialize(ar);
-                ar << "}";
-            }
-
-            if (registry.has<AtmosphereComponent>(id)) {
-                ar << "AtmosphereComponent";
-                ar << "{";
-                registry.get<AtmosphereComponent>(id).serialize(ar);
-                ar << "}";
-            }
-
-            ar << "}";
+            w.end();
+            w.end();
         }
+
+        w.end();
     }
 
-    void SceneSerializer::deserialize(Archive& ar) {
+    bool SceneSerializer::deserialize(const JsonReader& r) {
         auto& registry = m_scene->getRegistry();
 
-        std::string key;
-        int32_t version = 0;
+        const int version = r.getInt("version", 0);
+        if (version != kSceneVersion) {
+            VE_CORE_ERROR_PRINT("SceneSerializer: unsupported scene version %d (expected %d)",
+                                version, kSceneVersion);
+            return false;
+        }
 
-        ar >> key;
-        if (key != "version") return;
-        ar >> version;
-
-        ar >> key;
-        if (key != "entity_count") return;
-
-        int32_t entityCount = 0;
-        ar >> entityCount;
-
+        const size_t entityCount = r.arraySize("entities");
         registry.clearAllEntity();
 
-        for (int32_t i = 0; i < entityCount; ++i) {
-            std::string openBrace;
-            ar >> openBrace;
-            if (openBrace != "{") return;
-
+        for (size_t i = 0; i < entityCount; ++i) {
+            const JsonReader components = r.at("entities", i).child("components");
             auto entity = registry.create();
 
-            while (true) {
-                std::string componentType;
-                ar >> componentType;
-
-                if (componentType == "}") break;
-
-                std::string componentOpen;
-                ar >> componentOpen;
-                if (componentOpen != "{") return;
-
-                if (componentType == "NameComponent") {
-                    auto& comp = registry.emplace<NameComponent>(entity);
-                    comp.deserialize(ar);
-                }
-                else if (componentType == "TransformComponent") {
-                    auto& comp = registry.emplace<TransformComponent>(entity);
-                    comp.deserialize(ar);
-                }
-                else if (componentType == "SpriteRendererComponent") {
-                    auto& comp = registry.emplace<SpriteRendererComponent>(entity);
-                    comp.deserialize(ar);
-                }
-                else if (componentType == "StaticMeshComponent") {
-                    auto& comp = registry.emplace<StaticMeshComponent>(entity);
-                    comp.deserialize(ar);
-                }
-                else if (componentType == "SkyBoxComponent") {
-                    auto& comp = registry.emplace<SkyBoxComponent>(entity);
-                    comp.deserialize(ar);
-                }
-                else if (componentType == "LightComponent") {
-                    auto& comp = registry.emplace<LightComponent>(entity);
-                    comp.deserialize(ar);
-                }
-                else if (componentType == "TerrainComponent") {
-                    auto& comp = registry.emplace<TerrainComponent>(entity);
-                    comp.deserialize(ar);
-                }
-                else if (componentType == "AtmosphereComponent") {
-                    auto& comp = registry.emplace<AtmosphereComponent>(entity);
-                    comp.deserialize(ar);
-                }
-
-                std::string componentClose;
-                ar >> componentClose;
-                if (componentClose != "}") return;
+            for (const auto& info : componentRegistry()) {
+                if (!components.has(info.typeKey))
+                    continue;
+                info.deserialize(registry, entity, components.child(info.typeKey));
             }
         }
+
+        return true;
     }
 
 }

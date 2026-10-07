@@ -3,6 +3,8 @@
 #include "Core/Core.h"
 #include "Renderer/Texture.h"
 
+#include <vector>
+
 namespace ve {
 
 	// Bakes the 2D weather map the cloud shader samples for per-position coverage
@@ -19,6 +21,9 @@ namespace ve {
 		// `seed` is independent of the cloud noise bakes. R is remapped to [0.3, 1.0]
 		// so the global slider dominates: effective coverage = R * u_CloudCoverage.
 		static Ref<Texture2D> bake(uint32_t resolution, uint32_t cells, uint32_t seed);
+
+		static std::vector<float> compute(uint32_t resolution, uint32_t cells, uint32_t seed);
+		static Ref<Texture2D> build(uint32_t resolution, const std::vector<float>& data);
 	};
 
 }

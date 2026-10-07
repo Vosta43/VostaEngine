@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Core/Core.h"
+#include "Core/Json.h"
 #include "Core/Reflection.h"
-#include "Scene/Archive.h"
 
 #include <glm.hpp>
 
@@ -35,15 +35,22 @@ namespace ve {
 		VEPROPERTY(Light, float, attenuationQuadratic, "attenuationQuadratic", "type=drag")
 		float attenuationQuadratic = 0.032f;
 
-		void serialize(Archive& ar) const {
-			ar << position.x << position.y << position.z 
-			   << color.x    << color.y    << color.z
-			   << intensity << range << attenuationLinear <<attenuationQuadratic;
+		void serialize(JsonWriter& w) const {
+			w.set("position", position);
+			w.set("color", color);
+			w.set("intensity", intensity);
+			w.set("range", range);
+			w.set("attenuationLinear", attenuationLinear);
+			w.set("attenuationQuadratic", attenuationQuadratic);
 		}
-		void deserialize(Archive& ar) {
-			ar >> position.x >> position.y >> position.z
-				>> color.r >> color.g >> color.b
-				>> intensity >> range >> attenuationLinear >> attenuationQuadratic;
+
+		void deserialize(const JsonReader& r) {
+			position = r.getVec3("position", position);
+			color = r.getVec3("color", color);
+			intensity = r.getFloat("intensity", intensity);
+			range = r.getFloat("range", range);
+			attenuationLinear = r.getFloat("attenuationLinear", attenuationLinear);
+			attenuationQuadratic = r.getFloat("attenuationQuadratic", attenuationQuadratic);
 		}
 
 	};

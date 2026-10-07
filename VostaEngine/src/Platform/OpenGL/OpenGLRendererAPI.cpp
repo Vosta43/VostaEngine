@@ -91,6 +91,10 @@ namespace ve {
         glBlendFunc(table[static_cast<int>(src)], table[static_cast<int>(dst)]);
     }
 
+    void OpenGLRendererAPI::setWireframe(bool enabled) {
+        glPolygonMode(GL_FRONT_AND_BACK, enabled ? GL_LINE : GL_FILL);
+    }
+
 
     RendererAPI* RendererAPI::create() {
         return new OpenGLRendererAPI();

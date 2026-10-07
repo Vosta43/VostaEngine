@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Core/Core.h"
+#include "Core/Json.h"
 #include "Core/Reflection.h"
-#include "Scene/Archive.h"
 
 #include <glm.hpp>
 
@@ -49,34 +49,34 @@ namespace ve {
 		VEPROPERTY(AtmosphereParams, float, exposure, "Exposure", "type=drag,minValue=0,maxValue=10")
 		float exposure = 1.0f;
 
-		void serialize(Archive& ar) const {
-			ar << sunDirection.x << sunDirection.y << sunDirection.z
-			   << sunIntensity
-			   << rayleighScattering.x << rayleighScattering.y << rayleighScattering.z
-			   << rayleighScaleHeight
-			   << mieScattering.x << mieScattering.y << mieScattering.z
-			   << mieScaleHeight
-			   << miePhaseG
-			   << groundAlbedo.x << groundAlbedo.y << groundAlbedo.z
-			   << planetRadius
-			   << atmosphereHeight
-			   << multipleScattering
-			   << exposure;
+		void serialize(JsonWriter& w) const {
+			w.set("sunDirection", sunDirection);
+			w.set("sunIntensity", sunIntensity);
+			w.set("rayleighScattering", rayleighScattering);
+			w.set("rayleighScaleHeight", rayleighScaleHeight);
+			w.set("mieScattering", mieScattering);
+			w.set("mieScaleHeight", mieScaleHeight);
+			w.set("miePhaseG", miePhaseG);
+			w.set("groundAlbedo", groundAlbedo);
+			w.set("planetRadius", planetRadius);
+			w.set("atmosphereHeight", atmosphereHeight);
+			w.set("multipleScattering", multipleScattering);
+			w.set("exposure", exposure);
 		}
 
-		void deserialize(Archive& ar) {
-			ar >> sunDirection.x >> sunDirection.y >> sunDirection.z
-			   >> sunIntensity
-			   >> rayleighScattering.x >> rayleighScattering.y >> rayleighScattering.z
-			   >> rayleighScaleHeight
-			   >> mieScattering.x >> mieScattering.y >> mieScattering.z
-			   >> mieScaleHeight
-			   >> miePhaseG
-			   >> groundAlbedo.x >> groundAlbedo.y >> groundAlbedo.z
-			   >> planetRadius
-			   >> atmosphereHeight
-			   >> multipleScattering
-			   >> exposure;
+		void deserialize(const JsonReader& r) {
+			sunDirection = r.getVec3("sunDirection", sunDirection);
+			sunIntensity = r.getFloat("sunIntensity", sunIntensity);
+			rayleighScattering = r.getVec3("rayleighScattering", rayleighScattering);
+			rayleighScaleHeight = r.getFloat("rayleighScaleHeight", rayleighScaleHeight);
+			mieScattering = r.getVec3("mieScattering", mieScattering);
+			mieScaleHeight = r.getFloat("mieScaleHeight", mieScaleHeight);
+			miePhaseG = r.getFloat("miePhaseG", miePhaseG);
+			groundAlbedo = r.getVec3("groundAlbedo", groundAlbedo);
+			planetRadius = r.getFloat("planetRadius", planetRadius);
+			atmosphereHeight = r.getFloat("atmosphereHeight", atmosphereHeight);
+			multipleScattering = r.getFloat("multipleScattering", multipleScattering);
+			exposure = r.getFloat("exposure", exposure);
 		}
 	};
 

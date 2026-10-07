@@ -1,6 +1,7 @@
 #include "PropertyPanel.h"
 #include "AssetBrowserWidget.h"
 #include "Scene/Terrain/TerrainMeshBuilder.h"
+#include "Scene/Terrain/QuadTreeTerrain.h"
 #include "Asset/TextureImporter.h"
 #include "Asset/StaticMeshImporter.h"
 
@@ -235,6 +236,14 @@ void PropertyPanel::drawDragProperty(const std::string& typeName, void* ptr, con
     if (prop.typeName == "glm::vec4") {
         glm::vec4& vec = *static_cast<glm::vec4*>(ptr);
         ImGui::DragFloat4(prop.name.c_str(), glm::value_ptr(vec), speed, prop.minValue, prop.maxValue, fmt);
+        return;
+    }
+
+    // Integer drag — the generic float path would reinterpret int storage as
+    // float, so handle int-typed properties explicitly before that cast.
+    if (prop.typeName == "int") {
+        int* val = static_cast<int*>(ptr);
+        ImGui::DragInt(prop.name.c_str(), val, std::max(1.0f, speed), (int)prop.minValue, (int)prop.maxValue);
         return;
     }
 
@@ -640,6 +649,14 @@ void PropertyPanel::drawTerrainComponent(uint32_t entityId, TerrainComponent* co
     ImGui::DragFloat("Tile Size", &comp->tileSize, 0.1f, 0.1f, 100.0f);
     ImGui::DragFloat("Height Scale", &comp->heightScale, 0.01f, 0.01f, 100.0f);
 
+    // --- Quadtree LOD ---
+    ImGui::Separator();
+    ImGui::Text("LOD (Quadtree)");
+    ImGui::DragInt("Max Depth", &comp->maxDepth, 1.0f, 1, 12);
+    ImGui::DragInt("Chunk Segments", &comp->segments, 1.0f, 4, 64);
+    ImGui::DragFloat("Detail", &comp->lodDetail, 0.5f, 1.0f, 128.0f);
+    ImGui::DragFloat("Render Distance", &comp->renderDistance, 100.0f, 100.0f, 100000.0f);
+
     // --- Dirty indicator ---
     if (comp->bDirty && comp->heightMapHandle.isValid()) {
         ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "Mesh needs regeneration");
@@ -659,8 +676,10 @@ void PropertyPanel::drawTerrainComponent(uint32_t entityId, TerrainComponent* co
         if (!heightMapPath.empty()) {
             auto textureResource = TextureImporter::importFromFile(heightMapPath);
             if (textureResource) {
-                auto mesh = TerrainMeshBuilder::buildMeshFromHeightMap(
-                    textureResource, comp->tileSize, comp->heightScale);
+                if (!comp->quadtree) comp->quadtree = CreateRef<QuadTreeTerrain>();
+                auto mesh = comp->quadtree->build(
+                    textureResource, comp->tileSize, comp->heightScale,
+                    comp->maxDepth, comp->segments);
 
                 if (mesh) {
                     // Remove old mesh from storage if present

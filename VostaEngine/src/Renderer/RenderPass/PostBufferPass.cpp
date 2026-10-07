@@ -1,17 +1,13 @@
 #include "vepch.h"
 #include "PostBufferPass.h"
+#include "PassBinding.h"
 #include "Renderer/RenderCommand.h"
 #include "Renderer/Buffer.h"
-#include "Core/Application.h"
 
 namespace ve {
 
     void PostBufferPass::init()
     {
-        auto& shaderLib = Application::get().getShaderLibrary();
-        shaderLib.load("SandBox/assets/shaders/postprocess.glsl");
-        m_postShader = shaderLib.get("postprocess");
-
         float vertices[] = {
             -1.0f, -1.0f,
              1.0f, -1.0f,
@@ -32,33 +28,28 @@ namespace ve {
 
     void PostBufferPass::execute(RenderContext& ctx)
     {
-        if (!m_postBuffer || !m_postShader)
+        if (!m_target || !m_shader)
             return;
 
-        m_postBuffer->bind();
+        m_target->bind();
         RenderCommand::setViewport(ctx.viewPortX, ctx.viewPortY,
                                    ctx.viewPortWidth, ctx.viewPortHeight);
         RenderCommand::setClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         RenderCommand::clear();
 
-        auto hdrIt = ctx.inputTextures.find("hdrColor");
-        if (hdrIt != ctx.inputTextures.end()) {
-            m_postShader->bind();
-            m_postShader->setTexture("u_HDRColor", hdrIt->second, 0);
-            m_postShader->setFloat("u_Exposure", 1.0f);
+        m_shader->bind();
+        bindPassInputs(*this, ctx);
+        applyPassUniforms(*this);
+        m_shader->setFloat("u_Exposure", 1.0f);
 
-            m_fullscreenQuad->bind();
-            RenderCommand::drawIndexed(m_fullscreenQuad);
-            m_fullscreenQuad->unbind();
+        m_fullscreenQuad->bind();
+        RenderCommand::drawIndexed(m_fullscreenQuad);
+        m_fullscreenQuad->unbind();
 
-            m_postShader->unbind();
-        }
+        m_shader->unbind();
 
-        m_postBuffer->unbind();
-
-        // Overwrite so downstream consumers (screen pass / thumbnail renderer)
-        // pick up the tone-mapped LDR result instead of raw HDR.
-        ctx.inputTextures["hdrColor"] = m_postBuffer->getColorTexture(0);
+        m_target->unbind();
+        setWritten(m_target);
     }
 
 }

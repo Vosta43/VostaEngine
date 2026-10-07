@@ -120,7 +120,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;VE_BUILD_DLL;IMGUI_IMPL_OPENGL_LOADER_GLAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)thirdparty\stb_image;$(SolutionDir)thirdparty\glm;$(SolutionDir)thirdparty\GLAD\include;$(SolutionDir)src\Core;$(SolutionDir)thirdparty\IMGUI\backends;$(SolutionDir)thirdparty\IMGUIZMO;$(SolutionDir)thirdparty\IMGUI;$(SolutionDir)src;$(SolutionDir)thirdparty\GLFW\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)thirdparty\stb_image;$(SolutionDir)thirdparty\glm;$(SolutionDir)thirdparty\GLAD\include;$(SolutionDir)src\Core;$(SolutionDir)thirdparty\IMGUI\backends;$(SolutionDir)thirdparty\IMGUIZMO;$(SolutionDir)thirdparty\IMGUI;$(SolutionDir)src;$(SolutionDir)thirdparty\GLFW\include;$(SolutionDir)thirdparty\JSON\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>vepch.h</PrecompiledHeaderFile>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
@@ -150,6 +150,8 @@
     <ClCompile Include="src\Core\Events\MouseEvent.h">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="src\Core\JobSystem.cpp" />
+    <ClCompile Include="src\Core\Json.cpp" />
     <ClCompile Include="src\Core\Layers\Layers.cpp" />
     <ClCompile Include="src\Core\Layers\LayerStack.cpp" />
     <ClCompile Include="src\Core\Log.cpp" />
@@ -179,6 +181,7 @@
     <ClCompile Include="src\Renderer\MaterialGraph.cpp" />
     <ClCompile Include="src\Renderer\MaterialNodes.cpp" />
     <ClCompile Include="src\Renderer\Preprocess\AtmosphereBaker.cpp" />
+    <ClCompile Include="src\Renderer\Preprocess\AtmosphereSkyBaker.cpp" />
     <ClCompile Include="src\Renderer\Preprocess\BakeService.cpp" />
     <ClCompile Include="src\Renderer\Preprocess\IBLBaker.cpp" />
     <ClCompile Include="src\Renderer\Preprocess\WeatherMapBaker.cpp" />
@@ -193,8 +196,12 @@
     <ClCompile Include="src\Renderer\RenderPass\HDRBufferPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\PostBufferPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\RenderPassBase.cpp" />
+    <ClCompile Include="src\Renderer\RenderPass\PassBinding.cpp" />
+    <ClCompile Include="src\Renderer\RenderPass\PresentPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\TAAPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPipeline.cpp" />
+    <ClCompile Include="src\Renderer\Pipeline\PipelineConfig.cpp" />
+    <ClCompile Include="src\Renderer\Pipeline\SettingsRegistry.cpp" />
     <ClCompile Include="src\Renderer\SceneRenderer.cpp" />
     <ClCompile Include="src\Renderer\SceneViewRenderer.cpp" />
     <ClCompile Include="src\Renderer\Shader.cpp" />
@@ -213,6 +220,7 @@
     <ClCompile Include="src\Scene\EntityRegistry.cpp" />
     <ClCompile Include="src\Scene\Scene.cpp" />
     <ClCompile Include="src\Scene\SceneSerializer.cpp" />
+    <ClCompile Include="src\Scene\Terrain\QuadTreeTerrain.cpp" />
     <ClCompile Include="src\Scene\Terrain\TerrainMeshBuilder.cpp" />
     <ClCompile Include="thirdparty\GLAD\src\glad.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
@@ -254,6 +262,8 @@
     <ClInclude Include="src\Core\Events\WindowEvent.h" />
     <ClInclude Include="src\Core\Events\WindowResizeEvent.h" />
     <ClInclude Include="src\Core\IResource.h" />
+    <ClInclude Include="src\Core\JobSystem.h" />
+    <ClInclude Include="src\Core\Json.h" />
     <ClInclude Include="src\Core\Layers\Layers.h" />
     <ClInclude Include="src\Core\Layers\LayerStack.h" />
     <ClInclude Include="src\Core\Log.h" />
@@ -290,6 +300,7 @@
     <ClInclude Include="src\Renderer\MaterialGraph.h" />
     <ClInclude Include="src\Renderer\MaterialNodes.h" />
     <ClInclude Include="src\Renderer\Preprocess\AtmosphereBaker.h" />
+    <ClInclude Include="src\Renderer\Preprocess\AtmosphereSkyBaker.h" />
     <ClInclude Include="src\Renderer\Preprocess\BakeService.h" />
     <ClInclude Include="src\Renderer\Preprocess\IBLBaker.h" />
     <ClInclude Include="src\Renderer\Preprocess\WeatherMapBaker.h" />
@@ -306,8 +317,12 @@
     <ClInclude Include="src\Renderer\RenderPass\HDRBufferPass.h" />
     <ClInclude Include="src\Renderer\RenderPass\PostBufferPass.h" />
     <ClInclude Include="src\Renderer\RenderPass\RenderPassBase.h" />
+    <ClInclude Include="src\Renderer\RenderPass\PassBinding.h" />
+    <ClInclude Include="src\Renderer\RenderPass\PresentPass.h" />
     <ClInclude Include="src\Renderer\RenderPass\TAAPass.h" />
     <ClInclude Include="src\Renderer\RenderPipeline.h" />
+    <ClInclude Include="src\Renderer\Pipeline\PipelineConfig.h" />
+    <ClInclude Include="src\Renderer\Pipeline\SettingsRegistry.h" />
     <ClInclude Include="src\Renderer\SceneRenderer.h" />
     <ClInclude Include="src\Renderer\SceneViewRenderer.h" />
     <ClInclude Include="src\Renderer\Shader.h" />
@@ -327,6 +342,7 @@
     <ClInclude Include="src\Scene\EntityRegistry.h" />
     <ClInclude Include="src\Scene\Scene.h" />
     <ClInclude Include="src\Scene\SceneSerializer.h" />
+    <ClInclude Include="src\Scene\Terrain\QuadTreeTerrain.h" />
     <ClInclude Include="src\Scene\Terrain\TerrainMeshBuilder.h" />
     <ClInclude Include="thirdparty\IMGUI\backends\imgui_impl_glfw.h" />
     <ClInclude Include="thirdparty\IMGUI\backends\imgui_impl_opengl3.h" />

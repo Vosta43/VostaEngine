@@ -18,18 +18,17 @@ in vec2 v_TexCoord;
 
 uniform sampler2D u_ScreenTexture;
 uniform sampler2D u_DepthMap;
+uniform int       u_DiscardBackground;
 
 layout(location = 0) out vec4 o_FragColor;
 
 void main()
 {
-    // TODO: discard temporarily disabled. It used to drop background pixels
-    // (depth >= 0.999) so the forward skybox pass could fill them. Disabled now
-    // so the ray-marched atmosphere from the HDR pass shows through. Re-enable via
-    // a `u_HasAtmosphere` switch instead of an unconditional discard.
-    // float gDepth = texture(u_DepthMap, v_TexCoord).r;
-    // if (gDepth >= 0.999)
-    //     discard;
+    // Thumbnails render onto a transparent target, so drop the ray-marched sky
+    // behind the geometry (depth cleared to 1.0). The scene view keeps it opaque
+    // so the atmosphere shows through.
+    if (u_DiscardBackground != 0 && texture(u_DepthMap, v_TexCoord).r >= 0.999)
+        discard;
 
     vec3 color = texture(u_ScreenTexture, v_TexCoord).rgb;
     o_FragColor = vec4(color, 1.0);

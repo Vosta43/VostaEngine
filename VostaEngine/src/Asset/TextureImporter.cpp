@@ -1,6 +1,7 @@
 #include "vepch.h"
 #include "TextureImporter.h"
 #include "Core/Log.h"
+#include "Scene/Archive.h"
 
 #include <glad/glad.h>
 #include "stb_image.h"
@@ -89,73 +90,79 @@ namespace ve {
     }
 
 
+    // --- Baked texture asset (.veasset, binary) ----------------------------
+    //
+    // Layout:
+    //   [string] "texture"
+    //   [int32]  width, height, format
+    //   [int32]  pixelBytes + raw LDR pixels  (empty for HDR sources)
+    //   [int32]  floatCount + raw HDR floats  (empty for LDR sources)
+    //
+    // Self-contained: the decoded pixels are baked in, so loading never needs
+    // the source image again.
+
     void TextureImporter::serialize(const TextureResource& resource, const std::string& serializePath) {
-        std::filesystem::path filePath(serializePath);
-        std::filesystem::path parentPath = filePath.parent_path();
-
-        if (!parentPath.empty() && !std::filesystem::exists(parentPath)) {
-            std::filesystem::create_directories(parentPath);
-        }
-
-        std::ofstream file(serializePath);
-        if (!file.is_open()) {
+        BinaryArchive ar(serializePath, ArchiveMode::write);
+        if (!ar.isGood()) {
             VE_CORE_ERROR_PRINT("Failed to open file for serialization: %s", serializePath.c_str());
             return;
         }
 
-        file << "{\n";
-        file << "    \"sourceFilePath\": \"" << resource.sourceFilePath << "\",\n";
-        file << "    \"width\": " << resource.width << ",\n";
-        file << "    \"height\": " << resource.height << ",\n";
-        file << "    \"format\": " << static_cast<int>(resource.format) << "\n";
-        file << "}\n";
+        ar << std::string("texture");
+        ar << static_cast<int32_t>(resource.width);
+        ar << static_cast<int32_t>(resource.height);
+        ar << static_cast<int32_t>(resource.format);
 
-        file.close();
+        ar << static_cast<int32_t>(resource.pixels.size());
+        if (!resource.pixels.empty())
+            ar.writeBytes(resource.pixels.data(), resource.pixels.size());
+
+        ar << static_cast<int32_t>(resource.floatPixels.size());
+        if (!resource.floatPixels.empty())
+            ar.writeBytes(resource.floatPixels.data(), resource.floatPixels.size() * sizeof(float));
+
+        ar.flush();
     }
-    Ref<TextureResource> TextureImporter::deserialize(const std::string& serializePath){
 
-        std::ifstream file(serializePath);
-        if (!file.is_open()) {
+    Ref<TextureResource> TextureImporter::deserialize(const std::string& serializePath) {
+        BinaryArchive ar(serializePath, ArchiveMode::read);
+        if (!ar.isGood()) {
             VE_CORE_ERROR_PRINT("Failed to open file for deserialization: %s", serializePath.c_str());
             return nullptr;
         }
 
-        std::string line;
-        std::string sourceFilePath;
-        uint32_t width = 0, height = 0;
-        int formatInt = 0;
-
-        while (std::getline(file, line)) {
-
-            if (line.find("\"sourceFilePath\"") != std::string::npos) {
-
-                size_t start = line.find(": \"") + 3;
-                size_t end = line.find("\"", start);
-                sourceFilePath = line.substr(start, end - start);
-            }
-            else if (line.find("\"width\"") != std::string::npos) {
-                size_t start = line.find(": ") + 2;
-                width = static_cast<uint32_t>(std::stoul(line.substr(start)));
-            }
-            else if (line.find("\"height\"") != std::string::npos) {
-                size_t start = line.find(": ") + 2;
-                height = static_cast<uint32_t>(std::stoul(line.substr(start)));
-            }
-            else if (line.find("\"format\"") != std::string::npos) {
-                size_t start = line.find(": ") + 2;
-                formatInt = std::stoi(line.substr(start));
-            }
+        std::string token;
+        ar >> token;
+        if (token != "texture") {
+            VE_CORE_ERROR_PRINT("Not a texture asset (token='%s'): %s", token.c_str(), serializePath.c_str());
+            return nullptr;
         }
 
-        file.close();
+        auto resource = CreateRef<TextureResource>();
 
-        // Import raw file asset by address
-        auto resource = importFromFile(sourceFilePath);
-        if (resource) {
-            // Meta consistency check
-            if (resource->width != width || resource->height != height) {
-                VE_CORE_ERROR_PRINT("Meta file mismatch for: %s", sourceFilePath.c_str());
-            }
+        int32_t width = 0, height = 0, format = 0;
+        ar >> width >> height >> format;
+        resource->width = static_cast<uint32_t>(width);
+        resource->height = static_cast<uint32_t>(height);
+        resource->format = static_cast<TextureFormat>(format);
+
+        int32_t pixelBytes = 0;
+        ar >> pixelBytes;
+        if (pixelBytes > 0) {
+            resource->pixels.resize(static_cast<size_t>(pixelBytes));
+            ar.readBytes(resource->pixels.data(), static_cast<size_t>(pixelBytes));
+        }
+
+        int32_t floatCount = 0;
+        ar >> floatCount;
+        if (floatCount > 0) {
+            resource->floatPixels.resize(static_cast<size_t>(floatCount));
+            ar.readBytes(resource->floatPixels.data(), static_cast<size_t>(floatCount) * sizeof(float));
+        }
+
+        if (!ar.isGood()) {
+            VE_CORE_ERROR_PRINT("Texture asset truncated: %s", serializePath.c_str());
+            return nullptr;
         }
 
         return resource;

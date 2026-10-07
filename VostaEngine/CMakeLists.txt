@@ -6,6 +6,8 @@ set(ENGINE_SOURCES
     src/Core/Application.cpp
     src/Core/AssetConfig.cpp
     src/Core/Deltatime.cpp
+    src/Core/JobSystem.cpp
+    src/Core/Json.cpp
     src/Core/Layers/Layers.cpp
     src/Core/Layers/LayerStack.cpp
     src/Core/Log.cpp
@@ -56,12 +58,18 @@ set(ENGINE_SOURCES
     src/Renderer/RenderPass/GBufferPass.cpp
     src/Renderer/RenderPass/HDRBufferPass.cpp
     src/Renderer/RenderPass/CloudPass.cpp
+    src/Renderer/RenderPass/CloudTAAPass.cpp
     src/Renderer/RenderPass/TAAPass.cpp
     src/Renderer/RenderPass/PostBufferPass.cpp
+    src/Renderer/RenderPass/PassBinding.cpp
+    src/Renderer/RenderPass/PresentPass.cpp
+    src/Renderer/Pipeline/PipelineConfig.cpp
+    src/Renderer/Pipeline/SettingsRegistry.cpp
     src/Renderer/Preprocess/BakeService.cpp
     src/Renderer/Preprocess/IBLBaker.cpp
     src/Renderer/Preprocess/WorleyNoiseBaker.cpp
     src/Renderer/Preprocess/AtmosphereBaker.cpp
+    src/Renderer/Preprocess/AtmosphereSkyBaker.cpp
     src/Renderer/Preprocess/WeatherMapBaker.cpp
 
     # Scene / ECS
@@ -108,6 +116,7 @@ target_include_directories(VostaEngine
         ${ENGINE_ROOT}/thirdparty/IMGUI/backends
         ${ENGINE_ROOT}/thirdparty/glm
         ${ENGINE_ROOT}/thirdparty/stb_image
+        ${ENGINE_ROOT}/thirdparty/JSON/include
 )
 
 # ── GLFW (pre-built binary, vendored) ───────────────────────────────────

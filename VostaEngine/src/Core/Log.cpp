@@ -2,18 +2,22 @@
 #include "Log.h"
 
 void ve::Logger::success(const std::string& message) {
+    std::lock_guard lock(m_mutex);
     m_logs.emplace_back(LogLevel::Success, message);
 }
 
 void ve::Logger::warn(const std::string& message) {
+    std::lock_guard lock(m_mutex);
     m_logs.emplace_back(LogLevel::Warn, message);
 }
 
 void ve::Logger::error(const std::string& message) {
+    std::lock_guard lock(m_mutex);
     m_logs.emplace_back(LogLevel::Error, message);
 }
 
 void ve::Logger::printAllToConsole() {
+    std::lock_guard lock(m_mutex);
     for (const auto& entry : m_logs) {
         const char* prefix = "";
         switch (entry.level) {

@@ -7,35 +7,34 @@
 #include "Renderer/Texture.h"
 
 namespace ve {
-	void GBufferPass::init(){
-
-		auto& shaderLib = Application::get().getShaderLibrary();
-		shaderLib.load("SandBox/assets/shaders/gbuffer.glsl");
-		m_GBufferShader = shaderLib.get("gbuffer");
-
-		
+	void GBufferPass::init() {
 	}
+
 	void GBufferPass::execute(RenderContext& ctx){
 
-		if (!m_GBuffer) {
+		if (!m_target) {
 			return;
 		}
 
-		m_GBuffer->bind();
+		m_target->bind();
 		RenderCommand::setViewport(ctx.viewPortX,ctx.viewPortY,ctx.viewPortWidth,ctx.viewPortHeight);
 		RenderCommand::setClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		RenderCommand::clear();
 
-		if (!m_GBufferShader) {
+		if (!m_shader) {
 			return;
 		}
+
+		// Debug wireframe: rasterize triangles as outlines. Restored right after
+		// the loop so the deferred full-screen passes and skybox stay filled.
+		RenderCommand::setWireframe(ctx.wireframe);
 
 		for (const auto& cmd : ctx.drawMeshCommands) {
 			auto material = ResourceManager::get<Material>(cmd.materialHandle);
 			if (!material) continue;
 
 			// Use material-graph compiled shader when available, otherwise default gbuffer shader.
-			Ref<Shader> activeShader = material->customShader ? material->customShader : m_GBufferShader;
+			Ref<Shader> activeShader = material->customShader ? material->customShader : m_shader;
 			activeShader->bind();
 			activeShader->setMat4("u_ViewProj", ctx.projMatrix * ctx.viewMatrix);
 			activeShader->setMat4("u_Model", cmd.transform);
@@ -134,14 +133,11 @@ namespace ve {
 			activeShader->unbind();
 		}
 
-		m_GBuffer->unbind();
+		RenderCommand::setWireframe(false);
 
-		ctx.inputTextures["albedo"] = m_GBuffer->getColorTexture(0);
-		ctx.inputTextures["normal"] = m_GBuffer->getColorTexture(1);
-		ctx.inputTextures["material"] = m_GBuffer->getColorTexture(2);
-		ctx.inputTextures["depth"] = m_GBuffer->getDepthTexture();
+		m_target->unbind();
 
-
+		setWritten(m_target);
 	}
 
 }

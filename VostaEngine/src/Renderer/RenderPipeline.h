@@ -1,99 +1,68 @@
 #pragma once
 
 #include "Core/Core.h"
-#include "Core/Log.h"
 #include "FrameBuffer.h"
 #include "Renderer/RenderPass/RenderPassBase.h"
+#include "Renderer/Pipeline/PipelineConfig.h"
+#include "Renderer/Pipeline/SettingsRegistry.h"
 #include "RenderContext.h"
-#include "Renderer/RenderPass/GBufferPass.h"
-#include "Renderer/RenderPass/HDRBufferPass.h"
-#include "Renderer/RenderPass/CloudPass.h"
-#include "Renderer/RenderPass/CloudTAAPass.h"
-#include "Renderer/RenderPass/PostBufferPass.h"
-#include "Renderer/RenderPass/TAAPass.h"
-#include "RenderCommand.h"
 
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace ve {
 
-    // Identify each render pass type for configuration and factory dispatch.
-    enum class PassType {
-        GBuffer = 0,
-        HDRLighting,
-        Cloud,
-        CloudTAA,   // temporal accumulation of the quarter-res cloud buffer
-        TAA,
-        PostProcess
-    };
-
-    // Describes which passes to enable and in what order.
-    struct PipelineConfig {
-        std::vector<PassType> passes = {
-            PassType::GBuffer,
-            PassType::Cloud,          // quarter-res volumetric clouds — must run before HDR, which composites
-            PassType::CloudTAA,       // cloud temporal accumulation — between Cloud and HDR, which composites it
-            PassType::HDRLighting,
-            PassType::TAA,            // temporal accumulation on linear HDR — must run before tonemapping
-            PassType::PostProcess
-        };
-    };
-
-    // Creates pass instances by type. New pass types register here.
-    class PassFactory {
-    public:
-        static Ref<RenderPassBase> create(PassType type) {
-            switch (type) {
-                case PassType::GBuffer:     return CreateRef<GBufferPass>();
-                case PassType::HDRLighting: return CreateRef<HDRBufferPass>();
-                case PassType::Cloud:       return CreateRef<CloudPass>();
-                case PassType::CloudTAA:    return CreateRef<CloudTAAPass>();
-                case PassType::TAA:         return CreateRef<TAAPass>();
-                case PassType::PostProcess: return CreateRef<PostBufferPass>();
-                default:                    return nullptr;
-            }
-        }
-    };
-
+    // Data-driven render pipeline. The pipeline itself is described by a
+    // PipelineConfig (loaded from a JSON asset, or makeDefault()); this class
+    // only executes it: it owns the named-framebuffer registry, tracks which
+    // framebuffer each pass wrote this frame, and walks the passes in order.
     class VE_API RenderPipeline {
     public:
         void init(uint32_t width, uint32_t height);
         void init(uint32_t width, uint32_t height, const PipelineConfig& config);
+        // Loads the pipeline description from a JSON asset. Falls back to
+        // makeDefault() (with a warning) if the file is missing or malformed.
+        void init(uint32_t width, uint32_t height, const std::string& configPath);
+
         void render(RenderContext& renderContext);
         void shutdown();
 
-        void bindScreenShader() const { m_screenShader->bind(); }
-        void unbindScreenShader() const { m_screenShader->unbind(); }
-        Ref<Shader> getScreenShader() { return m_screenShader; }
-        void drawFullscreenQuad() const {
-            m_fullscreenQuad->bind();
-            RenderCommand::drawIndexed(m_fullscreenQuad);
-            m_fullscreenQuad->unbind();
-        }
-
         void resize(uint32_t width, uint32_t height);
 
+        // Tone-mapped LDR output of the last pass that wrote a pipeline
+        // framebuffer. Null before the first frame.
+        Ref<Texture2D> getFinalColorTexture() const { return m_finalColor; }
+
+        SettingsRegistry&       settings() { return m_settings; }
+        const SettingsRegistry& settings() const { return m_settings; }
+
+        const PipelineConfig& config() const { return m_config; }
+
     private:
-        void createFramebuffers(uint32_t width, uint32_t height);
+        void buildFramebuffers();
         void buildPasses();
+        void rebuild();
 
-        Ref<Framebuffer> m_GBuffer;
-        Ref<Framebuffer> m_HDRBuffer;
-        Ref<Framebuffer> m_cloudBuffer;
-        Ref<Framebuffer> m_taaHistory[2];
-        Ref<Framebuffer> m_cloudTaaHistory[2];
-        Ref<Framebuffer> m_postBuffer;
+        uint32_t fboDim(uint32_t absolute, float scale, uint32_t base) const;
+        Ref<Framebuffer> createFramebuffer(const FboDef& def) const;
 
-        std::vector<Ref<RenderPassBase>> m_passes;
-        PipelineConfig m_config;
+        bool providerFlag(const std::string& name, const RenderContext& ctx) const;
+        bool conditionMet(const ConditionDef& c, const RenderContext& ctx) const;
 
-        uint32_t m_width;
-        uint32_t m_height;
+        std::unordered_map<std::string, Ref<Framebuffer>> m_fboRegistry;
+        std::vector<Ref<RenderPassBase>>                  m_passes;
+        PipelineConfig                                    m_config;
+        SettingsRegistry                                  m_settings;
+
+        // Per-frame: framebuffer written by each pass name this frame.
+        std::unordered_map<std::string, Ref<Framebuffer>> m_passOutputs;
+        Ref<Texture2D> m_finalColor;
+
+        uint32_t m_width = 0;
+        uint32_t m_height = 0;
 
         bool m_initialized = false;
-
-        Ref<Shader> m_screenShader;
-        Ref<VertexArray> m_fullscreenQuad;
     };
 
 }

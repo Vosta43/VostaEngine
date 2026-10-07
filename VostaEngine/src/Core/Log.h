@@ -7,6 +7,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <mutex>
 
 #include "Core.h"
 
@@ -45,16 +46,19 @@ namespace ve {
 
         template<typename... Args>
         void success(const char* fmt, Args... args) {
+            std::lock_guard lock(m_mutex);
             m_logs.emplace_back(LogLevel::Success, formatString(fmt, args...));
         }
 
         template<typename... Args>
         void warn(const char* fmt, Args... args) {
+            std::lock_guard lock(m_mutex);
             m_logs.emplace_back(LogLevel::Warn, formatString(fmt, args...));
         }
 
         template<typename... Args>
         void error(const char* fmt, Args... args) {
+            std::lock_guard lock(m_mutex);
             m_logs.emplace_back(LogLevel::Error, formatString(fmt, args...));
         }
 
@@ -75,7 +79,8 @@ namespace ve {
 
 	private:
 		std::vector<LogEntry> m_logs;
-        
+		std::mutex m_mutex;
+
 	};
 
 

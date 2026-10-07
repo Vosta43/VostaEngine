@@ -122,12 +122,18 @@ namespace ve {
     }
 
     OpenGLTexture2D::OpenGLTexture2D(Ref<TextureResource> textureResource)
-        : m_format(TextureFormat::RGBA) {
+        : m_width(0)
+        , m_height(0)
+        , m_ownsTexture(true)
+        , m_rendererId(0)
+        , m_format(TextureFormat::RGBA) {
 
         if (!textureResource) {
             VE_CORE_ERROR_PRINT("Failed to create OpenGLTexture2D");
             return;
         }
+        m_width = textureResource->width;
+        m_height = textureResource->height;
         m_format = textureResource->format;
 
         GLenum internalFormat, dataFormat;
@@ -179,6 +185,12 @@ namespace ve {
         glTextureParameteri(m_rendererId, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        // Pin anisotropic filtering to 1 (the spec default). The R16F weather map
+        // is 1:1-ish and gains nothing from AF; a driver that force-enables AF on
+        // textures it deems "data", or the driver's forced-AF override, would make
+        // the filter state on this texture driver-dependent. Stating 1.0 keeps the
+        // sample path identical across GPUs.
+        glTextureParameterf(m_rendererId, GL_TEXTURE_MAX_ANISOTROPY, 1.0f);
     }
 
     OpenGLTexture2D::~OpenGLTexture2D() {
@@ -308,6 +320,8 @@ namespace ve {
         glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_T, GL_REPEAT);
         glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_R, GL_REPEAT);
+        // Explicit AF=1, the spec default: see the R16F Texture2D ctor.
+        glTextureParameterf(m_rendererId, GL_TEXTURE_MAX_ANISOTROPY, 1.0f);
     }
 
     OpenGLTexture3D::OpenGLTexture3D(uint32_t width, uint32_t height, uint32_t depth, TextureFormat format, const float* data, bool repeatWrap)
@@ -334,6 +348,8 @@ namespace ve {
         glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_S, wrap);
         glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_T, wrap);
         glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_R, wrap);
+        // Explicit AF=1, the spec default: see the R16F Texture2D ctor.
+        glTextureParameterf(m_rendererId, GL_TEXTURE_MAX_ANISOTROPY, 1.0f);
     }
 
     OpenGLTexture3D::~OpenGLTexture3D() {

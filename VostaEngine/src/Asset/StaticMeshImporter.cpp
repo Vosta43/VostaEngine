@@ -51,7 +51,9 @@ namespace ve {
     static std::string makeMaterialName(const std::string& objFilePath, const std::string& materialName) {
         std::filesystem::path p(objFilePath);
         std::string stem = p.stem().string();  // "car"
-        return stem + "_" + materialName;       // "car_body_paint"
+        // Next to the mesh, not the process cwd: materials used to land in the
+        // repo root because this was a bare name.
+        return (p.parent_path() / (stem + "_" + materialName)).string();  // .../car_body_paint
     }
 
     // Minimal trim: removes leading and trailing whitespace in-place.
@@ -496,6 +498,105 @@ namespace ve {
             // TODO: importFbx
         }
 
+        return resource;
+    }
+
+    // --- Baked mesh asset (.veasset, binary) -------------------------------
+    //
+    // Layout:
+    //   [string] "staticmesh"
+    //   [int32]  vertexCount, indexCount, submeshCount
+    //   [bytes]  vertexCount * sizeof(Vertex)
+    //   [bytes]  indexCount  * sizeof(int)
+    //   per submesh: [string] name, [int32] firstIndex, [int32] indexCount,
+    //                [string] materialPath ("" when unassigned)
+    //
+    // Material handles travel as asset paths and are re-stored on load.
+
+    void StaticMeshResource::serialize(Archive& ar) const {
+        ar << std::string("staticmesh");
+        ar << static_cast<int32_t>(vertexBuffer.size());
+        ar << static_cast<int32_t>(indexBuffer.size());
+        ar << static_cast<int32_t>(subMeshes.size());
+
+        if (!vertexBuffer.empty())
+            ar.writeBytes(vertexBuffer.data(), vertexBuffer.size() * sizeof(Vertex));
+        if (!indexBuffer.empty())
+            ar.writeBytes(indexBuffer.data(), indexBuffer.size() * sizeof(int));
+
+        for (const auto& sub : subMeshes) {
+            ar << sub.name;
+            ar << static_cast<int32_t>(sub.firstIndex);
+            ar << static_cast<int32_t>(sub.indexCount);
+            ar << ResourceManager::getPath<Material>(sub.materialHandle);
+        }
+    }
+
+    bool StaticMeshResource::deserialize(Archive& ar) {
+        std::string token;
+        ar >> token;
+        if (token != "staticmesh") {
+            VE_CORE_ERROR_PRINT("Not a static mesh asset (token='%s')", token.c_str());
+            return false;
+        }
+
+        int32_t vertexCount = 0, indexCount = 0, submeshCount = 0;
+        ar >> vertexCount >> indexCount >> submeshCount;
+        if (vertexCount < 0 || indexCount < 0 || submeshCount < 0)
+            return false;
+
+        vertexBuffer.resize(static_cast<size_t>(vertexCount));
+        if (vertexCount > 0)
+            ar.readBytes(vertexBuffer.data(), static_cast<size_t>(vertexCount) * sizeof(Vertex));
+
+        indexBuffer.resize(static_cast<size_t>(indexCount));
+        if (indexCount > 0)
+            ar.readBytes(indexBuffer.data(), static_cast<size_t>(indexCount) * sizeof(int));
+
+        subMeshes.resize(static_cast<size_t>(submeshCount));
+        for (auto& sub : subMeshes) {
+            std::string materialPath;
+            int32_t firstIndex = 0, count = 0;
+            ar >> sub.name >> firstIndex >> count >> materialPath;
+            sub.firstIndex = static_cast<uint32_t>(firstIndex);
+            sub.indexCount = static_cast<uint32_t>(count);
+            sub.materialHandle = materialPath.empty()
+                ? INVALID_ASSET_HANDLE
+                : ResourceManager::store<Material>(materialPath);
+        }
+
+        return true;
+    }
+
+    bool StaticMeshImporter::saveToAsset(const Ref<StaticMeshResource>& resource, const std::string& filePath) {
+        if (!resource) {
+            VE_CORE_ERROR_PRINT("saveToAsset: null resource (%s)", filePath.c_str());
+            return false;
+        }
+
+        BinaryArchive ar(filePath, ArchiveMode::write);
+        if (!ar.isGood()) {
+            VE_CORE_ERROR_PRINT("saveToAsset: cannot open %s", filePath.c_str());
+            return false;
+        }
+
+        resource->serialize(ar);
+        ar.flush();
+        return true;
+    }
+
+    Ref<StaticMeshResource> StaticMeshImporter::loadFromAsset(const std::string& filePath) {
+        BinaryArchive ar(filePath, ArchiveMode::read);
+        if (!ar.isGood()) {
+            VE_CORE_ERROR_PRINT("loadFromAsset: cannot open %s", filePath.c_str());
+            return nullptr;
+        }
+
+        auto resource = CreateRef<StaticMeshResource>();
+        if (!resource->deserialize(ar) || !ar.isGood() || resource->vertexBuffer.empty()) {
+            VE_CORE_ERROR_PRINT("loadFromAsset: invalid mesh asset %s", filePath.c_str());
+            return nullptr;
+        }
         return resource;
     }
 

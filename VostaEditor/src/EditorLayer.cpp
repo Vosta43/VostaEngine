@@ -3,23 +3,71 @@
 #include "imgui.h"
 
 #include <filesystem>
+#include <algorithm>
+#include <cstdio>
 #include <cstring>
+#include <fstream>
 
 #include "Core/ResourceManager.h"
 #include "Core/AssetConfig.h"
+#include "Renderer/ThumbnailRenderer.h"
 
 #include "imguizmo.h"
 
 namespace ve {
 
+    namespace {
+
+        // Session state, not document content: which scene this editor had open.
+        // Lives under the game project next to SandBox/assets, so it can be
+        // gitignored without touching anything committed.
+        std::filesystem::path lastSceneFile() {
+            return std::filesystem::path(toAbsolute("SandBox/Saved")) / "last_scene.txt";
+        }
+
+        std::string readLastSceneName() {
+            std::ifstream in(lastSceneFile());
+            std::string name;
+            std::getline(in, name);
+            return name;
+        }
+
+        void writeLastSceneName(const std::string& name) {
+            std::error_code ec;
+            std::filesystem::create_directories(lastSceneFile().parent_path(), ec);
+            std::ofstream out(lastSceneFile(), std::ios::trunc);
+            if (out.is_open())
+                out << name << "\n";
+        }
+
+        // Project content root. Engine-owned resources (shaders, default meshes,
+        // icons) stay in SandBox/assets; project content — scenes, imported
+        // meshes — lives under here and is what the file browser shows.
+        constexpr const char* kScenesDir = "SandBox/content/scenes/";
+
+        std::string formatFileSize(uintmax_t bytes) {
+            char buf[32];
+            if (bytes >= 1024ull * 1024ull)
+                std::snprintf(buf, sizeof(buf), "%.1f MB", static_cast<double>(bytes) / (1024.0 * 1024.0));
+            else if (bytes >= 1024ull)
+                std::snprintf(buf, sizeof(buf), "%.1f KB", static_cast<double>(bytes) / 1024.0);
+            else
+                std::snprintf(buf, sizeof(buf), "%llu B", static_cast<unsigned long long>(bytes));
+            return buf;
+        }
+
+    }
+
     EditorLayer::EditorLayer()
         : m_editorView(CreateRef<Scene>(),
                        [this](AssetHandle handle) { openMaterialEditor(handle); })
     {
-        m_fileBrowser.setRootPath(toAbsolute("SandBox"));
+        m_fileBrowser.setRootPath(toAbsolute("SandBox/content"));
     }
 
     void EditorLayer::onAttach(){
+
+        m_currentSceneName = readLastSceneName();
 
         auto& shaderLib = Application::get().getShaderLibrary();
         shaderLib.load("SandBox/assets/shaders/Model.glsl");
@@ -38,7 +86,7 @@ namespace ve {
         Renderer3D::init();
 
         m_renderPipeline = CreateRef<RenderPipeline>();
-        m_renderPipeline->init(1280, 720);
+        m_renderPipeline->init(1280, 720, "SandBox/assets/pipelines/default.json");
 
         m_cameraController.getCamera().setProjectionType(true);
 
@@ -180,6 +228,15 @@ namespace ve {
                 if (farPlane != oldFarPlane) {
                     m_cameraController.getCamera().setFarPlane(farPlane);
                 }
+                ImGui::SameLine();
+                static bool wireframe = false;
+                ImGui::Checkbox("Wireframe", &wireframe);
+                m_editorView.getViewRenderer()->setWireframe(wireframe);
+
+                ImGui::SameLine();
+                static bool vsync = false;
+                if (ImGui::Checkbox("VSync", &vsync))
+                    Application::get().getWindow()->setVSync(vsync);
             }
             ImGui::PopItemWidth();
 
@@ -263,6 +320,31 @@ namespace ve {
         m_showMaterialEditor = true;
     }
 
+    void EditorLayer::refreshSceneFileList()
+    {
+        m_sceneFiles.clear();
+
+        const std::filesystem::path scenesDir = toAbsolute(kScenesDir);
+        std::error_code ec;
+        if (!std::filesystem::is_directory(scenesDir, ec))
+            return;
+
+        for (const auto& entry : std::filesystem::directory_iterator(scenesDir, ec)) {
+            if (!entry.is_regular_file(ec))
+                continue;
+            if (entry.path().extension() != ".veworld")
+                continue;
+
+            SceneFile file;
+            file.name = entry.path().filename().string();
+            file.size = entry.file_size(ec);
+            m_sceneFiles.push_back(file);
+        }
+
+        std::sort(m_sceneFiles.begin(), m_sceneFiles.end(),
+            [](const SceneFile& a, const SceneFile& b) { return a.name < b.name; });
+    }
+
     void EditorLayer::renderMenuBar()
     {
         if (ImGui::BeginMenuBar())
@@ -271,11 +353,16 @@ namespace ve {
             {
                 if (ImGui::MenuItem("Save", "Ctrl+S"))
                 {
+                    if (!m_currentSceneName.empty())
+                        std::snprintf(m_saveFileNameBuffer, sizeof(m_saveFileNameBuffer), "%s", m_currentSceneName.c_str());
                     m_showSavePopup = true;
                 }
 
                 if (ImGui::MenuItem("Load", "Ctrl+O"))
                 {
+                    if (!m_currentSceneName.empty())
+                        std::snprintf(m_loadFileNameBuffer, sizeof(m_loadFileNameBuffer), "%s", m_currentSceneName.c_str());
+                    refreshSceneFileList();
                     m_showLoadPopup = true;
                 }
 
@@ -296,6 +383,7 @@ namespace ve {
         if (m_showSavePopup)
         {
             ImGui::OpenPopup("Save Scene");
+            ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
             if (ImGui::BeginPopupModal("Save Scene", &m_showSavePopup))
             {
                 ImGui::InputText("Filename", m_saveFileNameBuffer, sizeof(m_saveFileNameBuffer));
@@ -322,8 +410,56 @@ namespace ve {
         if (m_showLoadPopup)
         {
             ImGui::OpenPopup("Load Scene");
+            ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
             if (ImGui::BeginPopupModal("Load Scene", &m_showLoadPopup))
             {
+                ImGui::TextDisabled("%s", toAbsolute(kScenesDir).c_str());
+                ImGui::Separator();
+
+                if (m_sceneFiles.empty())
+                {
+                    ImGui::TextDisabled("No .veworld files found");
+                }
+                else
+                {
+                    // Size the list to its contents so no row is clipped away, but
+                    // cap it so a large folder still scrolls instead of filling the screen.
+                    const float listHeight = std::min(
+                        ImGui::GetFrameHeightWithSpacing() * static_cast<float>(m_sceneFiles.size())
+                            + ImGui::GetStyle().WindowPadding.y * 2.0f,
+                        ImGui::GetMainViewport()->WorkSize.y * 0.6f);
+
+                    ImGui::BeginChild("##sceneList", ImVec2(460.0f, listHeight), true);
+                    ImGui::Columns(2, "##sceneColumns", false);
+                    ImGui::SetColumnWidth(0, 330.0f);
+
+                    for (const auto& file : m_sceneFiles)
+                    {
+                        const bool selected = (m_loadFileName == file.name);
+
+                        // SpanAllColumns so the whole row is clickable, not just the name.
+                        if (ImGui::Selectable(file.name.c_str(), selected, ImGuiSelectableFlags_SpanAllColumns))
+                        {
+                            m_loadFileName = file.name;
+                            std::snprintf(m_loadFileNameBuffer, sizeof(m_loadFileNameBuffer), "%s", file.name.c_str());
+                        }
+
+                        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                        {
+                            m_loadFileName = file.name;
+                            loadScene();
+                            m_showLoadPopup = false;
+                        }
+
+                        ImGui::NextColumn();
+                        ImGui::TextDisabled("%s", formatFileSize(file.size).c_str());
+                        ImGui::NextColumn();
+                    }
+
+                    ImGui::Columns(1);
+                    ImGui::EndChild();
+                }
+
                 ImGui::InputText("Filename", m_loadFileNameBuffer, sizeof(m_loadFileNameBuffer));
 
                 if (ImGui::Button("Load"))
@@ -358,7 +494,7 @@ namespace ve {
             m_saveFileName += ".veworld";
         }
 
-        std::string relativeScenePath = std::string("SandBox/assets/scenes/") + m_saveFileName;
+        std::string relativeScenePath = std::string(kScenesDir) + m_saveFileName;
         std::filesystem::path absolutePath = toAbsolute(relativeScenePath);
         std::filesystem::create_directories(absolutePath.parent_path());
 
@@ -367,6 +503,10 @@ namespace ve {
             VE_CORE_ERROR("Failed to save scene to: %s", absolutePath.string().c_str());
             return;
         }
+
+        m_currentSceneName = m_saveFileName;
+        std::snprintf(m_saveFileNameBuffer, sizeof(m_saveFileNameBuffer), "%s", m_currentSceneName.c_str());
+        writeLastSceneName(m_currentSceneName);
 
         VE_CORE_SUCCESS_PRINT("Scene saved to: %s", absolutePath.string().c_str());
     }
@@ -384,7 +524,7 @@ namespace ve {
             m_loadFileName += ".veworld";
         }
 
-        std::string relativeScenePath = std::string("SandBox/assets/scenes/") + m_loadFileName;
+        std::string relativeScenePath = std::string(kScenesDir) + m_loadFileName;
         std::filesystem::path absolutePath = toAbsolute(relativeScenePath);
 
         auto newScene = CreateRef<Scene>();
@@ -398,6 +538,15 @@ namespace ve {
         m_editorView.rebind(newScene,
             [this](AssetHandle handle) { openMaterialEditor(handle); });
         m_selectedEntity = UINT32_MAX;
+
+        m_currentSceneName = m_loadFileName;
+        std::snprintf(m_loadFileNameBuffer, sizeof(m_loadFileNameBuffer), "%s", m_currentSceneName.c_str());
+        writeLastSceneName(m_currentSceneName);
+
+        // Scene load is one of the two proactive preview-bake points (the other
+        // is import), so the inspector/browser have thumbnails without a panel
+        // having to trigger the first bake itself.
+        ThumbnailRenderer::bakeAllLoaded();
 
         VE_CORE_SUCCESS_PRINT("Scene loaded from: %s", absolutePath.string().c_str());
     }

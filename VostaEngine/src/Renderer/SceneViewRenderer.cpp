@@ -26,6 +26,8 @@ SceneViewRenderer::~SceneViewRenderer() = default;
 void SceneViewRenderer::render(Camera& camera, const Ref<RenderPipeline>& pipeline,
                                const Ref<Framebuffer>& target)
 {
+    BakeService::get().update();
+
     uint32_t fbW = target->getWidth();
     uint32_t fbH = target->getHeight();
 
@@ -40,6 +42,7 @@ void SceneViewRenderer::render(Camera& camera, const Ref<RenderPipeline>& pipeli
     ctx.cameraPosition = camera.getPosition();
     ctx.totalTime      = DeltaTime::get().getCurrentTime();
     ctx.frameIndex     = camera.getFrameIndex();
+    ctx.wireframe      = m_wireframe;
 
     m_scene->setCameraMatrices(ctx.viewMatrix, ctx.projMatrix);
     m_scene->setCameraPosition(ctx.cameraPosition);
@@ -61,7 +64,6 @@ void SceneViewRenderer::render(Camera& camera, const Ref<RenderPipeline>& pipeli
         BakeService::get().setSkybox(cubemap);
     }
     ctx.skyboxTexture     = cubemap;
-    ctx.irradianceMap     = BakeService::get().getIrradianceMap();
     ctx.prefilteredEnvMap = BakeService::get().getPrefilteredEnvMap();
     ctx.brdfLUT           = BakeService::get().getBRDFLUT();
 
@@ -92,24 +94,29 @@ void SceneViewRenderer::render(Camera& camera, const Ref<RenderPipeline>& pipeli
         ctx.cloudWeatherMap    = clouds.weatherMap;
     }
 
+    // Diffuse ambient follows the atmosphere when one is present: the analytic
+    // sky is baked to a cubemap and convolved, so object lighting matches the
+    // visible sky (the static-skybox IBL would go stale as the sun moves).
+    if (ctx.hasAtmosphere) {
+        ctx.irradianceMap = BakeService::get().getAtmosphereIrradianceMap(
+            ctx.atmosphere, ctx.transmittanceTexture, ctx.scatteringTexture,
+            ctx.mieScatteringTexture, ctx.multipleScatteringTexture,
+            ctx.cameraPosition - ctx.planetCenter);
+    }
+    else {
+        ctx.irradianceMap = BakeService::get().getIrradianceMap();
+    }
+
+    // The pipeline's present pass blits the tone-mapped image into the target.
+    ctx.outputFrameBuffer = target;
+    ctx.presentDiscardBackground = false;
+
     pipeline->render(ctx);
     camera.endFrame();
 
+    // Present already cleared + filled the target; draw the component-driven
+    // game content (skybox + sprites) on top of it.
     target->bind();
-    RenderCommand::setClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    RenderCommand::clear();
-
-    auto hdrIt = ctx.inputTextures.find("hdrColor");
-    if (hdrIt != ctx.inputTextures.end()) {
-        pipeline->bindScreenShader();
-        auto depthIt = ctx.inputTextures.find("depth");
-        if (depthIt != ctx.inputTextures.end()) {
-            pipeline->getScreenShader()->setTexture("u_DepthMap", depthIt->second, 1);
-        }
-        pipeline->getScreenShader()->setTexture("u_ScreenTexture", hdrIt->second, 0);
-        pipeline->drawFullscreenQuad();
-        pipeline->unbindScreenShader();
-    }
 
     if (cubemap) {
         Renderer3D::setSkyboxTexture(cubemap);

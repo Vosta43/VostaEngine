@@ -59,6 +59,10 @@ namespace {
 } // namespace
 
 Ref<Texture2D> WeatherMapBaker::bake(uint32_t resolution, uint32_t cells, uint32_t seed) {
+	return build(resolution, compute(resolution, cells, seed));
+}
+
+std::vector<float> WeatherMapBaker::compute(uint32_t resolution, uint32_t cells, uint32_t seed) {
 	// Low-frequency Perlin FBM sampled ON THE SPHERE: each texel (u,v) maps to a
 	// unit direction, so the field is seamless in longitude (the sphere wraps)
 	// and continuous at the poles. `cells` cells around the globe keeps patches at
@@ -84,11 +88,14 @@ Ref<Texture2D> WeatherMapBaker::bake(uint32_t resolution, uint32_t cells, uint32
 		}
 	}
 
-	Ref<Texture2D> texture = Texture2D::create(resolution, resolution, TextureFormat::R16F);
-	texture->setData(data.data(), (uint32_t)(data.size() * sizeof(float)));
-
 	VE_CORE_SUCCESS_PRINT("WeatherMapBaker: baked %ux%u Perlin-FBM weather map (%u cells/edge, seed %u, R in [%.2f, %.2f])",
 	                      resolution, resolution, cells, seed, kMinR, kMaxR);
+	return data;
+}
+
+Ref<Texture2D> WeatherMapBaker::build(uint32_t resolution, const std::vector<float>& data) {
+	Ref<Texture2D> texture = Texture2D::create(resolution, resolution, TextureFormat::R16F);
+	texture->setData((void*)data.data(), (uint32_t)(data.size() * sizeof(float)));
 	return texture;
 }
 

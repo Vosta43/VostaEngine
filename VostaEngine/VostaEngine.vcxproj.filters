@@ -141,6 +141,9 @@
     <ClCompile Include="src\Scene\Archive.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Core\Json.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Asset\TextureImporter.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -228,10 +231,25 @@
     <ClCompile Include="src\Renderer\Preprocess\AtmosphereBaker.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Renderer\Preprocess\AtmosphereSkyBaker.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Renderer\RenderPass\TAAPass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderer\RenderPass\CloudTAAPass.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\Pipeline\PipelineConfig.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\Pipeline\SettingsRegistry.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\RenderPass\PassBinding.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\RenderPass\PresentPass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderer\Preprocess\WeatherMapBaker.cpp">
@@ -244,6 +262,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderer\SceneViewRenderer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Core\JobSystem.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\Terrain\QuadTreeTerrain.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -413,6 +437,9 @@
     <ClInclude Include="src\Math\Math.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Core\Json.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Core\ResourceStorage.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -456,6 +483,18 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderer\RenderPipeline.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\Pipeline\PipelineConfig.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\Pipeline\SettingsRegistry.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\RenderPass\PassBinding.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\RenderPass\PresentPass.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderer\RenderPass\RenderPassBase.h">
@@ -536,6 +575,9 @@
     <ClInclude Include="src\Renderer\Preprocess\AtmosphereBaker.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Renderer\Preprocess\AtmosphereSkyBaker.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Renderer\RenderPass\TAAPass.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -555,6 +597,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderer\SceneViewRenderer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core\JobSystem.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\Terrain\QuadTreeTerrain.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -23,6 +23,7 @@ namespace ve {
         void init();
         void processEvents();
         void swapBuffers();
+        void setVSync(bool enabled);
         bool shouldClose() const;
 
         int getWidth() const;

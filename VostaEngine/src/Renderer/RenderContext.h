@@ -43,9 +43,21 @@ namespace ve {
 		// used by the TAA pass to reproject history. Zero until the first
 		// endFrame() runs.
 		glm::mat4 prevViewProjMatrix = glm::mat4(1.0f);
+		// Where the pipeline presents its final image (the "@default" source).
+		// Owned by the caller: the editor viewport / sandbox target, or a
+		// thumbnail's output FBO. Null for callers that don't present.
 		Ref<Framebuffer> outputFrameBuffer;
-		// Temp variable during pass 
-		std::unordered_map<std::string, Ref<Texture2D>> inputTextures;
+		// The framebuffer written by the last pass that actually ran this frame;
+		// what "@previous" resolves to.
+		Ref<Framebuffer> previousTarget;
+		// Per-frame tables the pass binder reads: pass-name -> framebuffer written
+		// this frame, and FBO-name -> framebuffer. Owned by RenderPipeline.
+		const std::unordered_map<std::string, Ref<Framebuffer>>* passOutputs = nullptr;
+		const std::unordered_map<std::string, Ref<Framebuffer>>* fboRegistry = nullptr;
+		// Present pass behaviour: when true, clear the output to transparent and
+		// discard sky pixels (thumbnail previews on a transparent background).
+		bool presentDiscardBackground = false;
+
 		Ref<TextureCubeMap> skyboxTexture;
 		Ref<TextureCubeMap> irradianceMap;
 		Ref<TextureCubeMap> prefilteredEnvMap;
@@ -110,6 +122,10 @@ namespace ve {
 	// the height gradient to position the cloud band; G/B unused. Null when not
 	// baked.
 	Ref<Texture2D> cloudWeatherMap;
+
+	// Debug: rasterize meshes as wireframe lines instead of filled triangles.
+	// Only the GBuffer pass reads it; all full-screen passes are unaffected.
+	bool wireframe = false;
 
 		float getAspectRatio() const {
 			return (float)viewPortWidth / (float)viewPortHeight;

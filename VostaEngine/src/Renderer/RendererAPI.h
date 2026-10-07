@@ -53,6 +53,8 @@ namespace ve {
         virtual void setDepthMask(bool enabled) = 0;
         virtual void setBlend(bool enabled) = 0;
         virtual void setBlendFunc(BlendFunc src, BlendFunc dst) = 0;
+        // Rasterize triangles as outlines (true) or filled (false); a debug view.
+        virtual void setWireframe(bool enabled) = 0;
 
         static API getAPI() {return s_API;}
 

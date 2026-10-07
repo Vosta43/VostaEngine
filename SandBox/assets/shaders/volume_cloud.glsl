@@ -171,7 +171,12 @@ float remap(float v, float low1, float high1, float low2, float high2) {
 uniform vec4 u_CloudShapeWeights;
 
 float shapeNoise(vec3 q) {
-    vec4 n = texture(u_Shape3D, q / u_CloudShapeCells);
+    // textureLod(..., 0.0): sample the bake's base mip explicitly. The noise
+    // volumes are minified far below 1:1 when the camera is high or distant, and
+    // an implicit-LOD fetch of a sampler3D is implementation-defined on the
+    // derivative path some drivers take. LOD 0 pins every tap to the baked
+    // level so the field cannot drop to a lower/empty mip on one driver.
+    vec4 n = textureLod(u_Shape3D, q / u_CloudShapeCells, 0.0);
     float base = 1.0 - n.r;                        // base octave density
     vec3 fbmw = u_CloudShapeWeights.gba / dot(u_CloudShapeWeights.gba, vec3(1.0));
     float fbm  = 1.0 - dot(n.gba, fbmw);           // finer-octave FBM
@@ -190,7 +195,7 @@ float shapeNoise(vec3 q) {
 // shape/detail expect.
 vec3 warpDomain(vec3 p) {
     vec3 s = p * WARP_FREQ;
-    vec2 w = texture(u_Warp3D, s / u_CloudWarpCells).rg;
+    vec2 w = textureLod(u_Warp3D, s / u_CloudWarpCells, 0.0).rg;
     return p * u_CloudBaseFrequency + vec3(w.x - 0.5, 0.0, w.y - 0.5) * WARP_AMT;
 }
 
@@ -229,7 +234,7 @@ float heightProfile(vec3 p) {
     // the weather-band wind so coverage patterns slide over the planet. The 0.001
     // floor keeps remap(h, 0, cov, ...) finite at zero coverage (div-by-zero).
     vec2 wuv = weatherUV(p) + u_CloudWeatherDrift * u_CloudTime;
-    float cov = clamp(texture(u_WeatherMap, wuv).r * u_CloudCoverage, 0.001, 1.0);
+    float cov = clamp(textureLod(u_WeatherMap, wuv, 0.0).r * u_CloudCoverage, 0.001, 1.0);
     return heightGradient(heightFraction(p), cov);
 }
 
@@ -252,7 +257,7 @@ bool fastCull(vec3 p) {
     // Base-octave gate: one cheap tap on channel R of the shape texture before
     // paying for warp + the base/FBM shape sample. The threshold is the exact
     // worst case for the Hillaire shape remap (see cloudGateThreshold).
-    return (1.0 - texture(u_Shape3D, q0 / u_CloudShapeCells).r) < cloudGateThreshold();
+    return (1.0 - textureLod(u_Shape3D, q0 / u_CloudShapeCells, 0.0).r) < cloudGateThreshold();
 }
 
 float sampleShape(vec3 p, out vec3 q) {
@@ -276,7 +281,7 @@ float applyDetail(float baseDensity, vec3 q) {
     // base-cell units like q, so scale 1 locks the detail to the shape and >1 makes
     // the fine noise scroll ahead of it (turbulence eddies outrun the bulk cloud).
     vec3 qd = q + (u_CloudDetailWindScale - 1.0) * u_CloudWind * u_CloudBaseFrequency * u_CloudTime;
-    float fbm = 1.0 - dot(texture(u_DetailWorley3D, qd * u_CloudDetailFrequency / u_CloudDetailCells).rgb,
+    float fbm = 1.0 - dot(textureLod(u_DetailWorley3D, qd * u_CloudDetailFrequency / u_CloudDetailCells, 0.0).rgb,
                           vec3(0.625, 0.25, 0.125));
     float oneMinusShape = 1.0 - baseDensity;
     float erodeWeight = oneMinusShape * oneMinusShape * oneMinusShape;

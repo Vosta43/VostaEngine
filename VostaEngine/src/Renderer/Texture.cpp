@@ -22,7 +22,7 @@ namespace ve {
             tr = TextureImporter::importFromFile(resolvedPath);
         }
         if (!tr) {
-            VE_CORE_ERROR_PRINT("Failed to import %s",path);
+            VE_CORE_ERROR_PRINT("Failed to import %s", path.c_str());
             return nullptr;
         }
 

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Core/Core.h"
+#include "Core/Json.h"
 #include "Core/Reflection.h"
-#include "Scene/Archive.h"
 
 namespace ve {
 
@@ -122,16 +122,56 @@ namespace ve {
 		VEPROPERTY(CloudParams, float, weatherWindScale, "Weather Wind Scale", "type=drag,minValue=0,maxValue=2,speed=0.05")
 		float weatherWindScale = 0.4f;
 
-		void serialize(Archive& ar) const {
-			ar << bottomAltitude << topAltitude << sigma << ambient << coverage << baseFrequency << stepSize << shapeNoiseWeights
-			   << shadowColor << midColor << rampOffset1 << rampOffset2 << lightAbsorption << detailErodeWeight << densityMultiplier
-			   << windSpeed << windDirection << shapeMin << shapeMax << heightGradientWeight << detailFrequency << detailWindScale << weatherWindScale;
+		void serialize(JsonWriter& w) const {
+			w.set("bottomAltitude", bottomAltitude);
+			w.set("topAltitude", topAltitude);
+			w.set("sigma", sigma);
+			w.set("ambient", ambient);
+			w.set("coverage", coverage);
+			w.set("baseFrequency", baseFrequency);
+			w.set("stepSize", stepSize);
+			w.set("shapeNoiseWeights", shapeNoiseWeights);
+			w.set("shadowColor", shadowColor);
+			w.set("midColor", midColor);
+			w.set("rampOffset1", rampOffset1);
+			w.set("rampOffset2", rampOffset2);
+			w.set("lightAbsorption", lightAbsorption);
+			w.set("detailErodeWeight", detailErodeWeight);
+			w.set("densityMultiplier", densityMultiplier);
+			w.set("windSpeed", windSpeed);
+			w.set("windDirection", windDirection);
+			w.set("shapeMin", shapeMin);
+			w.set("shapeMax", shapeMax);
+			w.set("heightGradientWeight", heightGradientWeight);
+			w.set("detailFrequency", detailFrequency);
+			w.set("detailWindScale", detailWindScale);
+			w.set("weatherWindScale", weatherWindScale);
 		}
 
-		void deserialize(Archive& ar) {
-			ar >> bottomAltitude >> topAltitude >> sigma >> ambient >> coverage >> baseFrequency >> stepSize >> shapeNoiseWeights
-			   >> shadowColor >> midColor >> rampOffset1 >> rampOffset2 >> lightAbsorption >> detailErodeWeight >> densityMultiplier
-			   >> windSpeed >> windDirection >> shapeMin >> shapeMax >> heightGradientWeight >> detailFrequency >> detailWindScale >> weatherWindScale;
+		void deserialize(const JsonReader& r) {
+			bottomAltitude = r.getFloat("bottomAltitude", bottomAltitude);
+			topAltitude = r.getFloat("topAltitude", topAltitude);
+			sigma = r.getFloat("sigma", sigma);
+			ambient = r.getFloat("ambient", ambient);
+			coverage = r.getFloat("coverage", coverage);
+			baseFrequency = r.getFloat("baseFrequency", baseFrequency);
+			stepSize = r.getFloat("stepSize", stepSize);
+			shapeNoiseWeights = r.getVec4("shapeNoiseWeights", shapeNoiseWeights);
+			shadowColor = r.getVec3("shadowColor", shadowColor);
+			midColor = r.getVec3("midColor", midColor);
+			rampOffset1 = r.getFloat("rampOffset1", rampOffset1);
+			rampOffset2 = r.getFloat("rampOffset2", rampOffset2);
+			lightAbsorption = r.getFloat("lightAbsorption", lightAbsorption);
+			detailErodeWeight = r.getFloat("detailErodeWeight", detailErodeWeight);
+			densityMultiplier = r.getFloat("densityMultiplier", densityMultiplier);
+			windSpeed = r.getFloat("windSpeed", windSpeed);
+			windDirection = r.getVec2("windDirection", windDirection);
+			shapeMin = r.getFloat("shapeMin", shapeMin);
+			shapeMax = r.getFloat("shapeMax", shapeMax);
+			heightGradientWeight = r.getFloat("heightGradientWeight", heightGradientWeight);
+			detailFrequency = r.getFloat("detailFrequency", detailFrequency);
+			detailWindScale = r.getFloat("detailWindScale", detailWindScale);
+			weatherWindScale = r.getFloat("weatherWindScale", weatherWindScale);
 		}
 	};
 

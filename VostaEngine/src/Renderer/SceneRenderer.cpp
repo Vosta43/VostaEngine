@@ -1,6 +1,7 @@
 #include "vepch.h"
 #include "SceneRenderer.h"
 #include "Scene/Components.h"
+#include "Scene/Terrain/QuadTreeTerrain.h"
 
 namespace ve {
 
@@ -63,11 +64,29 @@ namespace ve {
             auto mesh = ResourceManager::get<StaticMesh>(terrainComp.generatedMeshHandle);
             if (!mesh) continue;
 
-            DrawMeshCommand cmd;
-            cmd.transform = transform.transform;
-            cmd.meshHandle = terrainComp.generatedMeshHandle;
-            cmd.materialHandle = terrainComp.terrainMaterialHandle;
-            ctx.drawMeshCommands.push_back(cmd);
+            if (terrainComp.quadtree) {
+                // Quadtree LOD: draw only the active chunks picked for this camera.
+                const auto& actives = terrainComp.quadtree->update(
+                    ctx.cameraPosition, terrainComp.maxDepth,
+                    terrainComp.lodDetail, terrainComp.renderDistance);
+                for (const auto& chunk : actives) {
+                    DrawMeshCommand cmd;
+                    cmd.transform = transform.transform;
+                    cmd.meshHandle = terrainComp.generatedMeshHandle;
+                    cmd.materialHandle = terrainComp.terrainMaterialHandle;
+                    cmd.startIndex = chunk.firstIndex;
+                    cmd.indexCount = chunk.indexCount;
+                    ctx.drawMeshCommands.push_back(cmd);
+                }
+            }
+            else {
+                // No quadtree built yet: draw the whole mesh (pre-LOD behavior).
+                DrawMeshCommand cmd;
+                cmd.transform = transform.transform;
+                cmd.meshHandle = terrainComp.generatedMeshHandle;
+                cmd.materialHandle = terrainComp.terrainMaterialHandle;
+                ctx.drawMeshCommands.push_back(cmd);
+            }
         }
 	}
     void SceneRenderer::collectAllLight(RenderContext& ctx){

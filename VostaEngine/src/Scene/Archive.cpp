@@ -13,12 +13,29 @@ namespace ve {
             flags = std::ios::in | std::ios::binary;
         }
         else {
+            std::filesystem::path filePath(filename);
+            if (filePath.has_parent_path()) {
+                std::filesystem::create_directories(filePath.parent_path());
+            }
             flags = std::ios::out | std::ios::binary | std::ios::trunc;
         }
 
         m_file.open(filename, flags);
         if (!m_file.is_open()) {
             m_isGood = false;
+            return;
+        }
+
+        // Reads are served entirely from m_buffer, so slurp the whole file up
+        // front. Writes accumulate in m_buffer and land on flush().
+        if (mode == ArchiveMode::read) {
+            m_file.seekg(0, std::ios::end);
+            const std::streamoff size = m_file.tellg();
+            m_file.seekg(0, std::ios::beg);
+            if (size > 0) {
+                m_buffer.resize(static_cast<size_t>(size));
+                m_file.read(reinterpret_cast<char*>(m_buffer.data()), size);
+            }
         }
     }
 

@@ -16,6 +16,8 @@ void main()
 
 in vec2 v_TexCoord;
 
+layout(location = 0) out vec4 o_FragColor;
+
 uniform sampler2D u_CloudColor;    // current raw cloud frame (quarter-res)
 uniform sampler2D u_History;       // previous accumulated cloud (quarter-res)
 uniform mat4 u_InvViewProj;        // inverse(current jittered VP)
@@ -40,7 +42,7 @@ void main()
     vec4 cur = texture(u_CloudColor, uv);
 
     // Full transmittance = no cloud on this pixel. Nothing to accumulate.
-    if (cur.a >= 1.0) { gl_FragColor = cur; return; }
+    if (cur.a >= 1.0) { o_FragColor = cur; return; }
 
     // The cloud's reprojection depth is NOT the GBuffer depth: cloud pixels read
     // 1.0 (sky) there, which is exactly why the screen TAA's far-plane guard
@@ -51,7 +53,7 @@ void main()
     vec4 farPlane = u_InvViewProj * ndc;
     vec3 rayDir   = normalize(farPlane.xyz / farPlane.w - u_CameraPos);
     vec2 t        = rayCloudLayer(u_CameraPos - u_PlanetCenter, rayDir);
-    if (t.x < 0.0) { gl_FragColor = cur; return; }
+    if (t.x < 0.0) { o_FragColor = cur; return; }
 
     vec3 worldPos = u_CameraPos + rayDir * t.x;
     vec4 prevClip = u_PrevViewProj * vec4(worldPos, 1.0);
@@ -71,5 +73,5 @@ void main()
         result.rgb = mix(clamp(hist.rgb, mn, mx), cur.rgb, u_BlendAlpha);
         result.a   = mix(hist.a, cur.a, u_BlendAlpha);   // transmittance accumulates too
     }
-    gl_FragColor = result;
+    o_FragColor = result;
 }

@@ -18,7 +18,7 @@ namespace ve {
 		}
 	}
 
-	Ref<StaticMesh> TerrainMeshBuilder::buildMeshFromHeightMap(const Ref<TextureResource>& heightMap,float tileSize,float heightScale) {
+	Ref<StaticMeshResource> TerrainMeshBuilder::buildMeshResourceFromHeightMap(const Ref<TextureResource>& heightMap,float tileSize,float heightScale) {
 
 		const int w = (int)heightMap->width;
 		const int h = (int)heightMap->height;
@@ -96,9 +96,11 @@ namespace ve {
 			}
 		}
 
-		auto staticMesh = StaticMesh::create(mesh);
+		return mesh;
+	}
 
-		return staticMesh;
+	Ref<StaticMesh> TerrainMeshBuilder::buildMeshFromHeightMap(const Ref<TextureResource>& heightMap,float tileSize,float heightScale) {
+		return StaticMesh::create(buildMeshResourceFromHeightMap(heightMap, tileSize, heightScale));
 	}
 
 	std::vector<Ref<StaticMesh>> TerrainMeshBuilder::buildMeshesFromHeightMap(const Ref<TextureResource>& heightMap, float tileSize, float heightScale, int blocks){

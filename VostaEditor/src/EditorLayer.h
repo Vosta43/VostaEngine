@@ -28,6 +28,14 @@ namespace ve {
         void onUpdate() override;
 
     private:
+        // One row in the Load dialog: a .veworld file found in the scenes folder.
+        struct SceneFile {
+            std::string name;
+            uintmax_t size = 0;
+        };
+
+        void refreshSceneFileList();
+
         static glm::mat4 makeBillboard(const glm::vec3& position, const glm::mat4& viewMatrix);
 
         void renderLightBillboards(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, const glm::vec3& cameraPos);
@@ -60,10 +68,16 @@ namespace ve {
 
         bool m_showSavePopup = false;
         bool m_showLoadPopup = false;
+        // Scene the editor is currently working on. Set on save/load, restored
+        // from Saved/last_scene.txt at startup, and used to prefill both dialogs.
+        std::string m_currentSceneName = "";
         std::string m_saveFileName = "scene.veworld";
         std::string m_loadFileName = "";
         char m_saveFileNameBuffer[256] = "scene.veworld";
         char m_loadFileNameBuffer[256] = "";
+
+        // Rescanned each time the Load dialog opens.
+        std::vector<SceneFile> m_sceneFiles;
 
         Ref<RenderPipeline> m_renderPipeline;
 

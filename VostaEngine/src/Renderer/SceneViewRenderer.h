@@ -25,9 +25,14 @@ public:
     void render(Camera& camera, const Ref<RenderPipeline>& pipeline,
                 const Ref<Framebuffer>& target);
 
+    // Debug wireframe view: when on, meshes are rasterized as lines in the
+    // GBuffer pass. Off by default.
+    void setWireframe(bool wireframe) { m_wireframe = wireframe; }
+
 private:
     Ref<Scene>         m_scene;
     Ref<SceneRenderer> m_sceneRenderer;
+    bool               m_wireframe = false;
 };
 
 }

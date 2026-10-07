@@ -1,7 +1,7 @@
 #include "vepch.h"
 #include "HDRBufferPass.h"
+#include "PassBinding.h"
 #include "Renderer/RenderCommand.h"
-#include "Core/Application.h"
 #include "Core/ResourceManager.h"
 #include "Renderer/Material.h"
 #include "Renderer/Buffer.h"
@@ -10,10 +10,6 @@ namespace ve {
 
 
 	void HDRBufferPass::init(){
-
-		auto& shaderLib = Application::get().getShaderLibrary();
-		shaderLib.load("SandBox/assets/shaders/pbrlighting.glsl");
-		m_HDRBufferShader = shaderLib.get("pbrlighting");
 
 		float vertices[] = {
 			-1.0f, -1.0f,  // bottom left
@@ -37,91 +33,65 @@ namespace ve {
 
 	void HDRBufferPass::execute(RenderContext& ctx) {
 
-		if (!m_HDRBuffer) {
+		if (!m_target) {
 			return;
 		}
 
-		m_HDRBuffer->bind();
+		m_target->bind();
 		RenderCommand::setViewport(ctx.viewPortX, ctx.viewPortY, ctx.viewPortWidth, ctx.viewPortHeight);
 		RenderCommand::setClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		RenderCommand::clear();
 
-		if (!m_HDRBufferShader) {
+		if (!m_shader) {
 			return;
 		}
 
-		m_HDRBufferShader->bind();
+		m_shader->bind();
 		glm::mat4 invVP = glm::inverse(ctx.projMatrix * ctx.viewMatrix);
-		m_HDRBufferShader->setMat4("u_InvViewProj", invVP);
-		m_HDRBufferShader->setFloat3("u_CameraPos", ctx.cameraPosition);
+		m_shader->setMat4("u_InvViewProj", invVP);
+		m_shader->setFloat3("u_CameraPos", ctx.cameraPosition);
 
 		if (ctx.hasAtmosphere) {
 			const AtmosphereParams& a = ctx.atmosphere;
-			m_HDRBufferShader->setFloat3("u_PlanetCenter", ctx.planetCenter);
-			m_HDRBufferShader->setFloat3("u_SunDirection", glm::normalize(a.sunDirection));
-			m_HDRBufferShader->setFloat("u_SunIntensity", a.sunIntensity);
-			m_HDRBufferShader->setFloat3("u_RayleighScattering", a.rayleighScattering);
-			m_HDRBufferShader->setFloat("u_RayleighScaleHeight", a.rayleighScaleHeight);
-			m_HDRBufferShader->setFloat3("u_MieScattering", a.mieScattering);
-			m_HDRBufferShader->setFloat("u_MieScaleHeight", a.mieScaleHeight);
-			m_HDRBufferShader->setFloat("u_MiePhaseG", a.miePhaseG);
-			m_HDRBufferShader->setFloat("u_PlanetRadius", a.planetRadius);
-			m_HDRBufferShader->setFloat("u_AtmosphereHeight", a.atmosphereHeight);
-			m_HDRBufferShader->setFloat("u_Exposure", a.exposure);
+			m_shader->setFloat3("u_PlanetCenter", ctx.planetCenter);
+			m_shader->setFloat3("u_SunDirection", glm::normalize(a.sunDirection));
+			m_shader->setFloat("u_SunIntensity", a.sunIntensity);
+			m_shader->setFloat3("u_RayleighScattering", a.rayleighScattering);
+			m_shader->setFloat("u_RayleighScaleHeight", a.rayleighScaleHeight);
+			m_shader->setFloat3("u_MieScattering", a.mieScattering);
+			m_shader->setFloat("u_MieScaleHeight", a.mieScaleHeight);
+			m_shader->setFloat("u_MiePhaseG", a.miePhaseG);
+			m_shader->setFloat("u_PlanetRadius", a.planetRadius);
+			m_shader->setFloat("u_AtmosphereHeight", a.atmosphereHeight);
+			m_shader->setFloat("u_Exposure", a.exposure);
 
 			const CloudParams& c = ctx.clouds;
 			// Cloud layer bounds stay here — the occlusion test in this shader
 			// (rayCloudLayer) and the glossy-sky reflection march both need them.
-			m_HDRBufferShader->setFloat("u_CloudInnerRadius", a.planetRadius + c.bottomAltitude);
-			m_HDRBufferShader->setFloat("u_CloudOuterRadius", a.planetRadius + c.topAltitude);
+			m_shader->setFloat("u_CloudInnerRadius", a.planetRadius + c.bottomAltitude);
+			m_shader->setFloat("u_CloudOuterRadius", a.planetRadius + c.topAltitude);
 
 			if (ctx.transmittanceTexture) {
-				m_HDRBufferShader->setTexture("u_TransmittanceLUT", ctx.transmittanceTexture, 9);
+				m_shader->setTexture("u_TransmittanceLUT", ctx.transmittanceTexture, 9);
 			}
 			if (ctx.scatteringTexture) {
-				m_HDRBufferShader->setTexture3D("u_ScatteringLUT", ctx.scatteringTexture, 10);
+				m_shader->setTexture3D("u_ScatteringLUT", ctx.scatteringTexture, 10);
 			}
 			if (ctx.mieScatteringTexture) {
-				m_HDRBufferShader->setTexture3D("u_MieScatteringLUT", ctx.mieScatteringTexture, 12);
+				m_shader->setTexture3D("u_MieScatteringLUT", ctx.mieScatteringTexture, 12);
 			}
 			if (ctx.multipleScatteringTexture) {
-				m_HDRBufferShader->setTexture3D("u_MultipleScatteringLUT", ctx.multipleScatteringTexture, 11);
+				m_shader->setTexture3D("u_MultipleScatteringLUT", ctx.multipleScatteringTexture, 11);
 			}
-			m_HDRBufferShader->setFloat("u_MultipleScatteringStrength", a.multipleScattering);
+			m_shader->setFloat("u_MultipleScatteringStrength", a.multipleScattering);
 		}
 
-		auto albedoIt = ctx.inputTextures.find("albedo");
-		auto normalIt = ctx.inputTextures.find("normal");
-		auto materialIt = ctx.inputTextures.find("material");
-		auto depthIt = ctx.inputTextures.find("depth");
+		// GBuffer attachments, the accumulated cloud buffer and the skybox/IBL
+		// cubes come from the pass's declared inputs.
+		bindPassInputs(*this, ctx);
+		applyPassUniforms(*this);
 
-		if (albedoIt != ctx.inputTextures.end())
-			m_HDRBufferShader->setTexture("u_AlbedoMap", albedoIt->second, 0);
-		if (normalIt != ctx.inputTextures.end())
-			m_HDRBufferShader->setTexture("u_NormalMap", normalIt->second, 1);
-		if (materialIt != ctx.inputTextures.end())
-			m_HDRBufferShader->setTexture("u_MaterialMap", materialIt->second, 2);
-		if (depthIt != ctx.inputTextures.end())
-			m_HDRBufferShader->setTexture("u_DepthMap", depthIt->second, 3);
-
-		auto cloudIt = ctx.inputTextures.find("clouds");
-		if (cloudIt != ctx.inputTextures.end())
-			m_HDRBufferShader->setTexture("u_CloudTex", cloudIt->second, 4);
-
-		if (ctx.skyboxTexture) {
-			m_HDRBufferShader->setTextureCube("u_SkyboxMap", ctx.skyboxTexture, 5);
-		}
-		if (ctx.irradianceMap) {
-			m_HDRBufferShader->setTextureCube("u_IrradianceMap", ctx.irradianceMap, 6);
-		}
-		if (ctx.prefilteredEnvMap) {
-			m_HDRBufferShader->setTextureCube("u_PrefilteredEnvMap", ctx.prefilteredEnvMap, 7);
-		}
-		if (ctx.brdfLUT) {
-			m_HDRBufferShader->setTexture("u_BRDFLUT", ctx.brdfLUT, 8);
-		}
-
-		if (m_HDRBufferShader && !ctx.drawLightCommands.empty()) {
+		if (!ctx.drawLightCommands.empty()) {
 			std::vector<GpuLightData> gpuLights;
 			gpuLights.reserve(ctx.drawLightCommands.size());
 
@@ -138,27 +108,24 @@ namespace ve {
 				gpuLights.push_back(g);
 			}
 
-			m_HDRBufferShader->setLightSSBO(gpuLights);
-			m_HDRBufferShader->bindLightSSBO(1);
-			m_HDRBufferShader->setInt("u_LightCount", (int)gpuLights.size());
+			m_shader->setLightSSBO(gpuLights);
+			m_shader->bindLightSSBO(1);
+			m_shader->setInt("u_LightCount", (int)gpuLights.size());
 		}
-		else if (m_HDRBufferShader) {
-			m_HDRBufferShader->setInt("u_LightCount", 0);
+		else {
+			m_shader->setInt("u_LightCount", 0);
 		}
 
 		m_fullscreenQuad->bind();
 		RenderCommand::drawIndexed(m_fullscreenQuad);
-		m_HDRBufferShader->unbind();
+		m_shader->unbind();
 
 		m_fullscreenQuad->unbind();
 
-		if (m_HDRBufferShader) m_HDRBufferShader->unbindLightSSBO();
+		m_shader->unbindLightSSBO();
 
-		ctx.inputTextures["hdrColor"] = m_HDRBuffer->getColorTexture(0);
-
-		m_HDRBuffer->unbind();
-
-
+		m_target->unbind();
+		setWritten(m_target);
 	}
 
 }

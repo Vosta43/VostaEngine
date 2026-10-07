@@ -41,13 +41,6 @@ namespace ve {
 		// radians, physical sun angular radius (matches atmosphere.glsl).
 		constexpr float kSunAngularRadius = 0.004675f;
 
-		// Raw CPU-side single-scattering LUT data, kept as two RGB16F buffers so
-		// the Mie channel keeps its full per-channel color (see ScatteringLUTPair).
-		struct ScatteringLUTData {
-			std::vector<float> rayleigh;   // 256*128*32 * 3
-			std::vector<float> mie;        // 256*128*32 * 3
-		};
-
 		struct BakeAtmosphere {
 			float bottomRadius;  // km
 			float topRadius;     // km
@@ -579,16 +572,21 @@ namespace ve {
 	}
 
 	AtmosphereBaker::ScatteringLUTPair AtmosphereBaker::bakeScatteringLUT(const AtmosphereParams& p) {
+		return buildScatteringTextures(computeScatteringData(p));
+	}
+
+	ScatteringLUTData AtmosphereBaker::computeScatteringData(const AtmosphereParams& p) {
 		const BakeAtmosphere a = makeAtmosphere(p);
 		// Self-contained: the single-scattering integral samples the transmittance
 		// LUT, so re-compute the shared table here (a few ms).
 		const std::vector<float> transmittanceTable = computeTransmittanceTable(a);
+		return computeSingleScatteringLUT(a, transmittanceTable);
+	}
 
+	AtmosphereBaker::ScatteringLUTPair AtmosphereBaker::buildScatteringTextures(const ScatteringLUTData& data) {
 		// Two RGB16F LUTs instead of one RGBA. Mie is wavelength-independent at
 		// its source, but the transmittance it multiplies is not — packing Mie
 		// into a single channel (old A) forced the sun glow gray at dusk.
-		const ScatteringLUTData data = computeSingleScatteringLUT(a, transmittanceTable);
-
 		ScatteringLUTPair pair;
 		pair.rayleighTexture = Texture3D::create(kScatteringWidth, kScatteringHeight, kScatteringDepth,
 		                                         TextureFormat::RGB16F, data.rayleigh.data());
@@ -598,6 +596,10 @@ namespace ve {
 	}
 
 	Ref<Texture3D> AtmosphereBaker::bakeMultipleScatteringLUT(const AtmosphereParams& p) {
+		return buildMultipleScatteringTexture(computeMultipleScatteringData(p));
+	}
+
+	std::vector<float> AtmosphereBaker::computeMultipleScatteringData(const AtmosphereParams& p) {
 		const BakeAtmosphere a = makeAtmosphere(p);
 		const std::vector<float> transmittanceTable = computeTransmittanceTable(a);
 		const ScatteringLUTData single = computeSingleScatteringLUT(a, transmittanceTable);
@@ -611,12 +613,14 @@ namespace ve {
 			multi = computeMultipleScatteringLUT(a, transmittanceTable, irr);
 			irr = computeIrradianceLUT(a, p.miePhaseG, single, multi, true);
 		}
+		return multi;
+	}
 
+	Ref<Texture3D> AtmosphereBaker::buildMultipleScatteringTexture(const std::vector<float>& data) {
 		// RGB16F: the multiple-scattering source is wavelength-dependent
 		// (betaR + betaM), a full vec3 with no packing trick.
-		Ref<Texture3D> tex = Texture3D::create(kScatteringMuSSize, kScatteringMuSize, kScatteringRSize,
-		                                       TextureFormat::RGB16F, multi.data());
-		return tex;
+		return Texture3D::create(kScatteringMuSSize, kScatteringMuSize, kScatteringRSize,
+		                         TextureFormat::RGB16F, data.data());
 	}
 
 }

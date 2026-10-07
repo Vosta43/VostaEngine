@@ -58,4 +58,8 @@ namespace ve {
         s_RendererAPI->setBlendFunc(src, dst);
     }
 
+    void RenderCommand::setWireframe(bool enabled) {
+        s_RendererAPI->setWireframe(enabled);
+    }
+
 }

@@ -30,6 +30,7 @@ namespace ve {
         static void setCursorVisible(bool visible);
         static void setBlend(bool enabled);
         static void setBlendFunc(RendererAPI::BlendFunc src, RendererAPI::BlendFunc dst);
+        static void setWireframe(bool enabled);
 
     private:
         static RendererAPI* s_RendererAPI;

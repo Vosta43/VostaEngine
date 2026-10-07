@@ -3,6 +3,10 @@
 #include "Core/Core.h"
 #include "Renderer/Texture.h"
 #include "Renderer/Atmosphere.h"
+#include "Core/JobSystem.h"
+#include "Renderer/Preprocess/AtmosphereBaker.h"
+
+#include <vector>
 
 namespace ve {
 
@@ -38,6 +42,19 @@ namespace ve {
         Ref<TextureCubeMap> getIrradianceMap() const;
         Ref<TextureCubeMap> getPrefilteredEnvMap() const;
 
+        // Diffuse ambient from the analytic atmosphere: renders the sky into a
+        // cubemap and convolves it, re-baking only when the sun direction or the
+        // atmosphere parameters change. Returns the previous result while the
+        // async scattering LUTs are still in flight, or nullptr if they never
+        // arrived.
+        Ref<TextureCubeMap> getAtmosphereIrradianceMap(
+            const AtmosphereParams& params,
+            const Ref<Texture2D>& transmittance,
+            const Ref<Texture3D>& scattering,
+            const Ref<Texture3D>& mieScattering,
+            const Ref<Texture3D>& multipleScattering,
+            const glm::vec3& cameraPlanetRel);
+
         // Transmittance re-bakes when the params change (a single bake is <10ms),
         // so inspector edits stay live. The single-scattering pair and the
         // multiple-scattering LUT bake once and stay cached, matching the previous
@@ -50,18 +67,35 @@ namespace ve {
         // Cloud volumes, baked once on first request.
         const CloudTextures& getCloudTextures();
 
+        // Polls in-flight async bakes; uploads the finished ones to the GPU.
+        // Call once per frame on the render thread.
+        void update();
+
     private:
         BakeService() = default;
         ~BakeService() = default;
         BakeService(const BakeService&) = delete;
         BakeService& operator=(const BakeService&) = delete;
 
-        void ensureScatteringLUTs(const AtmosphereParams& params);
+        TaskHandle<ScatteringLUTData> m_pendingScattering;
+        TaskHandle<std::vector<float>> m_pendingMultipleScattering;
+        TaskHandle<std::vector<float>> m_pendingCloudNoise;
+        TaskHandle<std::vector<float>> m_pendingCloudDetail;
+        TaskHandle<std::vector<float>> m_pendingCloudWarp;
+        TaskHandle<std::vector<float>> m_pendingCloudWeather;
 
         Ref<TextureCubeMap> m_skybox;
         Ref<TextureCubeMap> m_irradianceMap;
         Ref<TextureCubeMap> m_prefilteredEnvMap;
         Ref<Texture2D> m_brdfLUT;
+
+        Ref<TextureCubeMap> m_atmIrradiance;
+        // sunDirection and exposure are zeroed here so the memcmp dirty test
+        // ignores them: the sun is tracked separately (angle threshold below) and
+        // exposure is not applied by the bake.
+        AtmosphereParams m_cachedAtmIrradianceParams;
+        glm::vec3 m_cachedAtmIrradianceSunDir = glm::vec3(0.0f);
+        bool m_hasCachedAtmIrradiance = false;
 
         AtmosphereParams m_cachedAtmosphereParams;
         bool m_hasCachedAtmosphere = false;

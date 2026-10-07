@@ -33,6 +33,12 @@ namespace ve {
 		virtual void unbindLightSSBO(size_t bindingPoint = 1) {};
 
 		virtual std::string getName() const = 0;
+
+		// False when the underlying program failed to compile or link. Callers
+		// that draw with the shader should bail on this instead of issuing a draw
+		// with it: the platform backend binds program 0 for an invalid shader,
+		// which silently renders nothing.
+		virtual bool isValid() const { return true; }
 	private:
 
 	};

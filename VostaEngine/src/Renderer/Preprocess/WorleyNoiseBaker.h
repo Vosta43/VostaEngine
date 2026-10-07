@@ -3,6 +3,8 @@
 #include "Core/Core.h"
 #include "Renderer/Texture.h"
 
+#include <vector>
+
 namespace ve {
 
 	// Bakes periodic Worley F1 distance fields into 3D textures that the
@@ -42,6 +44,17 @@ namespace ve {
 		// the octave loop into the bake is what makes the shader-side warp cheap.
 		static Ref<Texture3D> bakeWarp(uint32_t cellsPerEdge, uint32_t resolution,
 		                               uint32_t seed, uint32_t& outCells);
+
+		static std::vector<float> compute(uint32_t cellsPerEdge, uint32_t resolution, uint32_t seed);
+		static Ref<Texture3D> build(uint32_t resolution, const std::vector<float>& data);
+		static std::vector<float> computeMultiOctave(uint32_t cellsPerEdge, uint32_t resolution,
+		                                             uint32_t seed, uint32_t octaves);
+		static Ref<Texture3D> buildMultiOctave(uint32_t resolution, const std::vector<float>& data);
+		static std::vector<float> computeDetailWorley(uint32_t cellsPerEdge, uint32_t resolution,
+		                                              uint32_t seed, uint32_t octaves);
+		static Ref<Texture3D> buildDetailWorley(uint32_t resolution, const std::vector<float>& data);
+		static std::vector<float> computeWarp(uint32_t cellsPerEdge, uint32_t resolution, uint32_t seed);
+		static Ref<Texture3D> buildWarp(uint32_t resolution, const std::vector<float>& data);
 	};
 
 }

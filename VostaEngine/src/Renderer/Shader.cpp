@@ -34,6 +34,11 @@ namespace ve {
 
     Ref<Shader>& ShaderLibrary::get(const std::string& name){
 
+        auto it = m_shaders.find(name);
+        if (it == m_shaders.end()) {
+            VE_CORE_ERROR_PRINT("ShaderLibrary::get: no shader named '%s' (was it ever loaded?)",
+                                name.c_str());
+        }
         return m_shaders[name];
     }
 
@@ -45,6 +50,11 @@ namespace ve {
             return;
         }
         auto shader = Shader::create(filePath);
+        if (!shader->isValid()) {
+            VE_CORE_ERROR_PRINT("ShaderLibrary::load: shader '%s' failed to compile/link (%s); "
+                                "it is registered but will render nothing when bound",
+                                name.c_str(), filePath.c_str());
+        }
         add(shader);
     }
 

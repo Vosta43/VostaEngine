@@ -20,6 +20,7 @@ namespace ve {
         void setDepthMask(bool enabled) override;
         void setBlend(bool enabled) override;
         void setBlendFunc(BlendFunc src, BlendFunc dst) override;
+        void setWireframe(bool enabled) override;
     };
 
 }

@@ -18,7 +18,7 @@ void SandboxLayer::onAttach() {
     ve::Renderer3D::init();
 
     m_renderPipeline = ve::CreateRef<ve::RenderPipeline>();
-    m_renderPipeline->init(1280, 720);
+    m_renderPipeline->init(1280, 720, "SandBox/assets/pipelines/default.json");
 
     m_cameraController.getCamera().setProjectionType(true);
 

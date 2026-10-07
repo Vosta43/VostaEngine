@@ -119,6 +119,10 @@ namespace ve {
             glfwSwapBuffers(m_window);
         }
 
+        void setVSync(bool enabled) {
+            glfwSwapInterval(enabled ? 1 : 0);
+        }
+
         bool shouldClose() const {
             return glfwWindowShouldClose(m_window);
         }
@@ -162,6 +166,10 @@ namespace ve {
 
     void Window::swapBuffers() {
         m_impl->swapBuffers();
+    }
+
+    void Window::setVSync(bool enabled) {
+        m_impl->setVSync(enabled);
     }
 
     bool Window::shouldClose() const {

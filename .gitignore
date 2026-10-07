@@ -76,6 +76,12 @@ sphere_initialShadingGroup.veasset
 cube_default.veasset
 n.veasset
 s.veasset
+fountain_taobaodianpu_CFSC194SG.veasset
+SandBox/e.veasset
+
+# Materials baked next to the built-in meshes on launch (engine-owned dir)
+SandBox/assets/models/*.veasset
+VostaEditor/assets/models/*.veasset
 
 # ── Engine temp resources (transient, not for distribution) ─────────────
 VostaEngine/resources/temps/
@@ -84,8 +90,23 @@ VostaEngine/resources/temps/
 # Quarantined here so they never get committed. Origin/license unverified.
 ThirdPartyResources/
 
-# ── SandBox test scenes (reference quarantined assets, would not load) ──
+# ── Legacy SandBox test scenes (reference quarantined assets, would not load) ──
 SandBox/assets/scenes/
+
+# ── SandBox content (locally imported assets, not for distribution) ─────
+SandBox/content/
+
+# ── Editor session state (machine-generated, not for distribution) ──────
+SandBox/Saved/
+
+# ── Stray nested build/artifact dir ────────────────────────────────────
+SandBox/SandBox/
+
+# ── nlohmann/json (vendored): only what the engine builds against ───────
+VostaEngine/thirdparty/JSON/*
+!VostaEngine/thirdparty/JSON/include/
+!VostaEngine/thirdparty/JSON/LICENSE.MIT
+!VostaEngine/thirdparty/JSON/LICENSES/
 
 # ── Engine-owned mesh files (the *.obj rule above is for compiler outputs) ──
 !SandBox/assets/models/sphere.obj

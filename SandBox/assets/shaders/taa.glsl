@@ -16,6 +16,8 @@ void main()
 
 in vec2 v_TexCoord;
 
+layout(location = 0) out vec4 o_FragColor;
+
 uniform sampler2D u_HDRColor;   // current frame, linear HDR
 uniform sampler2D u_DepthMap;   // current frame depth (DEPTH24_STENCIL8, .r = [0,1])
 uniform sampler2D u_History;    // previous TAA output (RGBA16F)
@@ -65,5 +67,5 @@ void main() {
             outCol = mix(hist, cur, alpha);                        // history holds 90-95%
         }
     }
-    gl_FragColor = vec4(outCol, 1.0);
+    o_FragColor = vec4(outCol, 1.0);
 }

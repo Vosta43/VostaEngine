@@ -19,7 +19,7 @@ namespace ve {
 			return (v < lo) ? lo : (hi < v) ? hi : v;
 		}
 
-		float smoothstep(float t1, float t2, float x) {
+		inline float smoothstep(float t1, float t2, float x) {
 			x = clamp((x - t1) / (t2 - t1), 0.0f, 1.0f);
 			return x * x * (3 - 2 * x);
 		}

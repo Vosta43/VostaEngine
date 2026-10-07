@@ -1,16 +1,12 @@
 #include "vepch.h"
 #include "CloudTAAPass.h"
+#include "PassBinding.h"
 #include "Renderer/RenderCommand.h"
-#include "Core/Application.h"
 #include "Renderer/Buffer.h"
 
 namespace ve {
 
     void CloudTAAPass::init() {
-        auto& shaderLib = Application::get().getShaderLibrary();
-        shaderLib.load("SandBox/assets/shaders/cloud_taa.glsl");
-        m_cloudTaaShader = shaderLib.get("cloud_taa");
-
         float vertices[] = {
             -1.0f, -1.0f,  // bottom left
              1.0f, -1.0f,  // bottom right
@@ -32,58 +28,63 @@ namespace ve {
     }
 
     void CloudTAAPass::execute(RenderContext& ctx) {
-        if (!m_history[0] || !m_history[1] || !m_cloudTaaShader)
-            return;
+        // When there is nothing to accumulate, hand consumers the raw cloud
+        // buffer (CloudPass cleared it to transparent) so "cloudTaa" still
+        // resolves to a defined texture instead of leaving the sampled unit stale.
+        auto passthrough = [&]() {
+            if (ctx.passOutputs) {
+                auto it = ctx.passOutputs->find("cloud");
+                if (it != ctx.passOutputs->end()) setWritten(it->second);
+            }
+        };
 
-        auto cloudIt = ctx.inputTextures.find("clouds");
-        if (cloudIt == ctx.inputTextures.end())
-            return;
+        if (!hasHistory() || !m_shader) { passthrough(); return; }
 
         // Mirror CloudPass's disable condition: with no cloud layer the raw
         // cloud buffer stays transparent, so leave it as-is (HDR composites
         // nothing) instead of running a pointless fullscreen pass.
-        if (!ctx.hasAtmosphere || !ctx.cloudNoiseTexture)
-            return;
+        if (!ctx.hasAtmosphere || !ctx.cloudNoiseTexture) { passthrough(); return; }
         const AtmosphereParams& a = ctx.atmosphere;
         const CloudParams& c = ctx.clouds;
         float inner = a.planetRadius + c.bottomAltitude;
         float outer = a.planetRadius + c.topAltitude;
-        if (outer <= inner)
-            return;
+        if (outer <= inner) { passthrough(); return; }
+
+        Ref<Framebuffer> readBuffer = historyRead(ctx.frameIndex);
+        Ref<Framebuffer> writeBuffer = historyWrite(ctx.frameIndex);
+        if (!readBuffer || !writeBuffer) { passthrough(); return; }
 
         // History is invalidated whenever the buffer is recreated at a new size
         // (window resize rebuilds the framebuffers and drops their contents).
-        if (m_history[m_writeIndex]->getWidth() != m_lastWidth ||
-            m_history[m_writeIndex]->getHeight() != m_lastHeight) {
+        if (writeBuffer->getWidth() != m_lastWidth ||
+            writeBuffer->getHeight() != m_lastHeight) {
             m_firstFrame = true;
         }
-        m_lastWidth = m_history[m_writeIndex]->getWidth();
-        m_lastHeight = m_history[m_writeIndex]->getHeight();
-
-        Ref<Framebuffer> readBuffer = m_history[m_writeIndex ^ 1];
-        Ref<Framebuffer> writeBuffer = m_history[m_writeIndex];
+        m_lastWidth = writeBuffer->getWidth();
+        m_lastHeight = writeBuffer->getHeight();
 
         writeBuffer->bind();
         RenderCommand::setViewport(0, 0, writeBuffer->getWidth(), writeBuffer->getHeight());
         RenderCommand::setClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         RenderCommand::clear();
 
-        m_cloudTaaShader->bind();
-        m_cloudTaaShader->setTexture("u_CloudColor", cloudIt->second, 0);
-        m_cloudTaaShader->setTexture("u_History", readBuffer->getColorTexture(0), 1);
+        m_shader->bind();
+        // u_CloudColor (the raw frame) and u_History (the read half) come from the
+        // declared inputs; the rest is per-frame camera/atmosphere state.
+        bindPassInputs(*this, ctx);
 
-        m_cloudTaaShader->setMat4("u_InvViewProj", glm::inverse(ctx.projMatrix * ctx.viewMatrix));
-        m_cloudTaaShader->setMat4("u_PrevViewProj", ctx.prevViewProjMatrix);
-        m_cloudTaaShader->setFloat3("u_CameraPos", ctx.cameraPosition);
-        m_cloudTaaShader->setFloat3("u_PlanetCenter", ctx.planetCenter);
-        m_cloudTaaShader->setFloat("u_PlanetRadius", a.planetRadius);
-        m_cloudTaaShader->setFloat("u_CloudInnerRadius", inner);
-        m_cloudTaaShader->setFloat("u_CloudOuterRadius", outer);
+        m_shader->setMat4("u_InvViewProj", glm::inverse(ctx.projMatrix * ctx.viewMatrix));
+        m_shader->setMat4("u_PrevViewProj", ctx.prevViewProjMatrix);
+        m_shader->setFloat3("u_CameraPos", ctx.cameraPosition);
+        m_shader->setFloat3("u_PlanetCenter", ctx.planetCenter);
+        m_shader->setFloat("u_PlanetRadius", a.planetRadius);
+        m_shader->setFloat("u_CloudInnerRadius", inner);
+        m_shader->setFloat("u_CloudOuterRadius", outer);
 
         // First frame / after resize: history is empty or stale — write the
         // current frame as-is so we don't blend against garbage.
-        m_cloudTaaShader->setFloat("u_BlendAlpha", m_firstFrame ? 1.0f : 0.07f);
-        m_cloudTaaShader->setFloat2("u_TexelSize", glm::vec2(
+        m_shader->setFloat("u_BlendAlpha", m_firstFrame ? 1.0f : 0.07f);
+        m_shader->setFloat2("u_TexelSize", glm::vec2(
             1.0f / (float)writeBuffer->getWidth(),
             1.0f / (float)writeBuffer->getHeight()));
 
@@ -91,14 +92,10 @@ namespace ve {
         RenderCommand::drawIndexed(m_fullscreenQuad);
         m_fullscreenQuad->unbind();
 
-        m_cloudTaaShader->unbind();
+        m_shader->unbind();
         writeBuffer->unbind();
 
-        // Overwrite the clouds key so HDRBufferPass composites the accumulated
-        // cloud instead of the raw frame.
-        ctx.inputTextures["clouds"] = writeBuffer->getColorTexture(0);
-
-        m_writeIndex ^= 1;
+        setWritten(writeBuffer);
         m_firstFrame = false;
     }
 

@@ -6,6 +6,8 @@
 
 #include <glm.hpp>
 
+#include "Core/Core.h"
+
 namespace ve {
     class Archive {
     public:
@@ -44,7 +46,7 @@ namespace ve {
         write
     };
 
-    class BinaryArchive : public Archive {
+    class VE_API BinaryArchive : public Archive {
     public:
         BinaryArchive(const std::string& filename, ArchiveMode mode);
         ~BinaryArchive();

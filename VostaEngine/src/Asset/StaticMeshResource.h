@@ -8,6 +8,8 @@
 
 namespace ve {
 
+	class Archive;
+
 	struct Vertex {
 		glm::vec3 position;
 		glm::vec2 uv;
@@ -29,6 +31,12 @@ namespace ve {
 		std::vector<int> indexBuffer;
 
 		std::vector<SubMeshResource> subMeshes;
+
+		// Bulk vertex/index data, so this is written through a binary Archive.
+		// Material handles travel as asset paths. Defined in StaticMeshImporter.cpp
+		// to keep the ResourceManager dependency out of this header.
+		void serialize(Archive& ar) const;
+		bool deserialize(Archive& ar);
 	};
 
 }

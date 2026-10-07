@@ -15,7 +15,11 @@ namespace ve {
 		void unbind() const override;
 
 		std::string getName() const override;
-		
+
+		// False when compileFromSources bailed (compile/link failure or a bad
+		// file/include), leaving shaderId at 0. See Shader::isValid.
+		bool isValid() const override;
+
 		void setFloat(const std::string& name, float value) override;
 		void setFloat2(const std::string& name, const glm::vec2& value) override;
 		void setFloat3(const std::string& name, const glm::vec3& value) override;

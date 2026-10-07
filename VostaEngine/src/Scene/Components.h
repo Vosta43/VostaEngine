@@ -4,8 +4,8 @@
 #include <gtc/type_ptr.hpp>
 
 #include "Core/Core.h"
+#include "Core/Json.h"
 #include "Renderer/Texture.h"
-#include "Archive.h"
 #include "Core/AssetHandle.h"
 #include "Core/ResourceManager.h"
 #include "Core/Reflection.h"
@@ -17,7 +17,26 @@
 #include "Core/ComponentRegistry.h"
 
 namespace ve {
-	
+
+	// Asset handles persist as their registered path string and are re-resolved
+	// through ResourceManager on load. An empty path means "no asset", which is
+	// distinct from a path that failed to resolve (logged as a warning).
+	template<typename T>
+	inline void writeAssetPath(JsonWriter& w, const char* key, AssetHandle handle) {
+		w.set(key, handle.isValid() ? ResourceManager::getPath<T>(handle) : std::string());
+	}
+
+	template<typename T>
+	inline AssetHandle readAssetPath(const JsonReader& r, const char* key) {
+		const std::string path = r.getString(key, std::string());
+		if (path.empty())
+			return INVALID_ASSET_HANDLE;
+		AssetHandle handle = ResourceManager::store<T>(path);
+		if (!handle.isValid())
+			VE_CORE_WARN_PRINT("Scene load: could not resolve asset '%s'", path.c_str());
+		return handle;
+	}
+
 	VESTRUCT(NameComponent)
 	struct NameComponent {
 		VEPROPERTY(NameComponent,std::string,name,"Name","type=input")
@@ -31,12 +50,12 @@ namespace ve {
 
 		}
 
-		void serialize(Archive& ar) const {
-			ar << name;
+		void serialize(JsonWriter& w) const {
+			w.set("name", name);
 		}
 
-		void deserialize(Archive& ar) {
-			ar >> name;
+		void deserialize(const JsonReader& r) {
+			name = r.getString("name", name);
 		}
 
 	};
@@ -53,20 +72,12 @@ namespace ve {
 		
 		}
 
-		void serialize(Archive& ar) const {
-			float matrix[16];
-			memcpy(matrix, glm::value_ptr(transform), sizeof(matrix));
-			for (int i = 0; i < 16; ++i) {
-				ar << matrix[i];
-			}
+		void serialize(JsonWriter& w) const {
+			w.set("transform", transform);
 		}
 
-		void deserialize(Archive& ar) {
-			float matrix[16];
-			for (int i = 0; i < 16; ++i) {
-				ar >> matrix[i];
-			}
-			transform = glm::make_mat4(matrix);
+		void deserialize(const JsonReader& r) {
+			transform = r.getMat4("transform", transform);
 		}
 
 	};
@@ -112,13 +123,14 @@ namespace ve {
 
 		}
 
-		void serialize(Archive& ar) const {
-			light.serialize(ar);
+		void serialize(JsonWriter& w) const {
+			w.beginObject("light");
+			light.serialize(w);
+			w.end();
 		}
 
-		void deserialize(Archive& ar) {
-
-			light.deserialize(ar);
+		void deserialize(const JsonReader& r) {
+			light.deserialize(r.child("light"));
 		}
 	};
 	VECOMPONENT(LightComponent, "Light", "Rendering")
@@ -128,19 +140,14 @@ namespace ve {
 		std::string name;
 		AssetHandle materialHandle;
 
-		void serialize(Archive& ar) const {
-			ar << name;
-			std::string matPath = ResourceManager::getPath<Material>(materialHandle);
-			ar << matPath;
+		void serialize(JsonWriter& w) const {
+			w.set("name", name);
+			writeAssetPath<Material>(w, "material", materialHandle);
 		}
 
-		void deserialize(Archive& ar) {
-			ar >> name;
-			std::string matPath;
-			ar >> matPath;
-			if (!matPath.empty()) {
-				materialHandle = ResourceManager::store<Material>(matPath);
-			}
+		void deserialize(const JsonReader& r) {
+			name = r.getString("name", std::string());
+			materialHandle = readAssetPath<Material>(r, "material");
 		}
 	};
 
@@ -165,38 +172,27 @@ namespace ve {
 
 		}
 
-		void serialize(Archive& ar) const {
-			std::string meshPath = ResourceManager::getPath<StaticMesh>(staticMeshHandle);
-			ar << meshPath;
+		void serialize(JsonWriter& w) const {
+			writeAssetPath<StaticMesh>(w, "staticMesh", staticMeshHandle);
+			writeAssetPath<Material>(w, "material", materialHandle);
 
-			std::string matPath = ResourceManager::getPath<Material>(materialHandle);
-			ar << matPath;
-
-			int32_t submeshCount = static_cast<int32_t>(submeshEntries.size());
-			ar << submeshCount;
+			w.beginArray("submeshes", submeshEntries.size());
 			for (const auto& entry : submeshEntries) {
-				entry.serialize(ar);
+				w.beginObject();
+				entry.serialize(w);
+				w.end();
 			}
+			w.end();
 		}
 
-		void deserialize(Archive& ar) {
-			std::string meshPath;
-			ar >> meshPath;
-			if (!meshPath.empty()) {
-				staticMeshHandle = ResourceManager::store<StaticMesh>(meshPath);
-			}
+		void deserialize(const JsonReader& r) {
+			staticMeshHandle = readAssetPath<StaticMesh>(r, "staticMesh");
+			materialHandle = readAssetPath<Material>(r, "material");
 
-			std::string matPath;
-			ar >> matPath;
-			if (!matPath.empty()) {
-				materialHandle = ResourceManager::store<Material>(matPath);
-			}
-
-			int32_t submeshCount = 0;
-			ar >> submeshCount;
+			const size_t submeshCount = r.arraySize("submeshes");
 			submeshEntries.resize(submeshCount);
-			for (int32_t i = 0; i < submeshCount; ++i) {
-				submeshEntries[i].deserialize(ar);
+			for (size_t i = 0; i < submeshCount; ++i) {
+				submeshEntries[i].deserialize(r.at("submeshes", i));
 			}
 		}
 
@@ -214,18 +210,12 @@ namespace ve {
 			:textureCubeMapHandle(textureCubeMapHandle) {
 
 		}
-		void serialize(Archive& ar) const {
-			std::string texturePath = ResourceManager::getPath<TextureCubeMap>(textureCubeMapHandle);
-			ar << texturePath;
+		void serialize(JsonWriter& w) const {
+			writeAssetPath<TextureCubeMap>(w, "texture", textureCubeMapHandle);
 		}
 
-		void deserialize(Archive& ar) {
-			std::string texturePath;
-			ar >> texturePath;
-
-			if (!texturePath.empty()) {
-				textureCubeMapHandle = ResourceManager::store<TextureCubeMap>(texturePath);
-			}
+		void deserialize(const JsonReader& r) {
+			textureCubeMapHandle = readAssetPath<TextureCubeMap>(r, "texture");
 		}
 	};
 	VECOMPONENT(SkyBoxComponent, "Skybox", "Rendering")
@@ -243,25 +233,14 @@ namespace ve {
 		}
 
 
-		void serialize(Archive& ar) const {
-			ar << size.x << size.y;
-
-			std::string texturePath = ResourceManager::getPath<Texture2D>(textureHandle);
-			// = texture ? texture->getTextureFilePath() : "";
-			ar << texturePath;
+		void serialize(JsonWriter& w) const {
+			w.set("size", size);
+			writeAssetPath<Texture2D>(w, "texture", textureHandle);
 		}
 
-		void deserialize(Archive& ar) {
-			ar >> size.x >> size.y;
-
-			std::string texturePath;
-			ar >> texturePath;
-
-			if (!texturePath.empty()) {
-				// Inside ResourceManager::store, Ref<T> resource = T::create(path) can call the create function
-				// so that can create and store Into ResourceManager at once
-				textureHandle = ResourceManager::store<Texture2D>(texturePath);
-			}
+		void deserialize(const JsonReader& r) {
+			size = r.getVec2("size", size);
+			textureHandle = readAssetPath<Texture2D>(r, "texture");
 		}
 
 	};
@@ -277,17 +256,25 @@ namespace ve {
 
 		AtmosphereComponent() = default;
 
-		void serialize(Archive& ar) const {
-			atmosphere.serialize(ar);
-			clouds.serialize(ar);
+		void serialize(JsonWriter& w) const {
+			w.beginObject("atmosphere");
+			atmosphere.serialize(w);
+			w.end();
+
+			w.beginObject("clouds");
+			clouds.serialize(w);
+			w.end();
 		}
 
-		void deserialize(Archive& ar) {
-			atmosphere.deserialize(ar);
-			clouds.deserialize(ar);
+		void deserialize(const JsonReader& r) {
+			atmosphere.deserialize(r.child("atmosphere"));
+			clouds.deserialize(r.child("clouds"));
 		}
 	};
 	VECOMPONENT(AtmosphereComponent, "Atmosphere", "Environment")
+
+	// Runtime quadtree LOD object; not serialized (rebuilt from the heightmap).
+	class QuadTreeTerrain;
 
 	VESTRUCT(TerrainComponent)
 	struct TerrainComponent {
@@ -304,38 +291,56 @@ namespace ve {
 		VEPROPERTY(TerrainComponent, float, heightScale, "Height Scale", "type=drag,minValue=0.01,maxValue=100.0")
 		float heightScale = 1.0f;
 
+		// --- Quadtree LOD ---
+		// Max quadtree depth. The deepest level samples the heightmap at its
+		// native texel stride; every chunk keeps `segments` divisions per edge.
+		// Only meaningful when the quadtree terrain system is wired up.
+		VEPROPERTY(TerrainComponent, int, maxDepth, "Max LOD Depth", "type=drag,speed=1,minValue=1,maxValue=12")
+		int maxDepth = 6;
+
+		VEPROPERTY(TerrainComponent, int, segments, "Chunk Segments", "type=drag,speed=1,minValue=4,maxValue=64")
+		int segments = 32;
+
+		// Subdivide a node while dist(camera, node) < nodeWorldSize * lodDetail.
+		// Higher = more subdivision = more detail at the same distance.
+		VEPROPERTY(TerrainComponent, float, lodDetail, "LOD Detail", "type=drag,minValue=1,maxValue=128")
+		float lodDetail = 16.0f;
+
+		// Chunks farther than this (world units) from the camera are culled.
+		VEPROPERTY(TerrainComponent, float, renderDistance, "LOD Render Distance", "type=drag,minValue=100,maxValue=100000")
+		float renderDistance = 10000.0f;
+
 		// Generated mesh handle — registered with ResourceManager on build
 		AssetHandle generatedMeshHandle;
+		// Runtime quadtree LOD object owning the shared mesh + per-chunk ranges.
+		// Null until the Generate button builds it; never serialized.
+		Ref<QuadTreeTerrain> quadtree;
 		bool bDirty = true;
 
 		TerrainComponent() = default;
 
-		void serialize(Archive& ar) const {
-			std::string heightMapPath = ResourceManager::getPath<Texture2D>(heightMapHandle);
-			ar << heightMapPath;
+		void serialize(JsonWriter& w) const {
+			writeAssetPath<Texture2D>(w, "heightMap", heightMapHandle);
+			writeAssetPath<Material>(w, "material", terrainMaterialHandle);
 
-			std::string matPath = ResourceManager::getPath<Material>(terrainMaterialHandle);
-			ar << matPath;
-
-			ar << tileSize;
-			ar << heightScale;
+			w.set("tileSize", tileSize);
+			w.set("heightScale", heightScale);
+			w.set("maxDepth", maxDepth);
+			w.set("segments", segments);
+			w.set("lodDetail", lodDetail);
+			w.set("renderDistance", renderDistance);
 		}
 
-		void deserialize(Archive& ar) {
-			std::string heightMapPath;
-			ar >> heightMapPath;
-			if (!heightMapPath.empty()) {
-				heightMapHandle = ResourceManager::store<Texture2D>(heightMapPath);
-			}
+		void deserialize(const JsonReader& r) {
+			heightMapHandle = readAssetPath<Texture2D>(r, "heightMap");
+			terrainMaterialHandle = readAssetPath<Material>(r, "material");
 
-			std::string matPath;
-			ar >> matPath;
-			if (!matPath.empty()) {
-				terrainMaterialHandle = ResourceManager::store<Material>(matPath);
-			}
-
-			ar >> tileSize;
-			ar >> heightScale;
+			tileSize = r.getFloat("tileSize", tileSize);
+			heightScale = r.getFloat("heightScale", heightScale);
+			maxDepth = r.getInt("maxDepth", maxDepth);
+			segments = r.getInt("segments", segments);
+			lodDetail = r.getFloat("lodDetail", lodDetail);
+			renderDistance = r.getFloat("renderDistance", renderDistance);
 
 			bDirty = true;
 		}

@@ -23,6 +23,7 @@
 
 #include "src/Renderer/CameraController.h"
 #include "src/Core/Deltatime.h"
+#include "src/Core/JobSystem.h"
 
 #include "src/Asset/ImportManager.h"
 

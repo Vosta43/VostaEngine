@@ -4,7 +4,16 @@
 #include "Renderer/Texture.h"
 #include "Renderer/Atmosphere.h"
 
+#include <vector>
+
 namespace ve {
+
+	// Raw CPU-side single-scattering LUT data, kept as two RGB16F buffers so
+	// the Mie channel keeps its full per-channel color (see ScatteringLUTPair).
+	struct ScatteringLUTData {
+		std::vector<float> rayleigh;
+		std::vector<float> mie;
+	};
 
 	// Bakes the Bruneton-Neyret atmospheric LUTs on the CPU. One-time startup
 	// cost, like IBLBaker.
@@ -49,6 +58,11 @@ namespace ve {
 		// phase function, scaled by AtmosphereParams::multipleScattering. Returns
 		// nullptr on failure.
 		static Ref<Texture3D> bakeMultipleScatteringLUT(const AtmosphereParams& params);
+
+		static ScatteringLUTData computeScatteringData(const AtmosphereParams& params);
+		static ScatteringLUTPair buildScatteringTextures(const ScatteringLUTData& data);
+		static std::vector<float> computeMultipleScatteringData(const AtmosphereParams& params);
+		static Ref<Texture3D> buildMultipleScatteringTexture(const std::vector<float>& data);
 	};
 
 }
