@@ -7,6 +7,11 @@ namespace ve {
     }
     LayerStack::~LayerStack()
     {
+        // Layers are owned elsewhere (raw pointers), so the stack never deletes
+        // them — but it must still let each one tear down. Without this, onDetach()
+        // only ever ran for explicitly popped layers and was effectively dead.
+        for (Layer* layer : m_layers)
+            layer->onDetach();
     }
     void LayerStack::pushLayer(Layer* layer) {
         m_layers.emplace(m_layers.begin() + m_layerInsertIndex, layer);

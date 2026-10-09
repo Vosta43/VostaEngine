@@ -16,7 +16,7 @@ namespace ve {
 		ConstantFloatNode() {
 			m_nodeType = NodeType::Vector;
 			m_displayName = "Float";
-			m_outputPins.push_back(MaterialPin("Float",{},PinType::Float,false));
+			m_outputPins.push_back(GraphPin("Float",{},PinType::Float,false));
 		}
 
 		std::string generateCode(const std::vector<std::string>& inputVarNames, const std::vector<std::string>& outputVarNames) const override {
@@ -41,12 +41,12 @@ namespace ve {
 		TextureSamplerNode() {
 			m_nodeType = NodeType::Texture;
 			m_displayName = "TextureSampler";
-			m_inputPins.push_back(MaterialPin("UVs", {}, PinType::Float2, true));
-			m_outputPins.push_back(MaterialPin("RGBA", {}, PinType::Float4, false));
-			m_outputPins.push_back(MaterialPin("R", {}, PinType::Float, false));
-			m_outputPins.push_back(MaterialPin("G", {}, PinType::Float, false));
-			m_outputPins.push_back(MaterialPin("B", {}, PinType::Float, false));
-			m_outputPins.push_back(MaterialPin("A", {}, PinType::Float, false));
+			m_inputPins.push_back(GraphPin("UVs", {}, PinType::Float2, true));
+			m_outputPins.push_back(GraphPin("RGBA", {}, PinType::Float4, false));
+			m_outputPins.push_back(GraphPin("R", {}, PinType::Float, false));
+			m_outputPins.push_back(GraphPin("G", {}, PinType::Float, false));
+			m_outputPins.push_back(GraphPin("B", {}, PinType::Float, false));
+			m_outputPins.push_back(GraphPin("A", {}, PinType::Float, false));
 		}
 
 		std::string generateSamplerDeclaration(int texSlot) const {
@@ -91,9 +91,9 @@ namespace ve {
 		MultiplyNode() {
 			m_nodeType = NodeType::Math;
 			m_displayName = "Multiply";
-			m_inputPins.push_back(MaterialPin("A", {}, PinType::Float, true));
-			m_inputPins.push_back(MaterialPin("B", {}, PinType::Float, true));
-			m_outputPins.push_back(MaterialPin("Result", {}, PinType::Float, false));
+			m_inputPins.push_back(GraphPin("A", {}, PinType::Float, true));
+			m_inputPins.push_back(GraphPin("B", {}, PinType::Float, true));
+			m_outputPins.push_back(GraphPin("Result", {}, PinType::Float, false));
 		}
 
 		std::string generateCode(const std::vector<std::string>& inputVarNames,
@@ -114,13 +114,13 @@ namespace ve {
 			m_nodeType = NodeType::Output;
 			m_displayName = "Material Output";
 
-			m_inputPins.push_back(MaterialPin("Base Color", {}, PinType::Float3, true));
-			m_inputPins.push_back(MaterialPin("Metallic", {}, PinType::Float, true));
-			m_inputPins.push_back(MaterialPin("Roughness", {}, PinType::Float, true));
-			m_inputPins.push_back(MaterialPin("Ambient Occlusion", {}, PinType::Float, true));
-			m_inputPins.push_back(MaterialPin("Normal", {}, PinType::Float3, true));
-			m_inputPins.push_back(MaterialPin("Emissive", {}, PinType::Float3, true));
-			m_inputPins.push_back(MaterialPin("Opacity Mask", {}, PinType::Float, true));
+			m_inputPins.push_back(GraphPin("Base Color", {}, PinType::Float3, true));
+			m_inputPins.push_back(GraphPin("Metallic", {}, PinType::Float, true));
+			m_inputPins.push_back(GraphPin("Roughness", {}, PinType::Float, true));
+			m_inputPins.push_back(GraphPin("Ambient Occlusion", {}, PinType::Float, true));
+			m_inputPins.push_back(GraphPin("Normal", {}, PinType::Float3, true));
+			m_inputPins.push_back(GraphPin("Emissive", {}, PinType::Float3, true));
+			m_inputPins.push_back(GraphPin("Opacity Mask", {}, PinType::Float, true));
 		}
 
 		std::string generateCode(
@@ -155,10 +155,10 @@ namespace ve {
 		LerpNode() {
 			m_nodeType = NodeType::Math;
 			m_displayName = "Lerp";
-			m_inputPins.push_back(MaterialPin("A", {}, PinType::Float, true));
-			m_inputPins.push_back(MaterialPin("B", {}, PinType::Float, true));
-			m_inputPins.push_back(MaterialPin("T", {}, PinType::Float, true));
-			m_outputPins.push_back(MaterialPin("Result", {}, PinType::Float, false));
+			m_inputPins.push_back(GraphPin("A", {}, PinType::Float, true));
+			m_inputPins.push_back(GraphPin("B", {}, PinType::Float, true));
+			m_inputPins.push_back(GraphPin("T", {}, PinType::Float, true));
+			m_outputPins.push_back(GraphPin("Result", {}, PinType::Float, false));
 		}
 		std::string generateCode(const std::vector<std::string>& in,
 			const std::vector<std::string>& out) const override {
@@ -178,7 +178,7 @@ namespace ve {
 		Constant2VectorNode() {
 			m_nodeType = NodeType::Vector;
 			m_displayName = "Vector2";
-			m_outputPins.push_back(MaterialPin("Vec2", {}, PinType::Float2, false));
+			m_outputPins.push_back(GraphPin("Vec2", {}, PinType::Float2, false));
 		}
 		std::string generateCode(const std::vector<std::string>&,
 		                         const std::vector<std::string>& out) const override {
@@ -202,7 +202,7 @@ namespace ve {
 		Constant3VectorNode() {
 			m_nodeType = NodeType::Vector;
 			m_displayName = "Vector3";
-			m_outputPins.push_back(MaterialPin("Vec3", {}, PinType::Float3, false));
+			m_outputPins.push_back(GraphPin("Vec3", {}, PinType::Float3, false));
 		}
 		std::string generateCode(const std::vector<std::string>&,
 		                         const std::vector<std::string>& out) const override {
@@ -227,7 +227,7 @@ namespace ve {
 		Constant4VectorNode() {
 			m_nodeType = NodeType::Vector;
 			m_displayName = "Vector4";
-			m_outputPins.push_back(MaterialPin("Vec4", {}, PinType::Float4, false));
+			m_outputPins.push_back(GraphPin("Vec4", {}, PinType::Float4, false));
 		}
 		std::string generateCode(const std::vector<std::string>&,
 		                         const std::vector<std::string>& out) const override {
@@ -251,9 +251,9 @@ namespace ve {
 		AddNode() {
 			m_nodeType = NodeType::Math;
 			m_displayName = "Add";
-			m_inputPins.push_back(MaterialPin("A", {}, PinType::Float, true));
-			m_inputPins.push_back(MaterialPin("B", {}, PinType::Float, true));
-			m_outputPins.push_back(MaterialPin("Result", {}, PinType::Float, false));
+			m_inputPins.push_back(GraphPin("A", {}, PinType::Float, true));
+			m_inputPins.push_back(GraphPin("B", {}, PinType::Float, true));
+			m_outputPins.push_back(GraphPin("Result", {}, PinType::Float, false));
 		}
 		std::string generateCode(const std::vector<std::string>& in,
 		                         const std::vector<std::string>& out) const override {
@@ -270,9 +270,9 @@ namespace ve {
 		SubtractNode() {
 			m_nodeType = NodeType::Math;
 			m_displayName = "Subtract";
-			m_inputPins.push_back(MaterialPin("A", {}, PinType::Float, true));
-			m_inputPins.push_back(MaterialPin("B", {}, PinType::Float, true));
-			m_outputPins.push_back(MaterialPin("Result", {}, PinType::Float, false));
+			m_inputPins.push_back(GraphPin("A", {}, PinType::Float, true));
+			m_inputPins.push_back(GraphPin("B", {}, PinType::Float, true));
+			m_outputPins.push_back(GraphPin("Result", {}, PinType::Float, false));
 		}
 		std::string generateCode(const std::vector<std::string>& in,
 		                         const std::vector<std::string>& out) const override {
@@ -289,9 +289,9 @@ namespace ve {
 		DivideNode() {
 			m_nodeType = NodeType::Math;
 			m_displayName = "Divide";
-			m_inputPins.push_back(MaterialPin("A", {}, PinType::Float, true));
-			m_inputPins.push_back(MaterialPin("B", {}, PinType::Float, true));
-			m_outputPins.push_back(MaterialPin("Result", {}, PinType::Float, false));
+			m_inputPins.push_back(GraphPin("A", {}, PinType::Float, true));
+			m_inputPins.push_back(GraphPin("B", {}, PinType::Float, true));
+			m_outputPins.push_back(GraphPin("Result", {}, PinType::Float, false));
 		}
 		std::string generateCode(const std::vector<std::string>& in,
 		                         const std::vector<std::string>& out) const override {
@@ -308,10 +308,10 @@ namespace ve {
 		ClampNode() {
 			m_nodeType = NodeType::Utility;
 			m_displayName = "Clamp";
-			m_inputPins.push_back(MaterialPin("Value", {}, PinType::Float, true));
-			m_inputPins.push_back(MaterialPin("Min",   {}, PinType::Float, true));
-			m_inputPins.push_back(MaterialPin("Max",   {}, PinType::Float, true));
-			m_outputPins.push_back(MaterialPin("Result", {}, PinType::Float, false));
+			m_inputPins.push_back(GraphPin("Value", {}, PinType::Float, true));
+			m_inputPins.push_back(GraphPin("Min",   {}, PinType::Float, true));
+			m_inputPins.push_back(GraphPin("Max",   {}, PinType::Float, true));
+			m_outputPins.push_back(GraphPin("Result", {}, PinType::Float, false));
 		}
 		std::string generateCode(const std::vector<std::string>& in,
 		                         const std::vector<std::string>& out) const override {
@@ -333,7 +333,7 @@ namespace ve {
 		TextureCoordinateNode() {
 			m_nodeType = NodeType::Input;
 			m_displayName = "TexCoord";
-			m_outputPins.push_back(MaterialPin("UV", {}, PinType::Float2, false));
+			m_outputPins.push_back(GraphPin("UV", {}, PinType::Float2, false));
 		}
 		std::string generateCode(const std::vector<std::string>&,
 		                         const std::vector<std::string>& out) const override {

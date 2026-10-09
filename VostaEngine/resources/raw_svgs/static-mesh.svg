@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <g stroke="#6e6e6e" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+    <!-- bottom-left point -->
+    <path d="M4 37 L24 37 L36 26 L16 26 Z" fill="#ededed"/>
+    <path d="M4 37 L24 37 L24 57 L4 57 Z" fill="#ffffff"/>
+    <path d="M24 37 L36 26 L36 46 L24 57 Z" fill="#c8c8c8"/>
+
+    <!-- bottom-right point -->
+    <path d="M28 37 L48 37 L60 26 L40 26 Z" fill="#ededed"/>
+    <path d="M28 37 L48 37 L48 57 L28 57 Z" fill="#ffffff"/>
+    <path d="M48 37 L60 26 L60 46 L48 57 Z" fill="#c8c8c8"/>
+
+    <!-- top point, centered over the valley -->
+    <path d="M16 18 L36 18 L48 7 L28 7 Z" fill="#ededed"/>
+    <path d="M16 18 L36 18 L36 38 L16 38 Z" fill="#ffffff"/>
+    <path d="M36 18 L48 7 L48 28 L36 38 Z" fill="#c8c8c8"/>
+  </g>
+</svg>

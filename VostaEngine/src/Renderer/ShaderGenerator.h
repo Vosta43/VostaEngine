@@ -31,7 +31,7 @@ namespace ve {
 
 	private:
 		
-		static void generateNodeCode(Ref<MaterialNode> node,const MaterialGraph& graph,ShaderGenContext& ctx,std::unordered_map<uint32_t, std::vector<std::string>>& varCache);
+		static void generateNodeCode(Ref<GraphNode> node,const MaterialGraph& graph,ShaderGenContext& ctx,std::unordered_map<uint32_t, std::vector<std::string>>& varCache);
 		
 	};
 

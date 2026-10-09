@@ -30,6 +30,13 @@
 #include "src/Scene/Components.h"
 #include "src/Scene/Scene.h"
 #include "src/Scene/SceneSerializer.h"
+#include "src/Scene/PrefabRegistry.h"
+
+#include "src/MCP/ToolRegistry.h"
+#include "src/MCP/ToolDispatchQueue.h"
+#include "src/MCP/CommandRegistry.h"
+#include "src/MCP/LlmClient.h"
+#include "src/MCP/AgentSession.h"
 
 #include "src/Core/ResourceManager.h"
 

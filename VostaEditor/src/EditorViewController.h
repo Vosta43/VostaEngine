@@ -14,12 +14,18 @@ namespace ve {
 class EditorViewController {
 public:
     using OpenMaterialEditorFn = std::function<void(AssetHandle)>;
+    using TerrainBrushFn = std::function<void(Scene&)>;
+    using OpenTerrainMapFn = std::function<void()>;
 
-    EditorViewController(Ref<Scene> scene, OpenMaterialEditorFn onOpenMaterial);
+    EditorViewController(Ref<Scene> scene, OpenMaterialEditorFn onOpenMaterial,
+                         OpenMaterialEditorFn onOpenMaterialLayer, TerrainBrushFn onDrawTerrainBrush,
+                         OpenTerrainMapFn onOpenTerrainMap);
 
     // Switch to a new scene (e.g. after loading a file).
     // Recreates all dependent panels and the scene renderer.
-    void rebind(Ref<Scene> newScene, OpenMaterialEditorFn onOpenMaterial);
+    void rebind(Ref<Scene> newScene, OpenMaterialEditorFn onOpenMaterial,
+                OpenMaterialEditorFn onOpenMaterialLayer, TerrainBrushFn onDrawTerrainBrush,
+                OpenTerrainMapFn onOpenTerrainMap);
 
     // Renders the outliner and property panels.
     void onGuiRender(uint32_t& selectedEntity);

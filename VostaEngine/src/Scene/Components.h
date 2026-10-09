@@ -3,6 +3,10 @@
 #include <glm.hpp>
 #include <gtc/type_ptr.hpp>
 
+#include <algorithm>
+#include <cstdint>
+#include <vector>
+
 #include "Core/Core.h"
 #include "Core/Json.h"
 #include "Renderer/Texture.h"
@@ -14,7 +18,10 @@
 #include "Renderer/Clouds.h"
 #include "Renderer/StaticMesh.h"
 #include "Renderer/Material.h"
+#include "Renderer/MaterialInstance.h"
 #include "Core/ComponentRegistry.h"
+#include "Scene/Terrain/Terrain.h"
+#include "Noise/NoiseGraphResource.h"
 
 namespace ve {
 
@@ -276,53 +283,62 @@ namespace ve {
 	// Runtime quadtree LOD object; not serialized (rebuilt from the heightmap).
 	class QuadTreeTerrain;
 
-	VESTRUCT(TerrainComponent)
-	struct TerrainComponent {
+	// One owner for a batch of terrain tiles: the shared source, material and LOD
+	// parameters live here once, and every tile reads them. Mirrors Unity's
+	// TerrainGroup / UE's landscape info object.
+	VESTRUCT(TerrainSystemComponent)
+	struct TerrainSystemComponent {
 
-		VEPROPERTY(TerrainComponent, AssetHandle, heightMapHandle, "Height Map", "type=texture")
-		AssetHandle heightMapHandle;
+		// A noise graph, baked in place at mesh-build time and shared by every tile.
+		// When set it takes priority over a tile's own height map.
+		VEPROPERTY(TerrainSystemComponent, AssetHandle, noiseGraphHandle, "Noise Graph", "type=noise")
+		AssetHandle noiseGraphHandle;
 
-		VEPROPERTY(TerrainComponent, AssetHandle, terrainMaterialHandle, "Material", "type=material")
-		AssetHandle terrainMaterialHandle;
+		// Square resolution the noise graph is sampled at; sets the shared coverage
+		// in chunks, not the world scale (that stays tileSize).
+		VEPROPERTY(TerrainSystemComponent, int, noiseResolution, "Noise Resolution", "type=drag,speed=1,minValue=16,maxValue=4096")
+		int noiseResolution = 512;
 
-		VEPROPERTY(TerrainComponent, float, tileSize, "Tile Size", "type=drag,minValue=0.1,maxValue=100.0")
+		VEPROPERTY(TerrainSystemComponent, AssetHandle, materialHandle, "Material", "type=material")
+		AssetHandle materialHandle;
+
+		VEPROPERTY(TerrainSystemComponent, float, tileSize, "Tile Size", "type=drag,minValue=0.1,maxValue=100.0")
 		float tileSize = 1.0f;
 
-		VEPROPERTY(TerrainComponent, float, heightScale, "Height Scale", "type=drag,minValue=0.01,maxValue=100.0")
+		VEPROPERTY(TerrainSystemComponent, float, heightScale, "Height Scale", "type=drag,minValue=0.01,maxValue=100.0")
 		float heightScale = 1.0f;
 
-		// --- Quadtree LOD ---
-		// Max quadtree depth. The deepest level samples the heightmap at its
-		// native texel stride; every chunk keeps `segments` divisions per edge.
-		// Only meaningful when the quadtree terrain system is wired up.
-		VEPROPERTY(TerrainComponent, int, maxDepth, "Max LOD Depth", "type=drag,speed=1,minValue=1,maxValue=12")
+		// --- Quadtree LOD, shared by every tile ---
+		// The deepest level samples the source at its native stride; every chunk
+		// keeps `segments` divisions per edge.
+		VEPROPERTY(TerrainSystemComponent, int, maxDepth, "Max LOD Depth", "type=drag,speed=1,minValue=1,maxValue=12")
 		int maxDepth = 6;
 
-		VEPROPERTY(TerrainComponent, int, segments, "Chunk Segments", "type=drag,speed=1,minValue=4,maxValue=64")
+		VEPROPERTY(TerrainSystemComponent, int, segments, "Chunk Segments", "type=drag,speed=1,minValue=4,maxValue=64")
 		int segments = 32;
 
 		// Subdivide a node while dist(camera, node) < nodeWorldSize * lodDetail.
-		// Higher = more subdivision = more detail at the same distance.
-		VEPROPERTY(TerrainComponent, float, lodDetail, "LOD Detail", "type=drag,minValue=1,maxValue=128")
+		VEPROPERTY(TerrainSystemComponent, float, lodDetail, "LOD Detail", "type=drag,minValue=1,maxValue=128")
 		float lodDetail = 16.0f;
 
 		// Chunks farther than this (world units) from the camera are culled.
-		VEPROPERTY(TerrainComponent, float, renderDistance, "LOD Render Distance", "type=drag,minValue=100,maxValue=100000")
+		VEPROPERTY(TerrainSystemComponent, float, renderDistance, "LOD Render Distance", "type=drag,minValue=100,maxValue=100000")
 		float renderDistance = 10000.0f;
 
-		// Generated mesh handle — registered with ResourceManager on build
-		AssetHandle generatedMeshHandle;
-		// Runtime quadtree LOD object owning the shared mesh + per-chunk ranges.
-		// Null until the Generate button builds it; never serialized.
-		Ref<QuadTreeTerrain> quadtree;
-		bool bDirty = true;
+		// Painted control maps, persisted as a "<scene>_terrain.veasset" sidecar;
+		// the handle keeps the weight buffers out of the .veworld.
+		AssetHandle terrainDataHandle;
+		// Runtime cache of the above; never serialized.
+		Ref<TerrainDataResource> terrainData;
 
-		TerrainComponent() = default;
+		TerrainSystemComponent() = default;
 
 		void serialize(JsonWriter& w) const {
-			writeAssetPath<Texture2D>(w, "heightMap", heightMapHandle);
-			writeAssetPath<Material>(w, "material", terrainMaterialHandle);
+			writeAssetPath<NoiseGraphResource>(w, "noiseGraph", noiseGraphHandle);
+			writeAssetPath<Material>(w, "material", materialHandle);
+			writeAssetPath<TerrainDataResource>(w, "terrainData", terrainDataHandle);
 
+			w.set("noiseResolution", noiseResolution);
 			w.set("tileSize", tileSize);
 			w.set("heightScale", heightScale);
 			w.set("maxDepth", maxDepth);
@@ -332,21 +348,92 @@ namespace ve {
 		}
 
 		void deserialize(const JsonReader& r) {
-			heightMapHandle = readAssetPath<Texture2D>(r, "heightMap");
-			terrainMaterialHandle = readAssetPath<Material>(r, "material");
+			noiseGraphHandle = readAssetPath<NoiseGraphResource>(r, "noiseGraph");
+			materialHandle = readAssetPath<Material>(r, "material");
+			terrainDataHandle = readAssetPath<TerrainDataResource>(r, "terrainData");
 
+			noiseResolution = r.getInt("noiseResolution", noiseResolution);
 			tileSize = r.getFloat("tileSize", tileSize);
 			heightScale = r.getFloat("heightScale", heightScale);
 			maxDepth = r.getInt("maxDepth", maxDepth);
 			segments = r.getInt("segments", segments);
 			lodDetail = r.getFloat("lodDetail", lodDetail);
 			renderDistance = r.getFloat("renderDistance", renderDistance);
+		}
+
+	};
+	VECOMPONENT(TerrainSystemComponent, "TerrainSystem", "Environment")
+
+	VESTRUCT(TerrainComponent)
+	struct TerrainComponent {
+
+		// Optional per-tile height map. The group's shared noise graph wins when it
+		// has one; otherwise each tile bakes its own from this.
+		VEPROPERTY(TerrainComponent, AssetHandle, heightMapHandle, "Height Map", "type=texture")
+		AssetHandle heightMapHandle;
+
+		// This tile's place in the terrain grid, and its only identity.
+		VEPROPERTY(TerrainComponent, glm::ivec2, tileCoord, "Tile Coord", "type=drag,speed=1")
+		glm::ivec2 tileCoord = glm::ivec2(0);
+
+		// Generated mesh handle — registered with ResourceManager on build
+		AssetHandle generatedMeshHandle;
+		// Runtime quadtree LOD object owning the shared mesh + per-chunk ranges.
+		// Null until the Generate button builds it; never serialized.
+		Ref<QuadTreeTerrain> quadtree;
+
+		// Per-instance material view carrying this terrain's control map. Runtime
+		// only — rebuilt by Terrain::ensureMaterialInstance; the system's material
+		// stays the authored reference, materialInstanceBase is what the view was
+		// last built from.
+		AssetHandle materialInstanceHandle;
+		AssetHandle materialInstanceBase;
+		Ref<MaterialInstance> materialInstance;
+
+		// --- Material paint brush ---
+		// CPU mirror of the height field the mesh was built from, in raw
+		// normalized units (world Y = value * heightScale). Rebuilt alongside the
+		// mesh so the brush can raycast against the surface it is drawing on.
+		std::vector<float> heightField;
+		int heightRes = 0;
+
+		// Painted weights live in the system's TerrainDataResource (keyed by this
+		// tile's coordinate); the tile keeps only the GPU map uploaded from it.
+		AssetHandle weightMapHandle;
+		// Set when the brush mutates this tile's weights; uploads then clears it.
+		bool bWeightsDirty = false;
+
+		bool bDirty = true;
+		// Mesh-build key; the mesh is rebuilt when the live inputs hash differently.
+		uint64_t builtKey = 0;
+
+		TerrainComponent() = default;
+
+		void serialize(JsonWriter& w) const {
+			writeAssetPath<Texture2D>(w, "heightMap", heightMapHandle);
+
+			w.set("tileX", tileCoord.x);
+			w.set("tileZ", tileCoord.y);
+		}
+
+		void deserialize(const JsonReader& r) {
+			heightMapHandle = readAssetPath<Texture2D>(r, "heightMap");
+
+			tileCoord.x = r.getInt("tileX", 0);
+			tileCoord.y = r.getInt("tileZ", 0);
 
 			bDirty = true;
 		}
 
 	};
 	VECOMPONENT(TerrainComponent, "Terrain", "Environment")
+
+	// Only marks dirty: the scene's TerrainSystem owns the shared source and LOD
+	// parameters, and it may not exist yet (or may load after this tile). The
+	// renderer builds lazily once the scene has settled.
+	VECOMPONENTINIT(TerrainComponent, {
+		reg.get<TerrainComponent>(e).bDirty = true;
+	})
 
 
 }

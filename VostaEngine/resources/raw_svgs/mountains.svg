@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <defs>
+    <mask id="m0">
+      <rect width="64" height="64" fill="#fff"/>
+      <g fill="#000" stroke="#000" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M 3.63043 43.0326 L 5.52174 38.6196 L 18.1304 22.2283 L 30.7391 38.6196 L 32.6304 43.0326 Z" fill="#000"/>
+        <path d="M 31.3696 43.0326 L 33.2609 38.6196 L 45.8696 22.2283 L 58.4783 38.6196 L 60.3696 43.0326 Z" fill="#000"/>
+        <path d="M 14.6 43.0326 L 16.8696 38.6196 L 32 17.1848 L 47.1304 38.6196 L 49.4 43.0326 Z" fill="#000"/>
+      </g>
+    </mask>
+    <mask id="m1">
+      <rect width="64" height="64" fill="#fff"/>
+      <g fill="#000" stroke="#000" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M 31.3696 43.0326 L 33.2609 38.6196 L 45.8696 22.2283 L 58.4783 38.6196 L 60.3696 43.0326 Z" fill="#000"/>
+        <path d="M 14.6 43.0326 L 16.8696 38.6196 L 32 17.1848 L 47.1304 38.6196 L 49.4 43.0326 Z" fill="#000"/>
+      </g>
+    </mask>
+    <mask id="m2">
+      <rect width="64" height="64" fill="#fff"/>
+      <g fill="#000" stroke="#000" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M 14.6 43.0326 L 16.8696 38.6196 L 32 17.1848 L 47.1304 38.6196 L 49.4 43.0326 Z" fill="#000"/>
+      </g>
+    </mask>
+  </defs>
+  <rect x="3" y="37.3587" width="58" height="9.45652" rx="3.02609" fill="#c6c6c6" mask="url(#m0)"/>
+  <path d="M 3.63043 43.0326 L 5.52174 38.6196 L 18.1304 22.2283 L 30.7391 38.6196 L 32.6304 43.0326 Z" fill="#e0e0e0" mask="url(#m1)"/>
+  <path d="M 31.3696 43.0326 L 33.2609 38.6196 L 45.8696 22.2283 L 58.4783 38.6196 L 60.3696 43.0326 Z" fill="#d2d2d2" mask="url(#m2)"/>
+  <path d="M 14.6 43.0326 L 16.8696 38.6196 L 32 17.1848 L 47.1304 38.6196 L 49.4 43.0326 Z" fill="#ffffff"/>
+</svg>

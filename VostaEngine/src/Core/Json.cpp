@@ -79,6 +79,20 @@ namespace ve {
 		(*m_impl->stack.back())[key] = std::move(arr);
 	}
 
+	void JsonWriter::setRaw(const char* key, const std::string& rawJson) {
+		// Non-throwing parse: a malformed blob degrades to an empty object, which
+		// callers (e.g. an OpenAI tool schema) can still accept.
+		nlohmann::json parsed = nlohmann::json::parse(rawJson, nullptr, false);
+		if (parsed.is_discarded())
+			parsed = nlohmann::json::object();
+
+		nlohmann::json& cur = *m_impl->stack.back();
+		if (key)
+			cur[key] = std::move(parsed);
+		else
+			cur.push_back(std::move(parsed));
+	}
+
 	std::string JsonWriter::str() const {
 		// "replace" instead of the default "strict": a non-UTF-8 byte in a name or
 		// path must not make dump() throw.
@@ -167,6 +181,29 @@ namespace ve {
 		}
 		catch (const std::exception& e) {
 			VE_CORE_ERROR_PRINT("JsonReader::load: %s ('%s')", e.what(), path.c_str());
+			out.m_impl.reset();
+			return false;
+		}
+	}
+
+	bool JsonReader::parse(const std::string& text, JsonReader& out) {
+		out.m_impl.reset();
+		try {
+			// allow_exceptions = false: a malformed document yields `discarded`
+			// rather than throwing out of the parser.
+			nlohmann::json doc = nlohmann::json::parse(text, nullptr, false);
+			if (doc.is_discarded()) {
+				VE_CORE_ERROR_PRINT("JsonReader::parse: not valid JSON (%zu bytes)", text.size());
+				return false;
+			}
+
+			out.m_impl = std::make_shared<Impl>();
+			out.m_impl->doc = std::make_shared<const nlohmann::json>(std::move(doc));
+			out.m_impl->node = out.m_impl->doc.get();
+			return true;
+		}
+		catch (const std::exception& e) {
+			VE_CORE_ERROR_PRINT("JsonReader::parse: %s", e.what());
 			out.m_impl.reset();
 			return false;
 		}

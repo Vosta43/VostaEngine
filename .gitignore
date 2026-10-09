@@ -96,6 +96,9 @@ SandBox/assets/scenes/
 # ── SandBox content (locally imported assets, not for distribution) ─────
 SandBox/content/
 
+# ── Local project roots (per-machine: Projects/<name>/project.json + content) ──
+Projects/
+
 # ── Editor session state (machine-generated, not for distribution) ──────
 SandBox/Saved/
 

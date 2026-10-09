@@ -2,6 +2,7 @@
 #include "ThumbnailRenderer.h"
 #include "Core/ResourceManager.h"
 #include "Renderer/Preprocess/BakeService.h"
+#include "Asset/BuiltinReousrces.h"
 
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
@@ -25,7 +26,16 @@ namespace ve {
 
             ctx.hasAtmosphere = true;
             ctx.atmosphere = AtmosphereParams{};
-            ctx.planetCenter = glm::vec3(0.0f);
+            // Anchor the ground plane at y = 0 (planet centre a radius below), so
+            // the camera sits at a real altitude above the surface. With the
+            // centre at the origin the camera is effectively at the planet core:
+            // every ray is "inside the planet", the below-horizon ground paths
+            // collapse to zero length, and the sun transmittance degenerates.
+            ctx.planetCenter = glm::vec3(0.0f, -ctx.atmosphere.planetRadius, 0.0f);
+            // Anchoring also un-halved the direct sun (the degenerate scale used
+            // to squeeze sunTransmittance to ~0.5), so the eye-tuned preview runs
+            // hot. Pull the overall exposure down to match the old look.
+            ctx.atmosphere.exposure = 0.8f;
 
             ctx.brdfLUT = bake.getBRDFLUT();
             ctx.irradianceMap = bake.getIrradianceMap();
@@ -52,10 +62,9 @@ namespace ve {
         RenderPipeline ppl;
         ppl.init(512, 512);
 
-        auto sphere = ResourceManager::find<StaticMesh>("SandBox/assets/models/sphere.obj");
-        if (!sphere.isValid()) {
-            sphere = ResourceManager::store<StaticMesh>("SandBox/assets/models/sphere.obj");
-        }
+        // Procedural unit sphere: the preview ball needs a smooth, densely
+        // tessellated surface, which a generated mesh gives without an asset.
+        const AssetHandle sphere = BuiltinResources::getBuiltinSphere();
 
         RenderContext ctx;
         ctx.cameraPosition = glm::vec3(-2.0f, 1.2f, 2.0f);
@@ -112,12 +121,8 @@ namespace ve {
         auto staticMesh = ResourceManager::get<StaticMesh>(staticMeshHandle);
         if (!staticMesh) return nullptr;
 
-        // Ensure a default material exists in the resource manager for submeshes
-        // without a valid material.
-        static AssetHandle s_defaultMatHandle;
-        if (!s_defaultMatHandle.isValid()) {
-            s_defaultMatHandle = ResourceManager::store<Material>("_mesh_thumb_default");
-        }
+        // Submeshes without a valid material fall back to the built-in default.
+        const AssetHandle s_defaultMatHandle = BuiltinResources::getDefaultMaterial();
 
         const auto& submeshes = staticMesh->getSubmeshes();
 
@@ -171,6 +176,7 @@ namespace ve {
         DrawLightCommand dlcmd;
         dlcmd.light = Light();
         dlcmd.light.intensity = 7.0f;
+        dlcmd.light.range = 30.0f;
         dlcmd.position = glm::vec3(0.0f, 1.2f, 5.5f);
         ctx.drawLightCommands.push_back(dlcmd);
 

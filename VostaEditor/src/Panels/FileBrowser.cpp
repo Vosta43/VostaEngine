@@ -1,4 +1,5 @@
 #include "FileBrowser.h"
+#include "AssetSaveRegistry.h"
 #include "Renderer/Texture.h"
 #include "Renderer/StaticMesh.h"
 #include "Asset/ImportManager.h"
@@ -7,11 +8,19 @@
 #include "Core/Log.h"
 #include "Core/ResourceManager.h"
 #include "Renderer/Material.h"
+#include "Renderer/LayeredMaterial.h"
+#include "Renderer/MaterialLayerAsset.h"
 #include "Renderer/ThumbnailRenderer.h"
+#include "Noise/NoiseSettings.h"
+#include "Noise/NoiseNodes.h"
+#include "Scene/Archive.h"
 #include <imgui.h>
 #include <windows.h>
 #include <commdlg.h>
+#include <cstdio>
 #include <fstream>
+#include <algorithm>
+#include <cctype>
 
 //TODO: This is Windows only function
 static std::string openFileDialogWindows() {
@@ -51,6 +60,14 @@ namespace ve {
         refreshFiles();
     }
 
+    void FileBrowser::setOnFileSelect(FileSelectCallback callback) {
+        m_onFileSelect = std::move(callback);
+    }
+
+    void FileBrowser::requestRefresh() {
+        m_refreshRequested = true;
+    }
+
     void FileBrowser::refreshFiles() {
         m_files.clear();
         m_assetTypeCache.clear();
@@ -67,13 +84,42 @@ namespace ve {
             m_files.push_back(parent);
         }
 
+        std::vector<FileEntry> entries;
         for (const auto& entry : std::filesystem::directory_iterator(m_currentPath)) {
+            // Editor session state that lives beside a scene file (the camera
+            // sidecar). Not an asset, so keep it out of the browsing surface.
+            const std::string fileName = entry.path().filename().string();
+            const std::string cameraSuffix = ".camera.json";
+            if (fileName.size() > cameraSuffix.size()
+                && fileName.compare(fileName.size() - cameraSuffix.size(),
+                                    cameraSuffix.size(), cameraSuffix) == 0)
+                continue;
+
             FileEntry e;
             e.name = entry.path().filename().string();
             e.path = entry.path().string();
             e.isDirectory = entry.is_directory();
-            m_files.push_back(e);
+            entries.push_back(e);
         }
+
+        // Sort by asset kind (extension), folders ahead of files, then by name —
+        // ".." stays at the front because it is pushed before this block.
+        if (m_sortByType) {
+            auto lowerExt = [](const FileEntry& f) {
+                std::string ext = ve::utils::getExtension(f.path);
+                std::transform(ext.begin(), ext.end(), ext.begin(),
+                    [](unsigned char c) { return (char)std::tolower(c); });
+                return ext;
+            };
+            std::sort(entries.begin(), entries.end(),
+                [&](const FileEntry& a, const FileEntry& b) {
+                    if (a.isDirectory != b.isDirectory) return a.isDirectory;
+                    const std::string ea = lowerExt(a), eb = lowerExt(b);
+                    if (ea != eb) return ea < eb;
+                    return a.name < b.name;
+                });
+        }
+        m_files.insert(m_files.end(), entries.begin(), entries.end());
 
         // Index the baked assets once, so a source file can find its bake by
         // kind + stem without re-deriving a name the auto-suffix may have moved.
@@ -138,6 +184,53 @@ namespace ve {
         refreshFiles();
     }
 
+    void FileBrowser::beginRename(const std::string& path, const std::string& initialName) {
+        m_renamingPath = path;
+        std::snprintf(m_renameBuffer, sizeof(m_renameBuffer), "%s", initialName.c_str());
+        m_renameFocus = true;   // focus + select-all on the next frame
+        m_selectedPath = path;
+        m_contextPath.clear();
+    }
+
+    void FileBrowser::commitRename() {
+        if (m_renamingPath.empty())
+            return;
+
+        const std::filesystem::path oldPath(m_renamingPath);
+        const std::string oldName = oldPath.filename().string();
+        std::string newName(m_renameBuffer);
+
+        // Keep the original extension when the typed name omits one, so a rename
+        // of "foo.veasset" to "bar" yields "bar.veasset".
+        if (oldPath.has_extension() && newName.find('.') == std::string::npos)
+            newName += oldPath.extension().string();
+
+        m_renamingPath.clear();
+
+        if (newName.empty() || newName == oldName)
+            return;
+
+        std::error_code ec;
+        const std::filesystem::path newPath = oldPath.parent_path() / newName;
+        if (std::filesystem::exists(newPath, ec)) {
+            VE_CORE_WARN_PRINT("Rename: '%s' already exists", newPath.string().c_str());
+            return;
+        }
+
+        std::filesystem::rename(oldPath, newPath, ec);
+        if (ec) {
+            VE_CORE_WARN_PRINT("Rename failed: %s", ec.message().c_str());
+            return;
+        }
+
+        // Carry the loaded resources across the rename so handles in open
+        // documents keep resolving instead of going stale.
+        ResourceManager::renamePrefixAll(oldPath.string(), newPath.string());
+
+        m_selectedPath = newPath.string();
+        refreshFiles();
+    }
+
     void FileBrowser::loadIcons() {
         m_folderIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/folder.png"));
         m_shaderIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/shader.png"));
@@ -145,6 +238,8 @@ namespace ve {
         m_materialIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/material.png"));
         m_staticMeshIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/static_mesh.png"));
         m_terrainIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/terrain.png"));
+        m_noiseIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/noise_resource_2.png"));
+        m_terrainDataIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/terrain_data.png"));
         m_notImportedIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/not_imported_file.png"));
     }
 
@@ -189,6 +284,7 @@ namespace ve {
         const ImU32 kTexture = IM_COL32(235, 125, 185, 255);
         const ImU32 kShader  = IM_COL32(170, 125, 240, 255);
         const ImU32 kSource  = IM_COL32(55, 90, 200, 255);
+        const ImU32 kNoise   = IM_COL32(90, 200, 170, 255);
 
         if (isDirectory)
             return kFolder;
@@ -204,8 +300,21 @@ namespace ve {
             const std::string type = it != assetTypeCache.end() ? it->second : ve::utils::peekAssetToken(path);
             if (type == "staticmesh") return kMesh;
             if (type == "texture")    return kTexture;
+            if (type == "noise")      return kNoise;
         }
         return kDefault;
+    }
+
+    // Name as shown in the browser: the baked-asset extensions are noise, so
+    // they are hidden everywhere the name is displayed. commitRename() puts the
+    // extension back when the typed name omits one.
+    static std::string displayName(const std::string& name) {
+        for (const std::string ext : { std::string(".veasset"), std::string(".veworld") }) {
+            if (name.size() > ext.size() &&
+                name.compare(name.size() - ext.size(), ext.size(), ext) == 0)
+                return name.substr(0, name.size() - ext.size());
+        }
+        return name;
     }
 
     // Wrap a name into at most two lines fitting maxWidth, breaking only on
@@ -282,7 +391,7 @@ namespace ve {
                     return tex;
                 return m_notImportedIcon;
             }
-            if (assetType == "material") {
+            if (assetType == "material" || assetType == "layered_material") {
                 // ThumbnailRenderer owns the cache; a hit here is a map lookup.
                 AssetHandle handle = ResourceManager::find<Material>(path);
                 if (!handle.isValid()) {
@@ -309,6 +418,28 @@ namespace ve {
                 }
                 return m_staticMeshIcon;
             }
+            if (assetType == "material_layer") {
+                // Preview the layer's albedo map: a layer has no baked sphere
+                // thumbnail of its own, and its identity is its albedo.
+                AssetHandle handle = ResourceManager::find<MaterialLayerAsset>(path);
+                if (!handle.isValid()) {
+                    handle = ResourceManager::store<MaterialLayerAsset>(path);
+                }
+                if (auto layer = ResourceManager::get<MaterialLayerAsset>(handle)) {
+                    const std::string albedo = ResourceManager::getPath<Texture2D>(layer->layer.albedoMap);
+                    if (!albedo.empty()) {
+                        if (auto tex = texturePreviewForAsset(albedo))
+                            return tex;
+                    }
+                }
+                return m_materialIcon;
+            }
+            if (assetType == "noise") {
+                return m_noiseIcon;
+            }
+            if (assetType == "terrain_data") {
+                return m_terrainDataIcon;
+            }
             // Unknown veasset type — fall through.
         }
 
@@ -317,6 +448,11 @@ namespace ve {
     }
 
     void FileBrowser::render() {
+        if (m_refreshRequested) {
+            m_refreshRequested = false;
+            refreshFiles();
+        }
+
         ImGui::Begin("File Browser");
 
         if (ImGui::Button("Import")) {
@@ -327,6 +463,42 @@ namespace ve {
                 refreshFiles();
             }
         }
+
+        // Save every asset with unsaved edits. The count on the button is the
+        // registry's dirty total, so it reflects editors that are not even open.
+        ImGui::SameLine();
+        auto& saves = AssetSaveRegistry::get();
+        const std::size_t dirtyCount = saves.dirtyCount();
+        const std::string saveLabel = dirtyCount > 0
+            ? "Save (" + std::to_string(dirtyCount) + ")"
+            : std::string("Save");
+        if (dirtyCount > 0) {
+            ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(196, 132, 36, 255));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(216, 152, 56, 255));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(176, 112, 26, 255));
+        }
+        if (ImGui::Button(saveLabel.c_str()))
+            saves.saveAll();
+        if (dirtyCount > 0)
+            ImGui::PopStyleColor(3);
+
+        // Organize the listing by asset kind (extension), folders first. Captured
+        // before the click so the push/pop stay balanced when the state flips.
+        ImGui::SameLine();
+        const bool sortActive = m_sortByType;
+        if (sortActive) {
+            ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(64, 150, 250, 255));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(92, 170, 255, 255));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(44, 130, 235, 255));
+        }
+        if (ImGui::Button("Sort")) {
+            m_sortByType = !m_sortByType;
+            refreshFiles();
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Sort by asset type (extension), folders first");
+        if (sortActive)
+            ImGui::PopStyleColor(3);
 
         ImGui::Text("Path: %s", m_currentPath.c_str());
         ImGui::Separator();
@@ -343,10 +515,14 @@ namespace ve {
         const float sepYOffset = pad + tile + pad;
         const float cellH = sepYOffset + pad + textBlockH + pad;
 
-        int columns = (int)(ImGui::GetContentRegionAvail().x / cellW);
+        // Lay the grid out by hand rather than with the legacy Columns() API: its
+        // per-column clip rect is offset from the content area and clips the right
+        // edge off every card. Dividing the available width exactly tiles the row.
+        const float availW = ImGui::GetContentRegionAvail().x;
+        int columns = (int)(availW / cellW);
         if (columns < 1) columns = 1;
-
-        ImGui::Columns(columns, nullptr, false);
+        const float colW = availW / (float)columns;
+        const ImVec2 gridMin = ImGui::GetCursorScreenPos();
 
         // An item that claims the right-click opens its own menu; only a click
         // no item took falls through to the empty-area menu below.
@@ -359,6 +535,7 @@ namespace ve {
         // Deferred so the loop never mutates m_files while iterating it.
         std::string navigateTo;
         std::string openFile;
+        bool requestCommitRename = false;
 
         // t > 0 fades a colour toward white, t < 0 toward black.
         const auto shade = [](ImU32 col, float t) -> ImU32 {
@@ -371,32 +548,43 @@ namespace ve {
             return ImGui::GetColorU32(c);
         };
 
-        for (const auto& file : m_files) {
+        for (int idx = 0; idx < (int)m_files.size(); ++idx) {
+            const auto& file = m_files[idx];
             auto icon = getIconForFile(file.path, file.isDirectory);
 
             ImGui::PushID(file.path.c_str());
 
-            const ImVec2 cellMin = ImGui::GetCursorScreenPos();
-            const ImVec2 cellMax(cellMin.x + cellW, cellMin.y + cellH);
+            // Each card owns exactly one grid cell: place the hit box at the cell's
+            // top-left, so the card fills the cell edge to edge.
+            const int col = idx % columns;
+            const int row = idx / columns;
+            const ImVec2 cellMin(gridMin.x + col * colW, gridMin.y + row * cellH);
+            const ImVec2 cellMax(cellMin.x + colW, cellMin.y + cellH);
 
-            ImGui::InvisibleButton("##cell", ImVec2(cellW, cellH));
+            ImGui::SetCursorScreenPos(cellMin);
+            ImGui::InvisibleButton("##cell", ImVec2(colW, cellH));
             const bool hovered = ImGui::IsItemHovered();
             const bool selected = (m_selectedPath == file.path);
+            const bool renaming = (file.path == m_renamingPath);
 
-            if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                if (file.isDirectory) navigateTo = file.path;
-                else openFile = file.path;
-            }
+            // While renaming, the cell is an input box: swallow navigation and
+            // selection clicks so they don't fight the text field.
+            if (!renaming) {
+                if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                    if (file.isDirectory) navigateTo = file.path;
+                    else openFile = file.path;
+                }
 
-            if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
-                m_selectedPath = file.path;
+                if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+                    m_selectedPath = file.path;
 
-            if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-                m_contextPath = file.path;
-                m_contextName = file.name;
-                m_contextIsDirectory = file.isDirectory;
-                openedItemPopup = true;
-                requestItemPopup = true;
+                if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+                    m_contextPath = file.path;
+                    m_contextName = file.name;
+                    m_contextIsDirectory = file.isDirectory;
+                    openedItemPopup = true;
+                    requestItemPopup = true;
+                }
             }
 
             ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -424,9 +612,21 @@ namespace ve {
                                   stripBot, rounding, ImDrawFlags_RoundCornersBottom);
             }
 
-            // Thumbnail: fit into the tile box preserving aspect, centred.
-            const ImVec2 imgAreaMin(cellMin.x + pad, cellMin.y + pad);
+            // Thumbnail: fit into the tile box preserving aspect, centred on the
+            // card (which spans the full column, not the nominal cellW).
+            const ImVec2 imgAreaMin(cellMin.x + (colW - tile) * 0.5f, cellMin.y + pad);
             const ImVec2 imgAreaMax(imgAreaMin.x + tile, imgAreaMin.y + tile);
+
+            // A rendered material ball leaves transparent margins inside its
+            // square thumbnail, so at 1:1 it floats in empty space. Zoom it a
+            // little: the overflow is alpha-0, so nothing clips visibly.
+            float thumbZoom = 1.0f;
+            if (!file.isDirectory) {
+                auto typeIt = m_assetTypeCache.find(file.path);
+                if (typeIt != m_assetTypeCache.end() &&
+                    (typeIt->second == "material" || typeIt->second == "layered_material"))
+                    thumbZoom = 1.3f;
+            }
 
             if (icon && icon->getRendererID()) {
                 const float tw = (float)icon->getWidth();
@@ -434,7 +634,7 @@ namespace ve {
                 float scale = 1.0f;
                 if (tw > 0.0f && th > 0.0f) {
                     const float sx = tile / tw, sy = tile / th;
-                    scale = sx < sy ? sx : sy;
+                    scale = (sx < sy ? sx : sy) * thumbZoom;
                 }
                 const ImVec2 imgSize(tw * scale, th * scale);
                 const ImVec2 imgMin(imgAreaMin.x + (tile - imgSize.x) * 0.5f,
@@ -447,22 +647,47 @@ namespace ve {
                 dl->AddRectFilled(imgAreaMin, imgAreaMax, IM_COL32(60, 60, 60, 255), 4.0f);
             }
 
-            // Rule between the thumbnail and the name, tinted by asset kind.
+            // Rule between the thumbnail and the name, tinted by asset kind. It
+            // runs the full card width so it reads as a divider rather than a
+            // floating dash under the icon.
             const float sepY = cellMin.y + sepYOffset;
-            dl->AddLine(ImVec2(cellMin.x + pad, sepY), ImVec2(cellMax.x - pad, sepY),
-                        accent, 1.5f);
+            dl->AddLine(ImVec2(cellMin.x, sepY), ImVec2(cellMax.x, sepY), accent, 3.0f);
 
-            std::string line1, line2;
-            wrapTwoLines(file.name, cellW - pad * 2.0f, line1, line2);
-
-            const ImU32 textCol = IM_COL32(225, 225, 225, 255);
             const float textTop = sepY + pad;
-            const float w1 = ImGui::CalcTextSize(line1.c_str()).x;
-            dl->AddText(ImVec2(cellMin.x + (cellW - w1) * 0.5f, textTop), textCol, line1.c_str());
-            if (!line2.empty()) {
-                const float w2 = ImGui::CalcTextSize(line2.c_str()).x;
-                dl->AddText(ImVec2(cellMin.x + (cellW - w2) * 0.5f, textTop + lineH + spacingY),
-                            textCol, line2.c_str());
+            if (renaming) {
+                // In-place input box replacing the name; the whole name is
+                // selected on the first frame.
+                ImGui::SetCursorScreenPos(ImVec2(cellMin.x + pad, textTop));
+                ImGui::SetNextItemWidth(colW - pad * 2.0f);
+                if (m_renameFocus) {
+                    ImGui::SetKeyboardFocusHere();
+                    m_renameFocus = false;
+                }
+                const bool entered = ImGui::InputText(
+                    "##rename", m_renameBuffer, sizeof(m_renameBuffer),
+                    ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
+                // Enter commits; clicking away deactivates (Escape reverts the
+                // buffer first, so that path just no-ops into the same commit).
+                if (entered || ImGui::IsItemDeactivated())
+                    requestCommitRename = true;
+                // Snap back onto the cell's own footprint. The Dummy matters:
+                // it is what clears ImGui's "cursor was moved" flag, otherwise
+                // the boundary check in End() trips once the window closes.
+                ImGui::SetCursorScreenPos(ImVec2(cellMin.x, cellMax.y));
+                ImGui::Dummy(ImVec2(0.0f, 0.0f));
+            }
+            else {
+                std::string line1, line2;
+                wrapTwoLines(displayName(file.name), colW - pad * 2.0f, line1, line2);
+
+                const ImU32 textCol = IM_COL32(225, 225, 225, 255);
+                const float w1 = ImGui::CalcTextSize(line1.c_str()).x;
+                dl->AddText(ImVec2(cellMin.x + (colW - w1) * 0.5f, textTop), textCol, line1.c_str());
+                if (!line2.empty()) {
+                    const float w2 = ImGui::CalcTextSize(line2.c_str()).x;
+                    dl->AddText(ImVec2(cellMin.x + (colW - w2) * 0.5f, textTop + lineH + spacingY),
+                                textCol, line2.c_str());
+                }
             }
 
             if (selected)
@@ -470,10 +695,12 @@ namespace ve {
                             rounding, 0, 2.0f);
 
             ImGui::PopID();
-            ImGui::NextColumn();
         }
 
-        ImGui::Columns(1);
+        // Reserve the whole grid's height so the window scrolls to the last row.
+        const int rows = ((int)m_files.size() + columns - 1) / columns;
+        ImGui::SetCursorScreenPos(ImVec2(gridMin.x, gridMin.y + rows * cellH));
+        ImGui::Dummy(ImVec2(0.0f, 0.0f));
 
         if (!openFile.empty() && m_onFileSelect)
             m_onFileSelect(openFile);
@@ -481,6 +708,8 @@ namespace ve {
             m_currentPath = navigateTo;
             refreshFiles();
         }
+        if (requestCommitRename)
+            commitRename();
 
         // --- Item context menu ---
         if (requestItemPopup) {
@@ -488,7 +717,7 @@ namespace ve {
         }
         if (ImGui::BeginPopup("ItemContextMenu")) {
             // Full name, since the cell label truncates long ones.
-            ImGui::TextDisabled("%s", m_contextName.c_str());
+            ImGui::TextDisabled("%s", displayName(m_contextName).c_str());
             ImGui::Separator();
 
             // Only for raw sources the importer understands; a directory or an
@@ -501,6 +730,9 @@ namespace ve {
             if (ImGui::MenuItem("Copy")) {
                 m_clipboardPath = m_contextPath;
             }
+            // The ".." entry is a navigation shortcut, not a real file.
+            if (ImGui::MenuItem("Rename", nullptr, false, m_contextName != ".."))
+                beginRename(m_contextPath, displayName(m_contextName));
             if (ImGui::MenuItem("Delete")) {
                 m_pendingDeletePath = m_contextPath;
                 m_pendingDeleteName = m_contextName;
@@ -524,10 +756,64 @@ namespace ve {
                 if (ec)
                     VE_CORE_WARN_PRINT("New Folder failed: %s", dir.string().c_str());
                 refreshFiles();
+                // Drop straight into rename so the placeholder name can be typed over.
+                beginRename(dir.string(), dir.filename().string());
             }
             else if (ImGui::MenuItem("Material")) {
-                m_showNewMaterialPopup = true;
-                m_newMaterialName[0] = '\0';
+                std::error_code ec;
+                std::filesystem::path mat(m_currentPath + "/New Material.veasset");
+                for (int i = 1; std::filesystem::exists(mat, ec); ++i)
+                    mat = std::filesystem::path(m_currentPath + "/New Material " + std::to_string(i) + ".veasset");
+                ResourceManager::store<Material>(mat.string());
+                refreshFiles();
+                beginRename(mat.string(), displayName(mat.filename().string()));
+            }
+            else if (ImGui::MenuItem("Layered Material")) {
+                std::error_code ec;
+                std::filesystem::path mat(m_currentPath + "/New Layered Material.veasset");
+                for (int i = 1; std::filesystem::exists(mat, ec); ++i)
+                    mat = std::filesystem::path(m_currentPath + "/New Layered Material " + std::to_string(i) + ".veasset");
+                LayeredMaterial::writeNewAsset(mat.string());
+                ResourceManager::store<Material>(mat.string());
+                refreshFiles();
+                beginRename(mat.string(), displayName(mat.filename().string()));
+            }
+            else if (ImGui::MenuItem("Material Layer")) {
+                std::error_code ec;
+                std::filesystem::path ml(m_currentPath + "/New Material Layer.veasset");
+                for (int i = 1; std::filesystem::exists(ml, ec); ++i)
+                    ml = std::filesystem::path(m_currentPath + "/New Material Layer " + std::to_string(i) + ".veasset");
+                MaterialLayerAsset::writeNewAsset(ml.string());
+                ResourceManager::store<MaterialLayerAsset>(ml.string());
+                refreshFiles();
+                beginRename(ml.string(), displayName(ml.filename().string()));
+            }
+            else if (ImGui::MenuItem("Noise")) {
+                std::error_code ec;
+                std::filesystem::path nz(m_currentPath + "/New Noise.veasset");
+                for (int i = 1; std::filesystem::exists(nz, ec); ++i)
+                    nz = std::filesystem::path(m_currentPath + "/New Noise " + std::to_string(i) + ".veasset");
+
+                // Same on-disk contract as NoisePanel::saveToFile: the "noise" token,
+                // the format version, then a default Noise Unit -> Output graph.
+                TextArchive ar(nz.string(), ArchiveMode::write);
+                if (ar.isGood()) {
+                    NoiseGraph graph;
+                    auto unit = CreateRef<NoiseUnitNode>();
+                    auto out  = CreateRef<NoiseOutputNode>();
+                    graph.addNode(unit, glm::vec2(-280.0f, 0.0f));
+                    graph.addNode(out,  glm::vec2(60.0f, 0.0f));
+                    graph.addLink(unit->m_outputPins[0].id, out->m_inputPins[0].id);
+
+                    ar << std::string("noise");
+                    ar << (int32_t)2;
+                    serializeNoiseGraph(graph, ar);
+                }
+                else {
+                    VE_CORE_WARN_PRINT("New Noise failed: %s", nz.string().c_str());
+                }
+                refreshFiles();
+                beginRename(nz.string(), displayName(nz.filename().string()));
             }
             else if (ImGui::MenuItem("Paste", nullptr, false, !m_clipboardPath.empty())) {
                 pasteClipboard();
@@ -553,8 +839,13 @@ namespace ve {
                 std::filesystem::remove_all(m_pendingDeletePath, ec);
                 if (ec)
                     VE_CORE_WARN_PRINT("Delete failed: %s", m_pendingDeletePath.c_str());
-                else
+                else {
+                    // A scene drags its camera sidecar along, or the orphan would
+                    // outlive the scene it describes.
+                    std::error_code sidecarEc;
+                    std::filesystem::remove(m_pendingDeletePath + ".camera.json", sidecarEc);
                     VE_CORE_SUCCESS_PRINT("Deleted: %s", m_pendingDeletePath.c_str());
+                }
                 m_showDeleteConfirm = false;
                 ImGui::CloseCurrentPopup();
                 refreshFiles();
@@ -563,32 +854,6 @@ namespace ve {
             if (ImGui::Button("Cancel", ImVec2(120, 0))) {
                 m_showDeleteConfirm = false;
                 ImGui::CloseCurrentPopup();
-            }
-            ImGui::EndPopup();
-        }
-
-        // --- New Material name popup ---
-        if (m_showNewMaterialPopup) {
-            ImGui::OpenPopup("New Material");
-        }
-        if (ImGui::BeginPopupModal("New Material", &m_showNewMaterialPopup, ImGuiWindowFlags_AlwaysAutoResize)) {
-            ImGui::Text("Enter material name:");
-            ImGui::InputText("##name", m_newMaterialName, sizeof(m_newMaterialName));
-            if (ImGui::Button("Create", ImVec2(120, 0))) {
-                std::string name(m_newMaterialName);
-                if (!name.empty()) {
-                    if (name.find(".veasset") == std::string::npos) {
-                        name += ".veasset";
-                    }
-                    std::string fullPath = m_currentPath + "/" + name;
-                    ResourceManager::store<Material>(fullPath);
-                    refreshFiles();
-                }
-                m_showNewMaterialPopup = false;
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
-                m_showNewMaterialPopup = false;
             }
             ImGui::EndPopup();
         }

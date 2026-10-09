@@ -43,6 +43,16 @@ namespace ve {
 		applyPassUniforms(*this);
 		m_shader->setInt("u_DiscardBackground", ctx.presentDiscardBackground ? 1 : 0);
 
+		// y=0 ground grid (editor view helper). The non-jittered VP keeps thin
+		// lines from shimmering with the TAA jitter.
+		if (ctx.groundGrid) {
+			glm::mat4 vp = ctx.projMatrixNoJitter * ctx.viewMatrix;
+			m_shader->setMat4("u_ViewProj", vp);
+			m_shader->setMat4("u_InvViewProj", glm::inverse(vp));
+			m_shader->setFloat3("u_CameraPos", ctx.cameraPosition);
+		}
+		m_shader->setInt("u_GroundGrid", ctx.groundGrid ? 1 : 0);
+
 		m_fullscreenQuad->bind();
 		RenderCommand::drawIndexed(m_fullscreenQuad);
 		m_fullscreenQuad->unbind();

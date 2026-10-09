@@ -1,9 +1,15 @@
 #include "PropertyPanel.h"
 #include "AssetBrowserWidget.h"
-#include "Scene/Terrain/TerrainMeshBuilder.h"
-#include "Scene/Terrain/QuadTreeTerrain.h"
+#include "AssetSaveRegistry.h"
+#include "Renderer/SingleMaterial.h"
+#include "Renderer/LayeredMaterial.h"
+#include "Renderer/MaterialLayerAsset.h"
+#include "Core/AssetConfig.h"
+#include "Scene/Archive.h"
+#include "Scene/Terrain/Terrain.h"
 #include "Asset/TextureImporter.h"
 #include "Asset/StaticMeshImporter.h"
+#include "Noise/NoiseGraphResource.h"
 
 #include "imgui.h"
 
@@ -23,9 +29,29 @@ PropertyPanel::PropertyPanel(const Ref<Scene>& sceneContext)
 {
 }
 
-void PropertyPanel::onGuiRender(uint32_t selectedEntity)
+void PropertyPanel::onGuiRender(uint32_t& selectedEntity)
 {
     ImGui::Begin("Properties");
+
+    // Applied before anything takes a component pointer, so the spawn/destroy
+    // below cannot pull the storage out from under this frame's draws.
+    if (m_sceneContext && m_pendingTileOp != PendingTileOp::None) {
+        switch (m_pendingTileOp) {
+            case PendingTileOp::Add:
+                selectedEntity = Terrain::addTile(*m_sceneContext, m_pendingTileCoord);
+                break;
+            case PendingTileOp::Remove:
+                Terrain::removeTile(*m_sceneContext, m_pendingTileCoord);
+                selectedEntity = UINT32_MAX;
+                break;
+            case PendingTileOp::EnsureSystem:
+                selectedEntity = Terrain::ensureSystem(*m_sceneContext);
+                break;
+            default:
+                break;
+        }
+        m_pendingTileOp = PendingTileOp::None;
+    }
 
     if (selectedEntity == UINT32_MAX) {
         ImGui::Text("No entity selected");
@@ -48,6 +74,11 @@ void PropertyPanel::onGuiRender(uint32_t selectedEntity)
 
         if (typeName == "TerrainComponent") {
             drawTerrainComponent(selectedEntity, static_cast<TerrainComponent*>(compPtr));
+            continue;
+        }
+
+        if (typeName == "TerrainSystemComponent") {
+            drawTerrainSystemComponent(static_cast<TerrainSystemComponent*>(compPtr));
             continue;
         }
 
@@ -272,7 +303,7 @@ void PropertyPanel::drawMaterialProperty(void* ptr, const ReflectionProperty& pr
         return;
     }
 
-    auto material = ResourceManager::get<Material>(*materialHandle);
+    auto material = std::dynamic_pointer_cast<SingleMaterial>(ResourceManager::get<Material>(*materialHandle));
     if (!material) {
         ImGui::Text("%s: Not loaded", prop.name.c_str());
         return;
@@ -476,7 +507,7 @@ void PropertyPanel::drawStaticMeshComponent(StaticMeshComponent* comp)
             ImGui::PushID(static_cast<int>(i));
 
             if (ImGui::TreeNode(entry.name.c_str())) {
-                auto mat = ResourceManager::get<Material>(entry.materialHandle);
+                auto mat = std::dynamic_pointer_cast<SingleMaterial>(ResourceManager::get<Material>(entry.materialHandle));
                 if (mat) {
                     // Thumbnail preview.
                     auto matTexture = ThumbnailRenderer::getMaterialThumbnail(entry.materialHandle);
@@ -581,15 +612,127 @@ void PropertyPanel::drawTexturePropertyWidget(const std::string& label, AssetHan
 }
 
 // -----------------------------------------------------------------------
+// TerrainSystemComponent custom drawer
+// -----------------------------------------------------------------------
+void PropertyPanel::drawTerrainSystemComponent(TerrainSystemComponent* comp)
+{
+    if (!m_sceneContext)
+        return;
+
+    if (!ImGui::CollapsingHeader("TerrainSystemComponent", ImGuiTreeNodeFlags_DefaultOpen))
+        return;
+
+    // --- Shared source: noise graph (wins over a tile's own heightmap) ---
+    // Edits are picked up by the per-frame build key, so no manual re-bake here.
+    ImGui::Text("Noise Graph");
+    AssetBrowser::ResourceCombo<NoiseGraphResource>("##sys_noisegraph_combo", comp->noiseGraphHandle,
+        [](AssetHandle, float size) {
+            ImGui::Button("?", ImVec2(size, size));
+        }, 24.0f);
+    ImGui::SameLine();
+    if (ImGui::Button("Clear##sys_noisegraph"))
+        comp->noiseGraphHandle = AssetHandle();
+    ImGui::DragInt("Noise Resolution", &comp->noiseResolution, 1.0f, 16, 4096);
+
+    // --- Shared material selector ---
+    ImGui::Separator();
+    ImGui::Text("Material");
+    AssetBrowser::ResourceCombo<Material>("##sys_material_combo", comp->materialHandle,
+        [](AssetHandle h, float size) {
+            auto thumbnail = ThumbnailRenderer::getMaterialThumbnail(h);
+            if (thumbnail) {
+                ImTextureID thumbID = (ImTextureID)(thumbnail->getRendererID());
+                ImGui::Image(thumbID, ImVec2(size, size));
+            } else {
+                ImGui::Button("?", ImVec2(size, size));
+            }
+        }, 24.0f);
+    ImGui::SameLine();
+    if (ImGui::Button("Clear##sys_material"))
+        comp->materialHandle = AssetHandle();
+    ImGui::Separator();
+
+    // The layer stack is authored in the material's own editor window, not here:
+    // this inspector only selects the material and reports its state.
+    auto layered = std::dynamic_pointer_cast<LayeredMaterial>(
+        ResourceManager::get<Material>(comp->materialHandle));
+
+    if (ImGui::Button(layered ? "Open Layer Editor" : "Open Material Editor", ImVec2(-1, 0))) {
+        if (m_onOpenMaterialEditor && comp->materialHandle.isValid())
+            m_onOpenMaterialEditor(comp->materialHandle);
+    }
+
+    // The 2D tile map is a whole-system view, so its entry point sits with the
+    // other system-wide actions rather than on a single tile.
+    if (ImGui::Button("Open Terrain Map", ImVec2(-1, 0))) {
+        if (m_onOpenTerrainMap)
+            m_onOpenTerrainMap();
+    }
+
+    // --- Material Layers ---
+    ImGui::Separator();
+    ImGui::Text("Material Layers");
+    if (!layered) {
+        ImGui::TextDisabled(comp->materialHandle.isValid()
+            ? "Material is not layered; layers are ignored."
+            : "Assign a Layered Material to blend surface layers.");
+        ImGui::TextDisabled("Create one via File Browser > New > Layered Material.");
+    }
+    else {
+        ImGui::Text("Layers (%d/%d)", (int)layered->layers.size(), kMaxMaterialLayers);
+        if (layered->layers.empty())
+            ImGui::TextDisabled("No layers yet; open the layer editor to add some.");
+        if (AssetSaveRegistry::get().isDirty(ResourceManager::getPath<Material>(comp->materialHandle)))
+            ImGui::TextDisabled("unsaved");
+    }
+
+    // --- Paint brush ---
+    // Lives here rather than on a tile: the brush paints the whole terrain through
+    // the system, and the layer palette reads the system's shared material.
+    ImGui::Separator();
+    if (m_onDrawTerrainBrush && m_sceneContext)
+        m_onDrawTerrainBrush(*m_sceneContext);
+    else
+        ImGui::TextDisabled("Paint Texture unavailable.");
+
+    // --- Shared world scale ---
+    ImGui::Separator();
+    ImGui::DragFloat("Tile Size", &comp->tileSize, 0.1f, 0.1f, 100.0f);
+    ImGui::DragFloat("Height Scale", &comp->heightScale, 0.01f, 0.01f, 100.0f);
+
+    // --- Shared quadtree LOD ---
+    ImGui::Separator();
+    ImGui::Text("LOD (Quadtree)");
+    ImGui::DragInt("Max Depth", &comp->maxDepth, 1.0f, 1, 12);
+    ImGui::DragInt("Chunk Segments", &comp->segments, 1.0f, 4, 64);
+    ImGui::DragFloat("Detail", &comp->lodDetail, 0.5f, 1.0f, 128.0f);
+    ImGui::DragFloat("Render Distance", &comp->renderDistance, 100.0f, 100.0f, 100000.0f);
+
+    ImGui::TextDisabled("These settings apply to every terrain tile in the scene.");
+}
+
+// -----------------------------------------------------------------------
 // TerrainComponent custom drawer
 // -----------------------------------------------------------------------
-void PropertyPanel::drawTerrainComponent(uint32_t entityId, TerrainComponent* comp)
+void PropertyPanel::drawTerrainComponent(uint32_t& entityId, TerrainComponent* comp)
 {
     if (!ImGui::CollapsingHeader("TerrainComponent", ImGuiTreeNodeFlags_DefaultOpen)) {
         return;
     }
 
-    // --- Height Map selector ---
+    // A tile has nothing to bake from without the scene's shared parameters, and
+    // stays hidden until one exists. Creating the entity reallocates component
+    // storage, so defer it a frame rather than building it under this pointer.
+    TerrainSystemComponent* sys = m_sceneContext ? Terrain::findSystem(*m_sceneContext) : nullptr;
+    if (!sys) {
+        ImGui::TextDisabled("No Terrain System in this scene.");
+        ImGui::TextDisabled("Terrain tiles stay hidden until one exists.");
+        if (ImGui::Button("Create Terrain System", ImVec2(-1, 0)))
+            m_pendingTileOp = PendingTileOp::EnsureSystem;
+        return;
+    }
+
+    // --- Height Map selector (this tile's own source; the system's noise wins) ---
     float imageSize = 64.0f;
     if (comp->heightMapHandle.isValid()) {
         auto tex = ResourceManager::get<Texture2D>(comp->heightMapHandle);
@@ -602,7 +745,7 @@ void PropertyPanel::drawTerrainComponent(uint32_t entityId, TerrainComponent* co
     ImGui::BeginGroup();
     ImGui::Text("Height Map");
 
-    AssetBrowser::ResourceCombo<Texture2D>("##heightmap_combo", comp->heightMapHandle,
+    if (AssetBrowser::ResourceCombo<Texture2D>("##heightmap_combo", comp->heightMapHandle,
         [](AssetHandle h, float size) {
             auto tex = ResourceManager::get<Texture2D>(h);
             if (tex && tex->getRendererID() != 0) {
@@ -611,99 +754,42 @@ void PropertyPanel::drawTerrainComponent(uint32_t entityId, TerrainComponent* co
             } else {
                 ImGui::Button("?", ImVec2(size, size));
             }
-        }, 24.0f);
+        }, 24.0f)) {
+        applyTerrainSource(entityId, comp);
+    }
 
     ImGui::SameLine();
     if (ImGui::Button("Clear##heightmap")) {
         comp->heightMapHandle = AssetHandle();
         comp->bDirty = true;
+        // Fall back to the next source: system noise graph, else the flat surface.
+        if (m_sceneContext)
+            Terrain::ensureBuilt(*m_sceneContext, entityId);
     }
     ImGui::EndGroup();
 
-    // --- Material selector ---
     ImGui::Separator();
-    ImGui::Text("Material");
-    AssetBrowser::ResourceCombo<Material>("##terrain_material_combo", comp->terrainMaterialHandle,
-        [](AssetHandle h, float size) {
-            auto thumbnail = ThumbnailRenderer::getMaterialThumbnail(h);
-            if (thumbnail) {
-                ImTextureID thumbID = (ImTextureID)(thumbnail->getRendererID());
-                ImGui::Image(thumbID, ImVec2(size, size));
-            } else {
-                ImGui::Button("?", ImVec2(size, size));
-            }
-        }, 24.0f);
-    ImGui::SameLine();
-    if (ImGui::Button("Clear##material")) {
-        comp->terrainMaterialHandle = AssetHandle();
-    }
-    ImGui::Separator();
-    if (ImGui::Button("Open Material Editor")) {
-        if (m_onOpenMaterialEditor && comp->terrainMaterialHandle.isValid()) {
-            m_onOpenMaterialEditor(comp->terrainMaterialHandle);
-        }
-    }
+    ImGui::TextDisabled("Source, material, tile scale and LOD live on the Terrain System.");
 
-    // --- Parameters ---
-    ImGui::Separator();
-    ImGui::DragFloat("Tile Size", &comp->tileSize, 0.1f, 0.1f, 100.0f);
-    ImGui::DragFloat("Height Scale", &comp->heightScale, 0.01f, 0.01f, 100.0f);
-
-    // --- Quadtree LOD ---
-    ImGui::Separator();
-    ImGui::Text("LOD (Quadtree)");
-    ImGui::DragInt("Max Depth", &comp->maxDepth, 1.0f, 1, 12);
-    ImGui::DragInt("Chunk Segments", &comp->segments, 1.0f, 4, 64);
-    ImGui::DragFloat("Detail", &comp->lodDetail, 0.5f, 1.0f, 128.0f);
-    ImGui::DragFloat("Render Distance", &comp->renderDistance, 100.0f, 100.0f, 100000.0f);
+    if (m_sceneContext)
+        drawTerrainTiles(entityId, comp);
 
     // --- Dirty indicator ---
-    if (comp->bDirty && comp->heightMapHandle.isValid()) {
+    if (comp->bDirty && (comp->heightMapHandle.isValid() || sys->noiseGraphHandle.isValid())) {
         ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "Mesh needs regeneration");
     }
 
     // --- Generate button ---
     ImGui::Separator();
-    bool canGenerate = comp->heightMapHandle.isValid();
+    bool canGenerate = comp->heightMapHandle.isValid() || sys->noiseGraphHandle.isValid();
     if (!canGenerate) {
         ImGui::BeginDisabled();
     }
-    if (ImGui::Button("Edit Terrain", ImVec2(-1, 0))) {
-        
-    }
     if (ImGui::Button("Generate Terrain", ImVec2(-1, 0))) {
-        std::string heightMapPath = toAbsolute(ResourceManager::getPath<Texture2D>(comp->heightMapHandle));
-        if (!heightMapPath.empty()) {
-            auto textureResource = TextureImporter::importFromFile(heightMapPath);
-            if (textureResource) {
-                if (!comp->quadtree) comp->quadtree = CreateRef<QuadTreeTerrain>();
-                auto mesh = comp->quadtree->build(
-                    textureResource, comp->tileSize, comp->heightScale,
-                    comp->maxDepth, comp->segments);
-
-                if (mesh) {
-                    // Remove old mesh from storage if present
-                    if (comp->generatedMeshHandle.isValid()) {
-                        auto& storage = ResourceManager::getStorage<StaticMesh>();
-                        storage.remove(comp->generatedMeshHandle);
-                    }
-
-                    // Register new mesh with a unique synthetic path
-                    std::string meshPath = "__terrain/" + std::to_string(entityId);
-                    auto& storage = ResourceManager::getStorage<StaticMesh>();
-                    comp->generatedMeshHandle = storage.store(meshPath, mesh);
-                    
-                    comp->bDirty = false;
-
-                    VE_CORE_INFO_PRINT("Terrain mesh generated: %d vertices",
-                        mesh->getVertexCount());
-                } else {
-                    VE_CORE_ERROR_PRINT("Terrain mesh generation failed");
-                }
-            } else {
-                VE_CORE_ERROR_PRINT("Failed to import heightmap: %s", heightMapPath.c_str());
-            }
-        }
+        // Route through ensureBuilt so the noise > heightmap > flat priority is the
+        // single decision point; mark dirty to force the rebuild.
+        comp->bDirty = true;
+        Terrain::ensureBuilt(*m_sceneContext, entityId);
     }
     if (!canGenerate) {
         ImGui::EndDisabled();
@@ -727,6 +813,95 @@ void PropertyPanel::drawTerrainComponent(uint32_t entityId, TerrainComponent* co
             ImGui::Image(texID, ImVec2(thumbSize, thumbSize), ImVec2(0, 1), ImVec2(1, 0));
         }
     }
+}
+
+// -----------------------------------------------------------------------
+// Terrain tile grid
+// -----------------------------------------------------------------------
+void PropertyPanel::applyTerrainSource(uint32_t entityId, TerrainComponent* comp)
+{
+    if (!m_sceneContext)
+        return;
+
+    // Bake first so the tile finally has an extent, then reconcile its grid
+    // coordinate with the transform and bake again: a noise tile that moved
+    // re-samples from its new origin instead of staying on the old one.
+    comp->bDirty = true;
+    Terrain::ensureBuilt(*m_sceneContext, entityId);
+
+    Terrain::snapToGrid(*m_sceneContext, entityId);
+    Terrain::ensureBuilt(*m_sceneContext, entityId);
+}
+
+void PropertyPanel::drawTerrainTiles(uint32_t& entityId, TerrainComponent* comp)
+{
+    ImGui::Separator();
+    ImGui::Text("Terrain Tiles");
+
+    Scene& scene = *m_sceneContext;
+    TerrainSystemComponent* sys = Terrain::findSystem(scene);
+    if (!sys)
+        return;
+
+    const float tileSize = Terrain::tileWorldSize(*comp, *sys);
+    ImGui::TextDisabled("Tile World Size  %.2f m", tileSize);
+    if (tileSize <= 0.0f) {
+        ImGui::TextDisabled("Assign a height map or noise graph to place this tile on the grid.");
+        return;
+    }
+
+    int coord[2] = { comp->tileCoord.x, comp->tileCoord.y };
+    ImGui::SetNextItemWidth(150.0f);
+    if (ImGui::DragInt2("##tileCoord", coord, 0.5f))
+        Terrain::setTileCoord(scene, entityId, glm::ivec2(coord[0], coord[1]));
+    ImGui::SameLine();
+    ImGui::TextUnformatted("Coord");
+
+    // A slot is whatever occupies the grid cell one step away, since neighbours
+    // are looked up by coordinate rather than stored. Filled slots jump there,
+    // empty ones create a tile that shares this scene's terrain system settings.
+    const Terrain::TileDir kDirs[4] = { Terrain::TileDir::Left, Terrain::TileDir::Right,
+                                        Terrain::TileDir::Up, Terrain::TileDir::Down };
+    const char* kDirNames[4] = { "Left", "Right", "Up", "Down" };
+
+    for (int i = 0; i < 4; ++i) {
+        const glm::ivec2 target = comp->tileCoord + Terrain::tileStep(kDirs[i]);
+        const uint32_t neighbour = Terrain::findTile(scene, target);
+
+        ImGui::PushID(i);
+        ImGui::TextUnformatted(kDirNames[i]);
+        ImGui::SameLine(70.0f);
+
+        if (neighbour != UINT32_MAX) {
+            if (ImGui::SmallButton("Go"))
+                entityId = neighbour;
+            if (ImGui::IsItemHovered()) {
+                const float neighbourSize =
+                    Terrain::tileWorldSize(scene.getComponent<TerrainComponent>(neighbour), *sys);
+                if (neighbourSize != tileSize)
+                    ImGui::SetTooltip("Tile at (%d, %d)\nTile size differs: %.2f m, so the grid "
+                        "will not line up", target.x, target.y, neighbourSize);
+                else
+                    ImGui::SetTooltip("Go to the tile at (%d, %d)", target.x, target.y);
+            }
+        } else {
+            if (ImGui::SmallButton("Add")) {
+                m_pendingTileOp = PendingTileOp::Add;
+                m_pendingTileCoord = target;
+            }
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Add a tile at (%d, %d)", target.x, target.y);
+        }
+        ImGui::PopID();
+    }
+
+    if (ImGui::Button("Remove Tile")) {
+        m_pendingTileOp = PendingTileOp::Remove;
+        m_pendingTileCoord = comp->tileCoord;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Snap to Grid"))
+        Terrain::snapToGrid(scene, entityId);
 }
 
 } // namespace ve

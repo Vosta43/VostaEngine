@@ -11036,7 +11036,10 @@ void ImGui::UpdateMouseWheel()
             {
                 LockWheelingWindow(window, wheel.y);
                 float max_step = window->InnerRect.GetHeight() * 0.67f;
-                float scroll_step = ImTrunc(ImMin(5 * window->FontRefSize, max_step));
+                // VOSTA PATCH: upstream scrolls 5 lines per wheel notch, which reads as far
+                // too coarse against the editor's 1.4x font scale. 1 line. Re-apply after
+                // updating Dear ImGui.
+                float scroll_step = ImTrunc(ImMin(1 * window->FontRefSize, max_step));
                 SetScrollY(window, window->Scroll.y - wheel.y * scroll_step);
                 g.WheelingWindowScrolledFrame = g.FrameCount;
             }

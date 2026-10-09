@@ -8,6 +8,7 @@
 namespace ve {
 	
 	class Scene;
+	class SceneRenderer;
 
 	class VE_API ECSystemBase {
 	public:
@@ -28,7 +29,9 @@ namespace ve {
 	private:
 		RenderPipeline m_renderPipeline;
 		Ref<Scene> m_scene;
-		
+		// Draw-command collection lives in SceneRenderer; this system only owns
+		// the pipeline that consumes it.
+		Ref<SceneRenderer> m_collector;
 	};
 
 

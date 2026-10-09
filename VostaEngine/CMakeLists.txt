@@ -11,6 +11,7 @@ set(ENGINE_SOURCES
     src/Core/Layers/Layers.cpp
     src/Core/Layers/LayerStack.cpp
     src/Core/Log.cpp
+    src/Core/Project.cpp
     src/Core/Reflection.cpp
     src/Core/ResourceManager.cpp
     src/Core/Window.cpp
@@ -38,6 +39,10 @@ set(ENGINE_SOURCES
     src/Renderer/Material.cpp
     src/Renderer/MaterialGraph.cpp
     src/Renderer/MaterialNodes.cpp
+    src/Renderer/LayeredMaterial.cpp
+    src/Renderer/MaterialLayerAsset.cpp
+    src/Renderer/MaterialInstance.cpp
+    src/Renderer/SingleMaterial.cpp
     src/Renderer/RenderCommand.cpp
     src/Renderer/Renderer.cpp
     src/Renderer/Renderer2D.cpp
@@ -63,6 +68,8 @@ set(ENGINE_SOURCES
     src/Renderer/RenderPass/PostBufferPass.cpp
     src/Renderer/RenderPass/PassBinding.cpp
     src/Renderer/RenderPass/PresentPass.cpp
+    src/Renderer/RenderPass/ShadowPass.cpp
+    src/Renderer/Shadow/ShadowCascadeCalculator.cpp
     src/Renderer/Pipeline/PipelineConfig.cpp
     src/Renderer/Pipeline/SettingsRegistry.cpp
     src/Renderer/Preprocess/BakeService.cpp
@@ -74,20 +81,34 @@ set(ENGINE_SOURCES
 
     # Scene / ECS
     src/Scene/Archive.cpp
+    src/Scene/BuiltinPrefabs.cpp
     src/Scene/ECSystems/ECSystem.cpp
     src/Scene/ECSystems/ECSystemGraph.cpp
     src/Scene/Entity.cpp
     src/Scene/EntityRegistry.cpp
+    src/Scene/PrefabRegistry.cpp
     src/Scene/Scene.cpp
     src/Scene/SceneSerializer.cpp
 
     # Asset import
+    src/Asset/AssetAuthoring.cpp
+    src/Asset/AssetLibrary.cpp
     src/Asset/ImportManager.cpp
     src/Asset/StaticMeshImporter.cpp
     src/Asset/TextureImporter.cpp
 
     # GUI
     src/Gui/Gui.cpp
+
+    # MCP tool layer
+    src/MCP/ToolRegistry.cpp
+    src/MCP/ToolDispatchQueue.cpp
+    src/MCP/SceneTools.cpp
+    src/MCP/AssetTools.cpp
+    src/MCP/EditorTools.cpp
+    src/MCP/HttpClient.cpp
+    src/MCP/LlmClient.cpp
+    src/MCP/AgentSession.cpp
 
     # Third-party — compiled directly into engine
     thirdparty/GLAD/src/glad.c
@@ -99,10 +120,14 @@ set(ENGINE_SOURCES
     thirdparty/IMGUI/backends/imgui_impl_glfw.cpp
     thirdparty/IMGUI/backends/imgui_impl_opengl3.cpp
     thirdparty/stb_image/stb_image.cpp
+    thirdparty/ufbx/ufbx.c
 )
 
 # ── Engine shared library ───────────────────────────────────────────────
 add_library(VostaEngine STATIC ${ENGINE_SOURCES})
+
+# ── Jolt Physics (vendored, see THIRD_PARTY_NOTICES.md) ─────────────────
+add_subdirectory(thirdparty/Jolt)
 
 # ── Include directories ─────────────────────────────────────────────────
 target_include_directories(VostaEngine
@@ -116,6 +141,7 @@ target_include_directories(VostaEngine
         ${ENGINE_ROOT}/thirdparty/IMGUI/backends
         ${ENGINE_ROOT}/thirdparty/glm
         ${ENGINE_ROOT}/thirdparty/stb_image
+        ${ENGINE_ROOT}/thirdparty/ufbx
         ${ENGINE_ROOT}/thirdparty/JSON/include
 )
 
@@ -142,7 +168,13 @@ target_link_libraries(VostaEngine
         OpenGL::GL
     PRIVATE
         glfw3
+        Jolt
 )
+
+# ── WinHTTP — transport for the AI client (system library, ties to no source) ─
+if(WIN32)
+    target_link_libraries(VostaEngine PRIVATE winhttp)
+endif()
 
 # ── Precompiled header ──────────────────────────────────────────────────
 target_precompile_headers(VostaEngine PRIVATE "src/Core/vepch.h")
@@ -152,6 +184,13 @@ set_source_files_properties(
     thirdparty/GLAD/src/glad.c
     PROPERTIES
         LANGUAGE CXX
+        SKIP_PRECOMPILE_HEADERS ON
+)
+
+# ufbx.c 保持 C 编译，同样跳过预编译头
+set_source_files_properties(
+    thirdparty/ufbx/ufbx.c
+    PROPERTIES
         SKIP_PRECOMPILE_HEADERS ON
 )
 

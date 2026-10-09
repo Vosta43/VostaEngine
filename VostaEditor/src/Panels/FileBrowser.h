@@ -22,12 +22,22 @@ namespace ve {
         void setRootPath(const std::string& path);
         void render();
 
+        // Ask for a rescan on the next render(). Callers that change assets
+        // elsewhere (AI writes, scripts) use this instead of refreshing now: the
+        // listing stays owned by render(), and an unrendered panel costs nothing.
+        void requestRefresh();
+
         using FileSelectCallback = std::function<void(const std::string& path)>;
         void setOnFileSelect(FileSelectCallback callback);
 
     private:
         void refreshFiles();
         void pasteClipboard();
+
+        // Inline rename: beginRename() makes the item's name cell an input box
+        // (selecting the whole name); commitRename() applies or discards it.
+        void beginRename(const std::string& path, const std::string& initialName);
+        void commitRename();
 
         // Baked .veasset for a source file, or "" if none. Matches on asset
         // kind + stem so a "_1"-suffixed bake is still found.
@@ -42,6 +52,10 @@ namespace ve {
         std::string m_rootPath;
         std::string m_currentPath;
         std::vector<FileEntry> m_files;
+        // Sort the listing by asset kind (extension), folders first. Off keeps
+        // the directory's natural order.
+        bool m_sortByType = false;
+        bool m_refreshRequested = false;
         FileSelectCallback m_onFileSelect;
         std::string m_selectedPath;
 
@@ -51,6 +65,8 @@ namespace ve {
         std::shared_ptr<Texture2D> m_materialIcon;
         std::shared_ptr<Texture2D> m_staticMeshIcon;
         std::shared_ptr<Texture2D> m_terrainIcon;
+        std::shared_ptr<Texture2D> m_noiseIcon;
+        std::shared_ptr<Texture2D> m_terrainDataIcon;
         std::shared_ptr<Texture2D> m_notImportedIcon;
 
         // path -> .veasset type token. Refilled on refreshFiles(); without it
@@ -62,13 +78,16 @@ namespace ve {
         // entry here.
         std::unordered_map<std::string, std::string> m_bakedAssetIndex;
 
-        bool m_showNewMaterialPopup = false;
-        char m_newMaterialName[256] = {};
-
         // Right-clicked item, shown in the item context menu.
         std::string m_contextPath;
         std::string m_contextName;
         bool m_contextIsDirectory = false;
+
+        // Inline rename: when set, that item's name cell becomes an input box.
+        // m_renameFocus requests focus + select-all on the first frame.
+        std::string m_renamingPath;
+        char m_renameBuffer[256] = {};
+        bool m_renameFocus = false;
 
         // In-app clipboard: "Copy" on an item, "Paste" in an empty area copies
         // the file into the currently shown directory.

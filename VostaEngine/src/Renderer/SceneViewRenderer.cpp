@@ -2,6 +2,7 @@
 #include "SceneViewRenderer.h"
 
 #include "Renderer/RenderPipeline.h"
+#include "Renderer/Shadow/ShadowCascadeCalculator.h"
 #include "Renderer/SceneRenderer.h"
 #include "Renderer/Renderer2D.h"
 #include "Renderer/Renderer3D.h"
@@ -43,6 +44,8 @@ void SceneViewRenderer::render(Camera& camera, const Ref<RenderPipeline>& pipeli
     ctx.totalTime      = DeltaTime::get().getCurrentTime();
     ctx.frameIndex     = camera.getFrameIndex();
     ctx.wireframe      = m_wireframe;
+    ctx.groundGrid     = m_groundGrid;
+    ctx.projMatrixNoJitter = camera.getProjectionMatrix();
 
     m_scene->setCameraMatrices(ctx.viewMatrix, ctx.projMatrix);
     m_scene->setCameraPosition(ctx.cameraPosition);
@@ -83,6 +86,30 @@ void SceneViewRenderer::render(Camera& camera, const Ref<RenderPipeline>& pipeli
         ctx.scatteringTexture = bake.getScatteringLUT(atmosphereComp.atmosphere);
         ctx.mieScatteringTexture = bake.getMieScatteringLUT(atmosphereComp.atmosphere);
         ctx.multipleScatteringTexture = bake.getMultipleScatteringLUT(atmosphereComp.atmosphere);
+
+        // Fit this frame's shadow cascades. The map resolution comes from the shadow
+        // framebuffers so it can't drift from the pipeline asset; the coverage
+        // distance is a pipeline setting.
+        {
+            static const char* kCascadeFbos[ShadowCascadeCalculator::kCascades] = { "shadow0", "shadow1", "shadow2" };
+            int mapRes[ShadowCascadeCalculator::kCascades] = { 1, 1, 1 };
+            for (int i = 0; i < ShadowCascadeCalculator::kCascades; ++i) {
+                if (auto fb = pipeline->framebuffer(kCascadeFbos[i])) {
+                    mapRes[i] = (int)fb->getWidth();
+                }
+            }
+            const float shadowDistance = pipeline->settings().getFloat("SHADOW_DISTANCE", 250.0f);
+            ShadowCascades sc = ShadowCascadeCalculator::compute(
+                ctx.viewMatrix, ctx.projMatrix, ctx.cameraPosition,
+                glm::normalize(ctx.atmosphere.sunDirection), shadowDistance, mapRes,
+                ShadowCascadeCalculator::kCascades);
+            for (int i = 0; i < sc.count; ++i) {
+                ctx.shadowLightVP[i]   = sc.lightVP[i];
+                ctx.shadowSplitFar[i]  = sc.splitFar[i];
+                ctx.shadowTexelWorld[i] = sc.texelWorld[i];
+            }
+            ctx.shadowCascadeCount = sc.count;
+        }
 
         const auto& clouds = bake.getCloudTextures();
         ctx.cloudNoiseTexture  = clouds.noise;

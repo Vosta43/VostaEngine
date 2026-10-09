@@ -112,20 +112,24 @@ namespace ve {
         }
 
         // Retrieve component T belonging to the specified entity.
-        // The entity MUST have been assigned a component of type T via emplace<T>().
+        // An absent component returns a per-type placeholder instead of reading
+        // past the dense array, so a stale id — or an entity the editor/AI made
+        // without this component — can never dereference garbage. Callers that
+        // must tell "absent" apart should test has<T>() first.
         template<typename T>
-        T& get(Entity entity){
-            auto& componentMap = getComponentMap<T>();
-            auto& componentVec = getComponentVector<T>();
-            // TODO: Replace oprerator[] to find()
-            return componentVec[componentMap[entity.getId()]];
+        T& get(Entity entity) {
+            return get<T>(entity.getId());
         }
 
         template<typename T>
         T& get(uint32_t entityId) {
             auto& componentMap = getComponentMap<T>();
             auto& componentVec = getComponentVector<T>();
-            return componentVec[componentMap[entityId]];
+            auto it = componentMap.find(entityId);
+            if (it != componentMap.end() && it->second < componentVec.size())
+                return componentVec[it->second];
+            static T placeholder{};
+            return placeholder;
         }
 
         std::vector<uint32_t> each() {

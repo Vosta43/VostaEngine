@@ -91,6 +91,14 @@ namespace ve {
 		bindPassInputs(*this, ctx);
 		applyPassUniforms(*this);
 
+		// Cascaded shadow data, computed on the CPU this frame (no per-frame UBO).
+		m_shader->setMat4("u_ViewMatrix", ctx.viewMatrix);
+		m_shader->setInt("u_ShadowCascadeCount", ctx.shadowCascadeCount);
+		m_shader->setFloat4("u_ShadowSplitFar", glm::vec4(ctx.shadowSplitFar[0], ctx.shadowSplitFar[1], ctx.shadowSplitFar[2], 0.0f));
+		m_shader->setFloat4("u_ShadowTexelWorld", glm::vec4(ctx.shadowTexelWorld[0], ctx.shadowTexelWorld[1], ctx.shadowTexelWorld[2], 0.0f));
+		for (int i = 0; i < ctx.shadowCascadeCount; ++i)
+			m_shader->setMat4("u_ShadowVP" + std::to_string(i), ctx.shadowLightVP[i]);
+
 		if (!ctx.drawLightCommands.empty()) {
 			std::vector<GpuLightData> gpuLights;
 			gpuLights.reserve(ctx.drawLightCommands.size());

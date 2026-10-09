@@ -94,10 +94,17 @@ namespace ve {
             GLuint depthTexID = 0;
             glCreateTextures(GL_TEXTURE_2D, 1, &depthTexID);
             glTextureStorage2D(depthTexID, 1, GL_DEPTH24_STENCIL8, m_width, m_height);
-            glTextureParameteri(depthTexID, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTextureParameteri(depthTexID, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            // Compare mode makes each tap a hardware depth test and needs bilinear
+            // filtering for the 2x2 PCF footprint; plain depth reads stay NEAREST.
+            const GLint filter = m_spec.depthCompare ? GL_LINEAR : GL_NEAREST;
+            glTextureParameteri(depthTexID, GL_TEXTURE_MIN_FILTER, filter);
+            glTextureParameteri(depthTexID, GL_TEXTURE_MAG_FILTER, filter);
             glTextureParameteri(depthTexID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             glTextureParameteri(depthTexID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            if (m_spec.depthCompare) {
+                glTextureParameteri(depthTexID, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+                glTextureParameteri(depthTexID, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+            }
 
             glNamedFramebufferTexture(m_rendererID,
                 GL_DEPTH_STENCIL_ATTACHMENT,
@@ -110,6 +117,12 @@ namespace ve {
 
     void OpenGLFramebuffer::finalizeDrawBuffers() {
         const size_t count = m_colorData.size();
+        if (count == 0) {
+            // Depth-only target (a shadow map): there is nothing to draw colour into.
+            glNamedFramebufferDrawBuffer(m_rendererID, GL_NONE);
+            glNamedFramebufferReadBuffer(m_rendererID, GL_NONE);
+            return;
+        }
         std::vector<GLenum> drawBuffers(count);
         for (size_t i = 0; i < count; ++i) {
             drawBuffers[i] = GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(i);

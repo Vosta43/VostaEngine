@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <polygon points="32 15.2568 3 32 32 48.7432 61 32" fill="#ededed"/>
+  <line x1="27.1667" y1="18.0474" x2="56.1667" y2="34.7905" stroke="#9a9a9a" stroke-width="0.8"/>
+  <line x1="22.3333" y1="20.8379" x2="51.3333" y2="37.5811" stroke="#9a9a9a" stroke-width="0.8"/>
+  <line x1="17.5" y1="23.6284" x2="46.5" y2="40.3716" stroke="#9a9a9a" stroke-width="0.8"/>
+  <line x1="12.6667" y1="26.4189" x2="41.6667" y2="43.1621" stroke="#9a9a9a" stroke-width="0.8"/>
+  <line x1="7.83333" y1="29.2095" x2="36.8333" y2="45.9526" stroke="#9a9a9a" stroke-width="0.8"/>
+  <line x1="36.8333" y1="18.0474" x2="7.83333" y2="34.7905" stroke="#9a9a9a" stroke-width="0.8"/>
+  <line x1="41.6667" y1="20.8379" x2="12.6667" y2="37.5811" stroke="#9a9a9a" stroke-width="0.8"/>
+  <line x1="46.5" y1="23.6284" x2="17.5" y2="40.3716" stroke="#9a9a9a" stroke-width="0.8"/>
+  <line x1="51.3333" y1="26.4189" x2="22.3333" y2="43.1621" stroke="#9a9a9a" stroke-width="0.8"/>
+  <line x1="56.1667" y1="29.2095" x2="27.1667" y2="45.9526" stroke="#9a9a9a" stroke-width="0.8"/>
+  <line x1="32" y1="15.2568" x2="3" y2="32" stroke="#6e6e6e" stroke-width="1"/>
+  <line x1="3" y1="32" x2="32" y2="48.7432" stroke="#6e6e6e" stroke-width="1"/>
+  <line x1="32" y1="48.7432" x2="61" y2="32" stroke="#6e6e6e" stroke-width="1"/>
+  <line x1="61" y1="32" x2="32" y2="15.2568" stroke="#6e6e6e" stroke-width="1"/>
+</svg>

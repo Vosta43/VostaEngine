@@ -2,41 +2,71 @@
 #include <VostaEngine.h>
 
 #include <glm.hpp>
+#include <string>
 
 namespace ve {
 
-	enum class BrushType {
-		None,
-		Raise,
-		Flatten
+	// Settings for the terrain material paint brush.
+	struct TerrainBrushSettings {
+		float radius = 8.0f;    // world units
+		float strength = 1.0f;  // 0..1 cap on the weight a stroke writes
+		int   layer = 1;        // control-map channel: 1..3 -> r,g,b
 	};
 
-	struct BrushSetting {
-		float radius = 1.0f;
-		float strength = 0.1f;
-		BrushType type = BrushType::Raise;
-	};
-
-
+	// Terrain material paint brush. Owns the paint settings, draws the brush
+	// section of the TerrainSystemComponent inspector (Unity's Paint Texture tool),
+	// and applies strokes across the whole terrain by raycasting it.
 	class TerrainEditor {
 	public:
-		void init(const Ref<CameraController>& cameraController) {m_cameraController = cameraController;};
-		void activate() { m_activated = true;}
-		void inactivate() {m_activated = false;}
+		// Height-sculpt operations offered by the height tool palette. Selection is
+		// UI-only for now — none of these are wired to the terrain yet.
+		enum class HeightTool { Raise, Lower, Smooth, Flatten, Sharpen, Erosion };
 
-		void onLeftClicked(const glm::vec2& mouseViewportPos);
+		// Draw the brush controls inline, into whatever window is current. `active`
+		// is the caller's "painting enabled" flag, toggled from the section header.
+		// The brush acts on the whole terrain, so no tile selection is needed.
+		void drawInspector(bool& active, Scene& scene);
 
-		static glm::vec3 getRayDir(const glm::vec2& mouseViewportPos,
-		                           const glm::vec2& viewportSize,
-		                           const glm::mat4& viewMatrix,
-		                           const glm::mat4& projMatrix);
+		// Paint one dab at the viewport cursor. Returns true when a stroke landed.
+		// The stroke lands wherever the cursor ray meets the terrain, spanning as
+		// many tiles as the brush overlaps.
+		bool paintAt(const glm::mat4& view, const glm::mat4& proj,
+		             const glm::vec2& mouseViewportPos, const glm::vec2& viewportSize,
+		             Scene& scene);
+
+		// World-space point where the cursor ray meets the terrain, plus the surface
+		// normal there, or false when the cursor is not over it. Drives the viewport
+		// brush-cursor ring.
+		bool hoverPoint(const glm::mat4& view, const glm::mat4& proj,
+		                const glm::vec2& mouseViewportPos, const glm::vec2& viewportSize,
+		                Scene& scene, glm::vec3& outWorldPos, glm::vec3& outNormal);
+
+		float radius() const { return m_settings.radius; }
 
 	private:
-		bool m_activated = false;
-		BrushSetting m_brushSetting;
-		Ref<CameraController> m_cameraController;
+		// March the cursor ray against every terrain tile in the scene, nearest hit
+		// wins. False when the cursor is not over any terrain.
+		bool raycastTerrain(const glm::mat4& view, const glm::mat4& proj,
+		                    const glm::vec2& mouseViewportPos, const glm::vec2& viewportSize,
+		                    Scene& scene, uint32_t& outEntity, glm::vec3& outWorldPos);
 
+		void ensureIcon();
+		void ensureMountainIcon();
+		void ensureBrushThumb();
+		void ensureHeightToolIcons();
+
+		static constexpr int kHeightToolCount = 6;
+
+		TerrainBrushSettings m_settings;
+		Ref<Texture2D> m_icon;
+		// Second tool icon in the header strip; its behaviour is not wired yet, so
+		// the toggle only holds its own on/off state.
+		Ref<Texture2D> m_mountainIcon;
+		bool m_mountainActive = false;
+		Ref<Texture2D> m_heightToolIcons[kHeightToolCount];
+		HeightTool m_heightTool = HeightTool::Raise;
+		Ref<Texture2D> m_brushThumb;
+		std::string m_status = "LMB drag to paint";
 	};
-
 
 }

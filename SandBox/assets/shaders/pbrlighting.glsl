@@ -71,6 +71,7 @@ const float PI = 3.14159265359;
 // Physically-based atmospheric single scattering (shared library)
 #include "atmosphere.glsl"
 #include "volume_cloud.glsl"
+#include "shadow_lib.glsl"
 
 // ---------------------------------------------------------------------------
 // PBR helper functions (Cook-Torrance BRDF, metallic-roughness workflow)
@@ -176,6 +177,9 @@ void main()
 
         worldPos = reconstructWorldPosition(v_TexCoord, depth, u_InvViewProj);
         vec3 viewDir  = normalize(u_CameraPos - worldPos);
+        // Distance along the camera forward axis — the same measure the cascade
+        // splits are expressed in.
+        float viewDepth = -(u_ViewMatrix * vec4(worldPos, 1.0)).z;
 
         // Reflectance at normal incidence
         vec3 F0 = mix(vec3(0.04), albedo, metallic);
@@ -235,7 +239,11 @@ void main()
         vec3 specSun = Dsun * Gsun * Fsun / (4.0 * NdotVSun * NdotSun + 0.0001);
         vec3 kDSun   = (1.0 - Fsun) * (1.0 - metallic);
         vec3 sunRadiance = u_SunIntensity * sunTransmittance(worldPos - u_PlanetCenter, sunDir);
-        Lo += (kDSun * albedo / PI + specSun) * sunRadiance * NdotSun;
+        // Shadows occlude the direct sun only; sky/IBL light is unoccluded.
+        float shadow = 1.0;
+        if (u_ShadowCascadeCount > 0)
+            shadow = shadowFactor(worldPos, normal, viewDepth);
+        Lo += (kDSun * albedo / PI + specSun) * sunRadiance * NdotSun * shadow;
 
         // Specular IBL — split-sum approximation. The prefiltered cubemap is
         // baked once from the static skybox, so its sky region goes stale once

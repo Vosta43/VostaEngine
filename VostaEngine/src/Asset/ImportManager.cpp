@@ -153,6 +153,32 @@ namespace ve {
 			ThumbnailRenderer::bakeAllLoaded();
 			VE_CORE_SUCCESS_PRINT("Imported mesh asset: %s", assetPath.c_str());
 		}
+		else if (ext == ".fbx") {
+			const std::string localFbx = copyInto(src, dest);
+			if (localFbx.empty())
+				return;
+
+			// Pull in the externally referenced textures so the mesh does not
+			// depend on files outside the content tree. Embedded textures travel
+			// inside the FBX and need no copy.
+			for (const auto& texRef : StaticMeshImporter::referencedTextures(src.string()))
+				copyInto(src.parent_path() / texRef, dest);
+
+			auto resource = StaticMeshImporter::importFromFile(localFbx);
+			if (!resource || resource->vertexBuffer.empty()) {
+				VE_CORE_ERROR_PRINT("Import: failed to parse %s", localFbx.c_str());
+				return;
+			}
+
+			const std::filesystem::path localFbxPath(localFbx);
+			const std::string assetPath = bakedAssetPathFor(dest, localFbxPath.stem().string(), "staticmesh");
+			if (!StaticMeshImporter::saveToAsset(resource, assetPath))
+				return;
+
+			ResourceManager::store<StaticMesh>(assetPath);
+			ThumbnailRenderer::bakeAllLoaded();
+			VE_CORE_SUCCESS_PRINT("Imported mesh asset: %s", assetPath.c_str());
+		}
 		else if (ext == ".png" || ext == ".jpg" || ext == ".hdr") {
 			const std::string local = copyInto(src, dest);
 			if (local.empty())

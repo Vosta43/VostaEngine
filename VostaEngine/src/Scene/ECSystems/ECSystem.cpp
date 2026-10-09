@@ -1,6 +1,7 @@
 #include "vepch.h"
 #include "ECSystem.h"
 #include "Renderer/Camera.h"
+#include "Renderer/SceneRenderer.h"
 #include "Scene/Scene.h"
 #include "Scene/Components.h"
 
@@ -11,6 +12,7 @@ namespace ve {
 		m_scene = scene;
 		// TODO:
 		m_renderPipeline.init(0,0);
+		m_collector = CreateRef<SceneRenderer>(scene);
 	}
 
 	void RenderSystem::onUpdate(float deltaTime){
@@ -23,49 +25,10 @@ namespace ve {
 
 		ctx.deltaTime = deltaTime;
 
-		auto meshGroup = m_scene->getRegistry().group<TransformComponent, StaticMeshComponent>();
-		for (auto& et : meshGroup) {
-			auto& transform = m_scene->getRegistry().get<TransformComponent>(et);
-			auto& meshComp = m_scene->getRegistry().get<StaticMeshComponent>(et);
-
-			DrawMeshCommand dmc;
-			dmc.meshHandle = meshComp.staticMeshHandle;
-			dmc.transform = transform.transform;
-			ctx.drawMeshCommands.push_back(dmc);
-
-			//Renderer3D::drawMesh(transform.transform, meshComp.staticMeshHandle);
-		}
-
-		auto terrainGroup = m_scene->getRegistry().group<TransformComponent, TerrainComponent>();
-		for (auto& et : terrainGroup) {
-			auto& transform = m_scene->getRegistry().get<TransformComponent>(et);
-			auto& terrainComp = m_scene->getRegistry().get<TerrainComponent>(et);
-
-			if (!terrainComp.generatedMeshHandle.isValid()) continue;
-
-			auto mesh = ResourceManager::get<StaticMesh>(terrainComp.generatedMeshHandle);
-			if (!mesh) continue;
-
-			DrawMeshCommand dmc;
-			dmc.meshHandle = terrainComp.generatedMeshHandle;
-			dmc.materialHandle = terrainComp.terrainMaterialHandle;
-			dmc.transform = transform.transform;
-			ctx.drawMeshCommands.push_back(dmc);
-		}
-
-		auto lightGroup = m_scene->getRegistry().group<TransformComponent,LightComponent>();
-		for (auto& et : lightGroup) {
-			auto& transformComp = m_scene->getRegistry().get<TransformComponent>(et);
-			auto& lightComp = m_scene->getRegistry().get<LightComponent>(et);
-
-			DrawLightCommand dlc;
-			dlc.light = lightComp.light;
-			dlc.position = glm::vec3(transformComp.transform[3]);
-			ctx.drawLightCommands.push_back(dlc);
-		}
-
-
-
+		// SceneRenderer is the one place scene data becomes draw commands.
+		m_collector->collectAllMesh(ctx);
+		m_collector->collectAllLight(ctx);
+		m_collector->collectAllSprites(ctx);
 
 		m_renderPipeline.render(ctx);
 	}

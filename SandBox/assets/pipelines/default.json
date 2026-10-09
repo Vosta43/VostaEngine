@@ -1,6 +1,8 @@
 {
   "shaders": [
     { "name": "gbuffer",           "path": "SandBox/assets/shaders/gbuffer.glsl" },
+    { "name": "terrain_layers",    "path": "SandBox/assets/shaders/terrain_layers.glsl" },
+    { "name": "shadow_depth",      "path": "SandBox/assets/shaders/shadow_depth.glsl" },
     { "name": "volume_cloud_pass", "path": "SandBox/assets/shaders/volume_cloud_pass.glsl" },
     { "name": "cloud_taa",         "path": "SandBox/assets/shaders/cloud_taa.glsl" },
     { "name": "pbrlighting",       "path": "SandBox/assets/shaders/pbrlighting.glsl" },
@@ -20,6 +22,18 @@
         { "slot": 3, "internalFormat": "RGBA8" }
       ]
     },
+    {
+      "name": "shadow0", "width": 2048, "height": 2048,
+      "depth": true, "depthCompare": true, "attachments": []
+    },
+    {
+      "name": "shadow1", "width": 2048, "height": 2048,
+      "depth": true, "depthCompare": true, "attachments": []
+    },
+    {
+      "name": "shadow2", "width": 2048, "height": 2048,
+      "depth": true, "depthCompare": true, "attachments": []
+    },
     { "name": "hdr", "attachments": [ { "slot": 0, "internalFormat": "RGBA16F" } ] },
     { "name": "cloud", "widthScale": 0.25, "heightScale": 0.25, "attachments": [ { "slot": 0, "internalFormat": "RGBA16F" } ] },
     { "name": "cloudTaaA", "widthScale": 0.25, "heightScale": 0.25, "attachments": [ { "slot": 0, "internalFormat": "RGBA16F" } ] },
@@ -30,6 +44,19 @@
   ],
 
   "passes": [
+    {
+      "name": "shadow0", "type": "shadow", "target": "shadow0", "shader": "shadow_depth",
+      "index": 0, "when": { "from": "hasAtmosphere" }
+    },
+    {
+      "name": "shadow1", "type": "shadow", "target": "shadow1", "shader": "shadow_depth",
+      "index": 1, "when": { "from": "hasAtmosphere" }
+    },
+    {
+      "name": "shadow2", "type": "shadow", "target": "shadow2", "shader": "shadow_depth",
+      "index": 2, "when": { "from": "hasAtmosphere" }
+    },
+
     { "name": "gbuffer", "type": "gbuffer", "target": "gbuffer", "shader": "gbuffer" },
 
     { "name": "cloud", "type": "cloud", "target": "cloud", "shader": "volume_cloud_pass" },
@@ -54,7 +81,13 @@
         { "uniform": "u_SkyboxMap",        "unit": 5, "source": "@skybox", "type": "cube" },
         { "uniform": "u_IrradianceMap",    "unit": 6, "source": "@irradiance", "type": "cube" },
         { "uniform": "u_PrefilteredEnvMap","unit": 7, "source": "@prefilteredEnv", "type": "cube" },
-        { "uniform": "u_BRDFLUT",          "unit": 8, "source": "@brdfLUT" }
+        { "uniform": "u_BRDFLUT",          "unit": 8, "source": "@brdfLUT" },
+        { "uniform": "u_ShadowMap0",       "unit": 13, "source": "shadow0", "depth": true },
+        { "uniform": "u_ShadowMap1",       "unit": 14, "source": "shadow1", "depth": true },
+        { "uniform": "u_ShadowMap2",       "unit": 15, "source": "shadow2", "depth": true }
+      ],
+      "uniforms": [
+        { "uniform": "SHADOW_SAMPLES", "kind": "Float", "x": 9.0 }
       ]
     },
 
@@ -85,5 +118,7 @@
     }
   ],
 
-  "settings": []
+  "settings": [
+    { "name": "SHADOW_DISTANCE", "apply": "uniform", "value": 250.0, "min": 50.0, "max": 1000.0 }
+  ]
 }

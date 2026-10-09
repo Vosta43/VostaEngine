@@ -23,69 +23,10 @@ namespace ve {
 	}
 	Scene::~Scene() {}
 
-	void Scene::buildRenderContext(RenderContext& ctx) {
-		ctx.viewMatrix = m_viewMatrix;
-		ctx.projMatrix = m_projMatrix;
-		ctx.cameraPosition = m_cameraPosition;
-
-		// 3D meshes
-		auto meshGroup = m_entityRegistry.group<TransformComponent, StaticMeshComponent>();
-		for (auto& et : meshGroup) {
-			auto& transform = m_entityRegistry.get<TransformComponent>(et);
-			auto& meshComp = m_entityRegistry.get<StaticMeshComponent>(et);
-			DrawMeshCommand cmd;
-			cmd.transform = transform.transform;
-			cmd.meshHandle = meshComp.staticMeshHandle;
-			cmd.materialHandle = meshComp.materialHandle;
-			ctx.drawMeshCommands.push_back(cmd);
-		}
-
-		// Terrain meshes
-		auto terrainGroup = m_entityRegistry.group<TransformComponent, TerrainComponent>();
-		for (auto& et : terrainGroup) {
-			auto& transform = m_entityRegistry.get<TransformComponent>(et);
-			auto& terrainComp = m_entityRegistry.get<TerrainComponent>(et);
-
-			if (!terrainComp.generatedMeshHandle.isValid()) continue;
-
-			auto mesh = ResourceManager::get<StaticMesh>(terrainComp.generatedMeshHandle);
-			if (!mesh) continue;
-
-			DrawMeshCommand cmd;
-			cmd.transform = transform.transform;
-			cmd.meshHandle = terrainComp.generatedMeshHandle;
-			cmd.materialHandle = terrainComp.terrainMaterialHandle;
-			ctx.drawMeshCommands.push_back(cmd);
-		}
-
-		// Lights
-		auto lightView = m_entityRegistry.group<TransformComponent, LightComponent>();
-		for (auto& et : lightView) {
-			auto& transform = m_entityRegistry.get<TransformComponent>(et);
-			auto& lightComp = m_entityRegistry.get<LightComponent>(et);
-			DrawLightCommand cmd;
-			cmd.position = glm::vec3(transform.transform[3]);
-			cmd.light = lightComp.light;
-			ctx.drawLightCommands.push_back(cmd);
-		}
-
-		auto skyView = m_entityRegistry.view<SkyBoxComponent>();
-		if (!skyView.empty()) {
-			auto entity = *skyView.begin();
-			auto& skyComp = m_entityRegistry.get<SkyBoxComponent>(entity);
-			ctx.skyboxTexture = ResourceManager::get<TextureCubeMap>(skyComp.textureCubeMapHandle);
-		}
-
-		auto atmosphereView = m_entityRegistry.group<TransformComponent, AtmosphereComponent>();
-		if (!atmosphereView.empty()) {
-			auto entity = *atmosphereView.begin();
-			auto& transform = m_entityRegistry.get<TransformComponent>(entity);
-			auto& atmosphereComp = m_entityRegistry.get<AtmosphereComponent>(entity);
-			ctx.atmosphere = atmosphereComp.atmosphere;
-			ctx.clouds = atmosphereComp.clouds;
-			ctx.planetCenter = glm::vec3(transform.transform[3]);
-			ctx.hasAtmosphere = true;
-		}
+	void Scene::onComponentAssigned(std::type_index type, Entity entity) {
+		if (const ComponentTypeInfo* info = findComponentType(type))
+			if (info->initialize)
+				info->initialize(m_entityRegistry, entity);
 	}
 
 	void Scene::onUpdate(float deltaTime){

@@ -128,6 +128,7 @@ namespace ve {
 			f.width = (uint32_t)std::max(0, el.getInt("width", 0));
 			f.height = (uint32_t)std::max(0, el.getInt("height", 0));
 			f.hasDepthStencil = el.getBool("depth", false);
+			f.depthCompare = el.getBool("depthCompare", false);
 
 			const size_t n = el.arraySize("attachments");
 			f.attachments.reserve(n);
@@ -170,6 +171,7 @@ namespace ve {
 			p.type = el.getString("type");
 			p.target = el.getString("target");
 			p.shader = el.getString("shader");
+			p.index = el.getInt("index", -1);
 
 			const size_t nIn = el.arraySize("inputs");
 			p.inputs.reserve(nIn);
@@ -285,6 +287,7 @@ namespace ve {
 
 		c.shaders = {
 			{ "gbuffer",           "SandBox/assets/shaders/gbuffer.glsl" },
+			{ "terrain_layers",    "SandBox/assets/shaders/terrain_layers.glsl" },
 			{ "volume_cloud_pass", "SandBox/assets/shaders/volume_cloud_pass.glsl" },
 			{ "cloud_taa",         "SandBox/assets/shaders/cloud_taa.glsl" },
 			{ "pbrlighting",       "SandBox/assets/shaders/pbrlighting.glsl" },

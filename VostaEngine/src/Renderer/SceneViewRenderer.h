@@ -29,10 +29,15 @@ public:
     // GBuffer pass. Off by default.
     void setWireframe(bool wireframe) { m_wireframe = wireframe; }
 
+    // Editor view helper: y=0 ground grid composited by the present pass. Off by
+    // default.
+    void setGroundGrid(bool groundGrid) { m_groundGrid = groundGrid; }
+
 private:
     Ref<Scene>         m_scene;
     Ref<SceneRenderer> m_sceneRenderer;
     bool               m_wireframe = false;
+    bool               m_groundGrid = false;
 };
 
 }

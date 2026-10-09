@@ -3,18 +3,129 @@
 #include "StaticMeshImporter.h"
 #include "StaticMeshResource.h"
 #include "Renderer/Material.h"
+#include "Renderer/SingleMaterial.h"
 #include "Core/ResourceManager.h"
 #include "Scene/Archive.h"
 #include "Core/AssetConfig.h"
 #include "Utils.h"
 
+#include "ufbx.h"
+
 #include <fstream>
 #include <sstream>
 #include <filesystem>
 #include <cmath>
+#include <array>
+#include <unordered_map>
 
 namespace ve {
-    
+
+    // One face-triangle and the material name it belongs to, before the
+    // vertices are grouped into per-material sub-meshes.
+    struct TriangleRecord {
+        Vertex v0, v1, v2;
+        std::string materialName;
+    };
+
+    static glm::vec3 toGlm3(const ufbx_vec3& v) {
+        return glm::vec3(static_cast<float>(v.x), static_cast<float>(v.y), static_cast<float>(v.z));
+    }
+    static glm::vec2 toGlm2(const ufbx_vec2& v) {
+        return glm::vec2(static_cast<float>(v.x), static_cast<float>(v.y));
+    }
+    static std::string toStdString(const ufbx_string& s) {
+        return s.data ? std::string(s.data, s.length) : std::string();
+    }
+
+    // Group triangles by material, emit vertices/indices/sub-meshes, and derive
+    // UV-gradient tangents. Shared by the OBJ and FBX importers.
+    static void buildGeometry(StaticMeshResource& resource, const std::vector<TriangleRecord>& triangles) {
+        // Collect unique material names, preserving the order of first occurrence.
+        std::vector<std::string> materialNames;
+        std::unordered_map<std::string, std::vector<size_t>> materialTriangleIndices;
+        for (size_t i = 0; i < triangles.size(); i++) {
+            const auto& name = triangles[i].materialName;
+            if (materialTriangleIndices.find(name) == materialTriangleIndices.end()) {
+                materialNames.push_back(name);
+            }
+            materialTriangleIndices[name].push_back(i);
+        }
+
+        std::vector<Vertex> sortedVertices;
+        std::vector<int> sortedIndices;
+        std::vector<SubMeshResource> sortedSubMeshes;
+
+        for (const auto& matName : materialNames) {
+            SubMeshResource sub;
+            sub.name = matName;
+            sub.firstIndex = static_cast<uint32_t>(sortedIndices.size());
+            sub.indexCount = 0;
+
+            const auto& triIndices = materialTriangleIndices[matName];
+            for (size_t triIdx : triIndices) {
+                const auto& tri = triangles[triIdx];
+
+                uint32_t base = static_cast<uint32_t>(sortedVertices.size());
+
+                sortedVertices.push_back(tri.v0);
+                sortedVertices.push_back(tri.v1);
+                sortedVertices.push_back(tri.v2);
+
+                sortedIndices.push_back(base);
+                sortedIndices.push_back(base + 1);
+                sortedIndices.push_back(base + 2);
+
+                sub.indexCount += 3;
+            }
+
+            sortedSubMeshes.push_back(sub);
+        }
+
+        // Compute tangents from UV gradients (required for normal mapping).
+        // Standard algorithm: for each triangle, solve for the tangent direction
+        // from the vertex positions and UV deltas, then average per-vertex.
+        for (size_t i = 0; i < sortedIndices.size(); i += 3) {
+            uint32_t i0 = sortedIndices[i];
+            uint32_t i1 = sortedIndices[i + 1];
+            uint32_t i2 = sortedIndices[i + 2];
+
+            Vertex& v0 = sortedVertices[i0];
+            Vertex& v1 = sortedVertices[i1];
+            Vertex& v2 = sortedVertices[i2];
+
+            glm::vec3 e1 = v1.position - v0.position;
+            glm::vec3 e2 = v2.position - v0.position;
+
+            float du1 = v1.uv.x - v0.uv.x;
+            float du2 = v2.uv.x - v0.uv.x;
+            float dv1 = v1.uv.y - v0.uv.y;
+            float dv2 = v2.uv.y - v0.uv.y;
+
+            float r = du1 * dv2 - du2 * dv1;
+            if (std::abs(r) < 1e-8f) continue;
+
+            glm::vec3 tangent = (e1 * dv2 - e2 * dv1) / r;
+
+            v0.tangent += tangent;
+            v1.tangent += tangent;
+            v2.tangent += tangent;
+        }
+
+        // Normalize accumulated tangents; assign a default for degenerate UVs.
+        for (auto& v : sortedVertices) {
+            if (glm::length(v.tangent) > 1e-8f) {
+                v.tangent = glm::normalize(v.tangent);
+            } else {
+                // Fallback: local +X direction (perpendicular to normal).
+                v.tangent = glm::vec3(1.0f, 0.0f, 0.0f);
+            }
+        }
+
+        resource.vertexBuffer = std::move(sortedVertices);
+        resource.indexBuffer = std::move(sortedIndices);
+        resource.subMeshes = std::move(sortedSubMeshes);
+    }
+
     struct MtlData {
         // Colors
         glm::vec3 Ka = glm::vec3(0.0f);     // ambient
@@ -226,10 +337,6 @@ namespace ve {
         auto mtlMaterials = parseMtl(mtlPaths);
 
         // Temporary struct: maps each triangle to its source material
-        struct TriangleRecord {
-            Vertex v0, v1, v2;
-            std::string materialName;
-        };
         std::vector<TriangleRecord> triangles;
 
         std::string currentMaterialName = "default";
@@ -328,93 +435,7 @@ namespace ve {
             return nullptr;
         }
 
-        // Group triangles by material
-        // Collect unique material names, preserving the order of first occurrence.
-        std::vector<std::string> materialNames;
-        std::unordered_map<std::string, std::vector<size_t>> materialTriangleIndices;
-        for (size_t i = 0; i < triangles.size(); i++) {
-            const auto& name = triangles[i].materialName;
-            if (materialTriangleIndices.find(name) == materialTriangleIndices.end()) {
-                materialNames.push_back(name);
-            }
-            materialTriangleIndices[name].push_back(i);
-        }
-
-        // Emit vertices and indices grouped by material order.
-        std::vector<Vertex> sortedVertices;
-        std::vector<int> sortedIndices;
-        std::vector<SubMeshResource> sortedSubMeshes;
-
-        for (const auto& matName : materialNames) {
-            SubMeshResource sub;
-            sub.name = matName;
-            sub.firstIndex = static_cast<uint32_t>(sortedIndices.size());
-            sub.indexCount = 0;
-
-            const auto& triIndices = materialTriangleIndices[matName];
-            for (size_t triIdx : triIndices) {
-                const auto& tri = triangles[triIdx];
-
-                uint32_t base = static_cast<uint32_t>(sortedVertices.size());
-
-                sortedVertices.push_back(tri.v0);
-                sortedVertices.push_back(tri.v1);
-                sortedVertices.push_back(tri.v2);
-
-                sortedIndices.push_back(base);
-                sortedIndices.push_back(base + 1);
-                sortedIndices.push_back(base + 2);
-
-                sub.indexCount += 3;
-            }
-
-            sortedSubMeshes.push_back(sub);
-        }
-
-        // Compute tangents from UV gradients (required for normal mapping).
-        // Standard algorithm: for each triangle, solve for the tangent direction
-        // from the vertex positions and UV deltas, then average per-vertex.
-        for (size_t i = 0; i < sortedIndices.size(); i += 3) {
-            uint32_t i0 = sortedIndices[i];
-            uint32_t i1 = sortedIndices[i + 1];
-            uint32_t i2 = sortedIndices[i + 2];
-
-            Vertex& v0 = sortedVertices[i0];
-            Vertex& v1 = sortedVertices[i1];
-            Vertex& v2 = sortedVertices[i2];
-
-            glm::vec3 e1 = v1.position - v0.position;
-            glm::vec3 e2 = v2.position - v0.position;
-
-            float du1 = v1.uv.x - v0.uv.x;
-            float du2 = v2.uv.x - v0.uv.x;
-            float dv1 = v1.uv.y - v0.uv.y;
-            float dv2 = v2.uv.y - v0.uv.y;
-
-            float r = du1 * dv2 - du2 * dv1;
-            if (std::abs(r) < 1e-8f) continue;
-
-            glm::vec3 tangent = (e1 * dv2 - e2 * dv1) / r;
-
-            v0.tangent += tangent;
-            v1.tangent += tangent;
-            v2.tangent += tangent;
-        }
-
-        // Normalize accumulated tangents; assign a default for degenerate UVs.
-        for (auto& v : sortedVertices) {
-            if (glm::length(v.tangent) > 1e-8f) {
-                v.tangent = glm::normalize(v.tangent);
-            } else {
-                // Fallback: local +X direction (perpendicular to normal).
-                v.tangent = glm::vec3(1.0f, 0.0f, 0.0f);
-            }
-        }
-
-        resource->vertexBuffer = std::move(sortedVertices);
-        resource->indexBuffer = std::move(sortedIndices);
-        resource->subMeshes = std::move(sortedSubMeshes);
-        // ------------------------------------
+        buildGeometry(*resource, triangles);
 
         // Create materials for each sub-mesh, mapping MTL properties to engine PBR material.
         for (auto& sub : resource->subMeshes) {
@@ -431,10 +452,11 @@ namespace ve {
             AssetHandle matHandle = ResourceManager::store<Material>(uniqueMaterialName);
 
             if (matHandle != INVALID_ASSET_HANDLE) {
-                auto material = ResourceManager::get<Material>(matHandle);
+                // Imported materials are always single-surface PBR.
+                auto material = std::dynamic_pointer_cast<SingleMaterial>(ResourceManager::get<Material>(matHandle));
 
                 auto it = mtlMaterials.find(rawMtlName);
-                if (it != mtlMaterials.end()) {
+                if (material && it != mtlMaterials.end()) {
                     const auto& mtl = it->second;
 
                     // --- Texture maps ---
@@ -459,7 +481,7 @@ namespace ve {
                 }
 
                 // Persist populated material to .veasset.
-                {
+                if (material) {
                     TextArchive ar(toAbsolute(material->name), ArchiveMode::write);
                     if (ar.isGood()) {
                         material->serialize(ar);
@@ -487,6 +509,218 @@ namespace ve {
 
         return resource;
     }
+    // --- FBX (ufbx) --------------------------------------------------------
+
+    // The FBX PBR maps this importer binds, in a fixed order so callers can
+    // pair them with matching destination handles.
+    static std::array<const ufbx_material_map*, 6> fbxPbrMaps(const ufbx_material& um) {
+        return {
+            &um.pbr.base_color,
+            &um.pbr.normal_map,
+            &um.pbr.roughness,
+            &um.pbr.metalness,
+            &um.pbr.emission_color,
+            &um.pbr.ambient_occlusion,
+        };
+    }
+
+    // Path of a file-backed texture as referenced by the FBX (relative to the
+    // mesh file), or "" for none / embedded ones (embedded pixel data is not
+    // extracted yet).
+    static std::string fbxTextureFile(const ufbx_material_map& map) {
+        ufbx_texture* tex = map.texture;
+        if (!tex || !map.texture_enabled || tex->type != UFBX_TEXTURE_FILE)
+            return {};
+        if (tex->content.size > 0)
+            return {};
+
+        std::string file = toStdString(tex->filename);
+        if (file.empty())
+            file = toStdString(tex->relative_filename);
+        return file;
+    }
+
+    static void applyFbxMaterial(SingleMaterial& material, const ufbx_material& um, const std::filesystem::path& meshDir) {
+        // Colors: prefer the PBR maps ufbx derives from the FBX non-physical values.
+        auto setColor = [](const ufbx_material_map& map, glm::vec3& out) {
+            if (!map.has_value) return;
+            out = (map.value_components >= 3)
+                ? toGlm3(map.value_vec3)
+                : glm::vec3(static_cast<float>(map.value_real));
+        };
+        setColor(um.pbr.base_color, material.albedoColor);
+        setColor(um.pbr.emission_color, material.emissiveColor);
+
+        if (um.pbr.metalness.has_value)
+            material.metallic = static_cast<float>(um.pbr.metalness.value_real);
+        if (um.pbr.roughness.has_value)
+            material.roughness = static_cast<float>(um.pbr.roughness.value_real);
+
+        AssetHandle* targets[] = {
+            &material.albedoMapHandle,
+            &material.normalMapHandle,
+            &material.roughnessMapHandle,
+            &material.metallicMapHandle,
+            &material.emissiveMapHandle,
+            &material.aoMapHandle,
+        };
+        auto maps = fbxPbrMaps(um);
+        for (size_t i = 0; i < maps.size(); i++) {
+            std::string file = fbxTextureFile(*maps[i]);
+            if (!file.empty()) {
+                // Textures are imported flat next to the mesh, so drop any
+                // sub-directory the FBX recorded.
+                std::string flat = (meshDir / std::filesystem::path(file).filename()).string();
+                *targets[i] = ResourceManager::store<Texture2D>(flat);
+            }
+        }
+    }
+
+    static Ref<StaticMeshResource> importFbx(const std::string& filePath) {
+        VE_CORE_INFO_PRINT("Try to open FBX file: %s", filePath.c_str());
+
+        ufbx_load_opts opts = {};
+        // Engine geometry is right-handed Y-up; convert from FBX's own axes so
+        // meshes land in the same space as the OBJ path.
+        opts.target_axes = ufbx_axes_right_handed_y_up;
+        opts.generate_missing_normals = true;
+        opts.ignore_animation = true;
+
+        ufbx_error error;
+        ufbx_scene* scene = ufbx_load_file(filePath.c_str(), &opts, &error);
+        if (!scene) {
+            char desc[256];
+            ufbx_format_error(desc, sizeof(desc), &error);
+            VE_CORE_ERROR_PRINT("Failed to load FBX: %s (%s)", filePath.c_str(), desc);
+            return nullptr;
+        }
+
+        auto resource = CreateRef<StaticMeshResource>();
+        std::vector<TriangleRecord> triangles;
+        std::unordered_map<std::string, ufbx_material*> materialByName;
+
+        // Flatten the node hierarchy: every mesh instance is baked into world
+        // space and appended to a single buffer, grouped by material.
+        for (size_t ni = 0; ni < scene->nodes.count; ni++) {
+            ufbx_node* node = scene->nodes.data[ni];
+            ufbx_mesh* mesh = node->mesh;
+            if (!mesh || mesh->num_faces == 0) continue;
+
+            const ufbx_matrix& xform = node->geometry_to_world;
+            std::vector<uint32_t> faceIndices(mesh->max_face_triangles * 3);
+
+            for (size_t fi = 0; fi < mesh->num_faces; fi++) {
+                ufbx_face face = mesh->faces.data[fi];
+                if (face.num_indices < 3) continue;   // skip points and lines
+
+                uint32_t numTris = ufbx_triangulate_face(faceIndices.data(), faceIndices.size(), mesh, face);
+
+                std::string matName = "default";
+                if (fi < mesh->face_material.count) {
+                    uint32_t mi = mesh->face_material.data[fi];
+                    if (mi < mesh->materials.count && mesh->materials.data[mi]) {
+                        ufbx_material* um = mesh->materials.data[mi];
+                        std::string n = toStdString(um->name);
+                        if (!n.empty()) {
+                            matName = n;
+                            materialByName[matName] = um;
+                        }
+                    }
+                }
+
+                for (uint32_t t = 0; t < numTris; t++) {
+                    TriangleRecord rec;
+                    rec.materialName = matName;
+                    Vertex* dst[3] = { &rec.v0, &rec.v1, &rec.v2 };
+                    for (int k = 0; k < 3; k++) {
+                        uint32_t vi = faceIndices[t * 3 + k];
+                        Vertex& v = *dst[k];
+
+                        v.position = toGlm3(ufbx_transform_position(&xform, ufbx_get_vertex_vec3(&mesh->vertex_position, vi)));
+
+                        v.uv = (mesh->vertex_uv.values.count > 0)
+                            ? toGlm2(ufbx_get_vertex_vec2(&mesh->vertex_uv, vi))
+                            : glm::vec2(0.0f);
+
+                        if (mesh->vertex_normal.values.count > 0) {
+                            glm::vec3 n = toGlm3(ufbx_transform_direction(&xform, ufbx_get_vertex_vec3(&mesh->vertex_normal, vi)));
+                            float len = glm::length(n);
+                            v.normal = (len > 1e-8f) ? n / len : glm::vec3(0.0f, 1.0f, 0.0f);
+                        } else {
+                            v.normal = glm::vec3(0.0f, 1.0f, 0.0f);
+                        }
+
+                        v.tangent = glm::vec3(0.0f);
+                    }
+                    triangles.push_back(rec);
+                }
+            }
+        }
+
+        if (triangles.empty()) {
+            VE_CORE_ERROR_PRINT("FBX file has no geometry: %s", filePath.c_str());
+            ufbx_free_scene(scene);
+            return nullptr;
+        }
+
+        buildGeometry(*resource, triangles);
+
+        // One engine material per sub-mesh, mapped from the ufbx material.
+        std::filesystem::path meshDir = std::filesystem::path(filePath).parent_path();
+        for (auto& sub : resource->subMeshes) {
+            std::string uniqueMaterialName = makeMaterialName(filePath, sub.name);
+            AssetHandle matHandle = ResourceManager::store<Material>(uniqueMaterialName);
+            if (matHandle == INVALID_ASSET_HANDLE) continue;
+
+            auto material = std::dynamic_pointer_cast<SingleMaterial>(ResourceManager::get<Material>(matHandle));
+            if (material) {
+                auto it = materialByName.find(sub.name);
+                if (it != materialByName.end())
+                    applyFbxMaterial(*material, *it->second, meshDir);
+
+                TextArchive ar(toAbsolute(material->name), ArchiveMode::write);
+                if (ar.isGood())
+                    material->serialize(ar);
+            }
+            sub.materialHandle = matHandle;
+        }
+
+        VE_CORE_SUCCESS_PRINT("FBX loaded: %s (%d vertices, %d indices, %d submeshes)",
+            filePath.c_str(),
+            static_cast<int>(resource->vertexBuffer.size()),
+            static_cast<int>(resource->indexBuffer.size()),
+            static_cast<int>(resource->subMeshes.size()));
+
+        ufbx_free_scene(scene);
+        return resource;
+    }
+
+    std::vector<std::string> StaticMeshImporter::referencedTextures(const std::string& filePath) {
+        std::vector<std::string> textures;
+        if (utils::getExtension(filePath) != ".fbx")
+            return textures;
+
+        ufbx_load_opts opts = {};
+        opts.ignore_geometry = true;    // only the material graph is needed
+        opts.ignore_animation = true;
+
+        ufbx_error error;
+        ufbx_scene* scene = ufbx_load_file(filePath.c_str(), &opts, &error);
+        if (!scene)
+            return textures;
+
+        for (size_t i = 0; i < scene->materials.count; i++) {
+            for (const ufbx_material_map* map : fbxPbrMaps(*scene->materials.data[i])) {
+                std::string file = fbxTextureFile(*map);
+                if (!file.empty())
+                    textures.push_back(file);
+            }
+        }
+
+        ufbx_free_scene(scene);
+        return textures;
+    }
+
     Ref<StaticMeshResource> StaticMeshImporter::importFromFile(const std::string& filePath) {
 
         Ref<StaticMeshResource> resource;
@@ -495,7 +729,7 @@ namespace ve {
             resource = importObj(filePath);
         }
         else if (utils::getExtension(filePath) == ".fbx") {
-            // TODO: importFbx
+            resource = importFbx(filePath);
         }
 
         return resource;

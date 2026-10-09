@@ -42,6 +42,11 @@ namespace ve {
 		void set(const char* key, const glm::vec4& v);
 		void set(const char* key, const glm::mat4& v);
 
+		// Embed an already-serialised JSON value at `key`. For opaque blobs built
+		// outside this writer (a tool's JSON-Schema string). Invalid text becomes {}
+		// rather than throwing or corrupting the document.
+		void setRaw(const char* key, const std::string& rawJson);
+
 		bool writeToFile(const std::string& path) const;
 		std::string str() const;
 
@@ -55,6 +60,11 @@ namespace ve {
 		// False when the file is missing or is not valid JSON. On failure `out`
 		// stays invalid and every getter returns its default.
 		static bool load(const std::string& path, JsonReader& out);
+
+		// Counterpart to load() for JSON that is already in memory, e.g. tool
+		// arguments handed over as a string. Same contract: on failure `out`
+		// stays invalid and every getter returns its default.
+		static bool parse(const std::string& text, JsonReader& out);
 
 		bool valid() const;
 		bool has(const char* key) const;

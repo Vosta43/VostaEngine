@@ -13,7 +13,7 @@
 #include <string>
 
 namespace ve {
-	
+
 	struct DrawMeshCommand {
 		AssetHandle meshHandle;
 		AssetHandle materialHandle;
@@ -123,9 +123,25 @@ namespace ve {
 	// baked.
 	Ref<Texture2D> cloudWeatherMap;
 
+	// Cascaded shadow maps, fitted once per frame from the camera + sun (see
+	// ShadowCascadeCalculator). shadowCascadeCount is 0 when there is no sun, in
+	// which case the HDR pass skips the lookup entirely.
+	glm::mat4 shadowLightVP[3];
+	float     shadowSplitFar[3]   = { 0.0f, 0.0f, 0.0f };
+	float     shadowTexelWorld[3] = { 0.0f, 0.0f, 0.0f };
+	int       shadowCascadeCount  = 0;
+
 	// Debug: rasterize meshes as wireframe lines instead of filled triangles.
 	// Only the GBuffer pass reads it; all full-screen passes are unaffected.
 	bool wireframe = false;
+
+	// Editor view helper: composite a y=0 ground grid in the present pass (see
+	// screen.glsl). Off by default; only the editor viewport turns it on.
+	bool groundGrid = false;
+	// Non-jittered view-projection. The present pass reconstructs the grid ray
+	// from this, so the grid does not shimmer with the TAA subpixel jitter
+	// (ctx.projMatrix is the jittered one).
+	glm::mat4 projMatrixNoJitter = glm::mat4(1.0f);
 
 		float getAspectRatio() const {
 			return (float)viewPortWidth / (float)viewPortHeight;

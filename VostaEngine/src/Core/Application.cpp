@@ -16,6 +16,7 @@
 #include "Gui/Gui.h"
 #include "Renderer/Shader.h"
 #include "Renderer/SplashScreen.h"
+#include "Asset/BuiltinReousrces.h"
 
 namespace ve {
 
@@ -25,10 +26,14 @@ namespace ve {
 
         s_instance = this;
 
+        // Register engine-owned assets (default material, ...) before any scene
+        // or layer can ask for them.
+        BuiltinResources::init();
+
         m_dispatcher = std::make_unique<EventDispatcher>();
         VE_CORE_SUCCESS("Event dispatcher initialized");
 
-        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.5 dev", m_dispatcher.get());
+        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.6 dev", m_dispatcher.get());
         VE_CORE_SUCCESS("Window created");
 
         m_shaderLibrary = std::make_unique<ShaderLibrary>();

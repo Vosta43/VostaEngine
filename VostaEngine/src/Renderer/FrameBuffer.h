@@ -43,6 +43,9 @@ namespace ve {
         uint32_t height;
         std::vector<FramebufferAttachmentSpec> colorAttachments;
         bool hasDepthStencil = true;
+        // Put the depth attachment in compare mode so it can be sampled as a
+        // sampler2DShadow (hardware depth test on each tap). Used by shadow maps.
+        bool depthCompare = false;
     };
 
     class VE_API Framebuffer {

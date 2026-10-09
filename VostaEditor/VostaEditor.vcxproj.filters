@@ -21,6 +21,9 @@
     <ClCompile Include="src\EditorLayer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\EditorMcpTools.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Panels\SceneOutlinerPanel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -45,15 +48,48 @@
     <ClCompile Include="..\VostaEngine\thirdparty\imgui-node-editor\imgui_node_editor_api.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Panels\AiPanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Panels\MaterialGraphPanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Panels\NoisePanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Panels\TerrainMapPanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Panels\TexturePreviewPanel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\EditorViewController.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Graph\NodeGraphPanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graph\MaterialEditorSchema.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graph\NoiseEditorSchema.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SubEditors\MaterialLayerEditor.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SubEditors\LayeredMaterialEditor.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SubEditors\TerrainEditor.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\EditorLayer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\EditorMcpTools.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Panels\SceneOutlinerPanel.h">
@@ -68,10 +104,46 @@
     <ClInclude Include="src\Panels\AssetBrowserWidget.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Panels\AiPanel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Panels\MaterialGraphPanel.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Panels\NoisePanel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Panels\TerrainMapPanel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Panels\TexturePreviewPanel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\EditorViewController.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graph\NodeGraphPanel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graph\NodeGraphEditorSchema.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graph\MaterialEditorSchema.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graph\NoiseEditorSchema.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SubEditors\MaterialLayerEditor.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SubEditors\LayeredMaterialEditor.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SubEditors\TerrainEditor.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\AssetSaveRegistry.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

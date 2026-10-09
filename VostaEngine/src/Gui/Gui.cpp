@@ -94,6 +94,18 @@ namespace ve {
         //ImGui::End();
     }
 
+    // Merge the bundled CJK font so Chinese text renders instead of '?'.
+    // ImGui 1.92 rasterizes glyphs on demand, so no glyph-range array is needed.
+    // A static Regular (not the variable font, whose wght default is Thin) keeps
+    // the CJK strokes the same weight as the Latin font.
+    static void mergeCjkFont(ImFontAtlas* fonts, float sizePixels)
+    {
+        std::string path = toAbsolute("VostaEngine/resources/fonts/NotoSansSC-Regular.ttf");
+        ImFontConfig cfg;
+        cfg.MergeMode = true;
+        fonts->AddFontFromFileTTF(path.c_str(), sizePixels, &cfg, nullptr);
+    }
+
     void GuiLayer::setDarkThemeColors()
     {
         auto& colors = ImGui::GetStyle().Colors;
@@ -106,6 +118,7 @@ namespace ve {
         ImFont* font = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), 16.0f);
         if (font) {
             io.FontDefault = font;
+            mergeCjkFont(io.Fonts, 16.0f);
         }
 
         // Headers

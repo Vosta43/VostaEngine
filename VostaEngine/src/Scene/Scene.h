@@ -9,6 +9,7 @@
 #include "ECSystems/ECSystemGraph.h"
 
 #include <glm.hpp>
+#include <typeindex>
 
 namespace ve {
 	class VE_API Scene {
@@ -16,8 +17,6 @@ namespace ve {
 		Scene();
 		~Scene();
 
-        void buildRenderContext(RenderContext& ctx);
-		
 		void onUpdate(float deltaTime);
 
         void onPickingRender();
@@ -38,7 +37,9 @@ namespace ve {
 
         template<typename T, typename... Args>
         T& assignComponent(Entity entity, Args&&... args) {
-            return m_entityRegistry.emplace<T>(entity, std::forward<Args>(args)...);
+            T& comp = m_entityRegistry.emplace<T>(entity, std::forward<Args>(args)...);
+            onComponentAssigned(std::type_index(typeid(T)), entity);
+            return comp;
         }
 
         template<typename T>
@@ -86,6 +87,11 @@ namespace ve {
         const glm::vec3& getCameraPosition() {return m_cameraPosition;}
 
     private:
+        // Runs the component type's init hook (if any) after it is assigned.
+        // Defined in Scene.cpp so this header stays free of the component
+        // registry's JSON dependency.
+        void onComponentAssigned(std::type_index type, Entity entity);
+
         // CameraController is at Editor exe. Intermediate variable
         glm::vec3 m_cameraPosition;
         glm::mat4 m_viewMatrix = glm::mat4(1.0f);

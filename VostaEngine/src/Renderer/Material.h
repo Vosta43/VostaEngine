@@ -2,13 +2,13 @@
 
 #include "Texture.h"
 #include "Core/AssetHandle.h"
-#include "Core/Reflection.h"
 #include "Renderer/Shader.h"
-#include "Renderer/MaterialGraph.h"
 #include "Scene/Archive.h"
 
 #include <glm.hpp>
+#include <cstdint>
 #include <string>
+#include <vector>
 
 namespace ve {
 
@@ -19,56 +19,60 @@ namespace ve {
 		AssetHandle textureHandle;
 	};
 
-	VESTRUCT(Material)
-	struct VE_API Material {
-		VEPROPERTY(Material,std::string,name,"Name","type=input")
+	// One named texture slot a material wants bound for a draw.
+	struct MaterialTextureBinding {
+		std::string uniformName;
+		AssetHandle textureHandle;
+		uint32_t    unit = 0;
+	};
+
+	// One named scalar/vector uniform a material wants set for a draw.
+	template<typename T>
+	struct MaterialUniformBinding {
 		std::string name;
-		VEPROPERTY(Material, AssetHandle, albedoMapHandle, "Albedo", "type=texture")
-		AssetHandle albedoMapHandle;
-		VEPROPERTY(Material, AssetHandle, normalMapHandle, "Normal", "type=texture")
-		AssetHandle normalMapHandle;
-		VEPROPERTY(Material, AssetHandle, metallicMapHandle, "Metallic", "type=texture")
-		AssetHandle metallicMapHandle;
-		VEPROPERTY(Material, AssetHandle, roughnessMapHandle, "Roughness", "type=texture")
-		AssetHandle roughnessMapHandle;
-		VEPROPERTY(Material, AssetHandle, aoMapHandle, "AO", "type=texture")
-		AssetHandle aoMapHandle;
-		VEPROPERTY(Material, AssetHandle, emissiveMapHandle, "Emissive", "type=texture")
-		AssetHandle emissiveMapHandle;
+		T value;
+	};
 
-		// Default params when no texture map is assigned.
-		glm::vec3 albedoColor = glm::vec3(1.0f);
-		float metallic = 0.0f;
-		float roughness = 0.5f;
-		float ao = 1.0f;
-		glm::vec3 emissiveColor = glm::vec3(0.0f);
+	// Everything a material wants bound for a single draw. The geometry pass
+	// asks each material to fill this and does no lookups of its own, so it never
+	// needs to know which concrete kind of material it is drawing.
+	struct MaterialBindingSet {
+		std::vector<MaterialTextureBinding> textures;
+		std::vector<MaterialUniformBinding<int>> ints;
+		std::vector<MaterialUniformBinding<float>> floats;
+		std::vector<MaterialUniformBinding<glm::vec2>> vec2s;
+		std::vector<MaterialUniformBinding<glm::vec3>> vec3s;
+	};
 
-		// --- Material graph ---
-		MaterialGraph graph;
+	// Abstract surface material. Concrete kinds (SingleMaterial, LayeredMaterial)
+	// differ only in the shader they bring and the bindings they produce; the
+	// geometry pass depends on this interface alone.
+	class VE_API Material {
+	public:
+		virtual ~Material() = default;
 
-		bool isCompiled = false;
-		Ref<Shader> customShader;
-		std::string compileError;
+		// Shader the geometry pass binds. Null means "use the pass's default".
+		virtual Ref<Shader> getShader() = 0;
 
-		// Texture bindings filled by compile() from graph TextureSamplerNodes.
-		std::vector<GraphTextureBinding> graphTextures;
+		// Fill this material's per-draw bindings. The caller owns the set and
+		// reuses it across draws, so implementations clear-then-append.
+		virtual void fillBindings(MaterialBindingSet& out) const = 0;
 
-		bool hasAlbedoMap() const   { return albedoMapHandle.isValid(); }
-		bool hasNormalMap() const   { return normalMapHandle.isValid(); }
-		bool hasEmissiveMap() const { return emissiveMapHandle.isValid(); }
+		// On-disk kind tag: the first token of the .veasset file.
+		virtual const char* typeTag() const = 0;
 
-		Ref<Shader> getShader();
+		// Asset-relative path this material was loaded from. The resource registry
+		// owns this identity, so create() re-stamps it after loading; the copy
+		// stored in the file body is not trusted (it goes stale on rename/move).
+		virtual std::string assetPath() const { return {}; }
+		virtual void setAssetPath(const std::string&) {}
 
-		// Compile the material graph into customShader.
-		// Returns false (PBR-fallback mode) when the graph is empty
-		// (only the MaterialOutputNode, no user-added nodes).
-		bool compile();
+		// serialize() writes typeTag() first; deserialize() reads it back.
+		virtual void serialize(Archive& ar) const = 0;
+		virtual void deserialize(Archive& ar) = 0;
 
-		// --- Serialization (.veasset) ---
-		// First token written/read is always the string "material".
-		void serialize(Archive& ar) const;
-		void deserialize(Archive& ar);
-
+		// Factory: reads the file's type tag and builds the matching kind.
+		// Returns null when the tag names no known kind.
 		static Ref<Material> create(const std::string& path);
 	};
 

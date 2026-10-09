@@ -29,9 +29,12 @@ namespace ve {
 
 		// Build the shared mesh plus every node's index range. Reuses
 		// TerrainMeshBuilder for the vertices. Call once when the heightmap or
-		// terrain parameters change.
+		// terrain parameters change. worldOrigin is the tile's world-space corner,
+		// which makes the chunk centres come out in world space so the LOD walk
+		// measures camera distance against the right place.
 		Ref<StaticMesh> build(const Ref<TextureResource>& heightMap, float tileSize,
-			float heightScale, int maxDepth, int segments);
+			float heightScale, int maxDepth, int segments,
+			const glm::vec2& worldOrigin = glm::vec2(0.0f));
 
 		// Re-pick the active LOD chunks for this frame's camera. Returns the list
 		// of ranges to draw, all referencing the mesh returned by build().

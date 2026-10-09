@@ -53,9 +53,16 @@ namespace ve {
             }
         }//////////////////////////////////////////////////////////////////////////
 
-        // Terrain meshes
+        // Terrain meshes. The shared source/material/LOD parameters live on the
+        // scene's TerrainSystem, so resolve it once here rather than per tile.
+        TerrainSystemComponent* terrainSystem = Terrain::findSystem(*m_scene);
         auto terrainGroup = m_scene->getRegistry().group<TransformComponent, TerrainComponent>();
         for (auto& et : terrainGroup) {
+            // Lazy build: the system may have been created after this tile, so bake
+            // it here once the scene has settled. Cheap when already clean.
+            Terrain::ensureBuilt(*m_scene, et);
+            if (!terrainSystem) continue;
+
             auto& transform = m_scene->getComponent<TransformComponent>(et);
             auto& terrainComp = m_scene->getComponent<TerrainComponent>(et);
 
@@ -64,16 +71,25 @@ namespace ve {
             auto mesh = ResourceManager::get<StaticMesh>(terrainComp.generatedMeshHandle);
             if (!mesh) continue;
 
+            // The per-instance view wraps the system material and carries this
+            // terrain's control map; skip the tile if it could not build.
+            const glm::vec2 terrainOrigin(transform.transform[3].x, transform.transform[3].z);
+            AssetHandle terrainMaterial = Terrain::ensureMaterialInstance(*m_scene, et, terrainOrigin);
+            if (!terrainMaterial.isValid()) continue;
+
+            // Upload any brush edits accumulated since the last frame.
+            Terrain::flushWeightMap(*m_scene, et);
+
             if (terrainComp.quadtree) {
                 // Quadtree LOD: draw only the active chunks picked for this camera.
                 const auto& actives = terrainComp.quadtree->update(
-                    ctx.cameraPosition, terrainComp.maxDepth,
-                    terrainComp.lodDetail, terrainComp.renderDistance);
+                    ctx.cameraPosition, terrainSystem->maxDepth,
+                    terrainSystem->lodDetail, terrainSystem->renderDistance);
                 for (const auto& chunk : actives) {
                     DrawMeshCommand cmd;
                     cmd.transform = transform.transform;
                     cmd.meshHandle = terrainComp.generatedMeshHandle;
-                    cmd.materialHandle = terrainComp.terrainMaterialHandle;
+                    cmd.materialHandle = terrainMaterial;
                     cmd.startIndex = chunk.firstIndex;
                     cmd.indexCount = chunk.indexCount;
                     ctx.drawMeshCommands.push_back(cmd);
@@ -84,7 +100,7 @@ namespace ve {
                 DrawMeshCommand cmd;
                 cmd.transform = transform.transform;
                 cmd.meshHandle = terrainComp.generatedMeshHandle;
-                cmd.materialHandle = terrainComp.terrainMaterialHandle;
+                cmd.materialHandle = terrainMaterial;
                 ctx.drawMeshCommands.push_back(cmd);
             }
         }

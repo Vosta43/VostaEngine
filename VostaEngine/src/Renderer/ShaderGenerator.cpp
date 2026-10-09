@@ -118,7 +118,7 @@ layout(location = 3) out vec4 Frag3_Emissive;
 
 		std::vector<std::string> outputInputs;
 		for (size_t i = 0; i < outputNode->m_inputPins.size(); ++i) {
-			const MaterialLink* found = nullptr;
+			const GraphLink* found = nullptr;
 			for (auto& link : graph.links) {
 				if (link.endPin.id == outputNode->id && link.endPin.pinIndex == i) {
 					found = &link;
@@ -130,7 +130,7 @@ layout(location = 3) out vec4 Frag3_Emissive;
 				std::string varName = srcVars[found->startPin.pinIndex];
 
 				// Apply type conversion if source and destination types differ.
-				MaterialNode* srcNode = graph.findNode(found->startPin.id);
+				GraphNode* srcNode = graph.findNode(found->startPin.id);
 				if (srcNode) {
 					uint32_t realOutIdx = found->startPin.pinIndex - (uint32_t)srcNode->m_inputPins.size();
 					if (realOutIdx < srcNode->m_outputPins.size()) {
@@ -160,12 +160,12 @@ layout(location = 3) out vec4 Frag3_Emissive;
 
 
 	}
-	void ShaderGenerator::generateNodeCode(Ref<MaterialNode> node, const MaterialGraph& graph, ShaderGenContext& ctx, std::unordered_map<uint32_t, std::vector<std::string>>& varCache){
+	void ShaderGenerator::generateNodeCode(Ref<GraphNode> node, const MaterialGraph& graph, ShaderGenContext& ctx, std::unordered_map<uint32_t, std::vector<std::string>>& varCache){
 
 		std::vector<std::string> inputVars;
 		for (size_t i = 0; i < node->m_inputPins.size(); i++) {
 
-			const MaterialLink* foundLink = nullptr;
+			const GraphLink* foundLink = nullptr;
 			for (auto& link : graph.links) {
 				if (link.endPin.id == node->id && link.endPin.pinIndex == i) {
 					foundLink = &link;
@@ -178,7 +178,7 @@ layout(location = 3) out vec4 Frag3_Emissive;
 				std::string varName = inputVarNames[foundLink->startPin.pinIndex];
 
 				// Apply type conversion when source and destination pin types differ.
-				MaterialNode* srcNode = graph.findNode(foundLink->startPin.id);
+				GraphNode* srcNode = graph.findNode(foundLink->startPin.id);
 				if (srcNode) {
 					uint32_t realOutIdx = foundLink->startPin.pinIndex - (uint32_t)srcNode->m_inputPins.size();
 					if (realOutIdx < srcNode->m_outputPins.size()) {
@@ -206,7 +206,8 @@ layout(location = 3) out vec4 Frag3_Emissive;
 			outputVars.push_back(ctx.allocVar());
 		}
 
-		std::string code = node->generateCode(inputVars,outputVars);
+		auto* materialNode = dynamic_cast<MaterialNode*>(node.get());
+		std::string code = materialNode ? materialNode->generateCode(inputVars,outputVars) : std::string();
 		ctx.mainFunction << " " << code << "\n";
 
 		// Store output vars indexed by actual pinIndex so lookups by PinId work correctly.

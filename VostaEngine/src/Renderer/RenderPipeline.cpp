@@ -5,6 +5,7 @@
 #include "Core/AssetConfig.h"
 #include "Core/Log.h"
 #include "Renderer/RenderPass/GBufferPass.h"
+#include "Renderer/RenderPass/ShadowPass.h"
 #include "Renderer/RenderPass/CloudPass.h"
 #include "Renderer/RenderPass/CloudTAAPass.h"
 #include "Renderer/RenderPass/HDRBufferPass.h"
@@ -22,6 +23,7 @@ namespace ve {
         // Maps a pass "type" string from the asset to a concrete pass class.
         Ref<RenderPassBase> createPassByType(const std::string& type) {
             if (type == "gbuffer")  return CreateRef<GBufferPass>();
+            if (type == "shadow")   return CreateRef<ShadowPass>();
             if (type == "cloud")    return CreateRef<CloudPass>();
             if (type == "cloudtaa") return CreateRef<CloudTAAPass>();
             if (type == "hdr")      return CreateRef<HDRBufferPass>();
@@ -75,6 +77,7 @@ namespace ve {
         spec.width  = fboDim(def.width,  def.widthScale  * scale, m_width);
         spec.height = fboDim(def.height, def.heightScale * scale, m_height);
         spec.hasDepthStencil = def.hasDepthStencil;
+        spec.depthCompare = def.depthCompare;
 
         spec.colorAttachments.resize(def.attachments.size());
         for (size_t i = 0; i < def.attachments.size(); ++i) {
@@ -95,8 +98,10 @@ namespace ve {
         m_fboRegistry.clear();
         for (const auto& def : m_config.framebuffers) {
             if (def.name.empty()) continue;
-            if (def.attachments.empty()) {
-                VE_CORE_WARN_PRINT("RenderPipeline: framebuffer '%s' has no colour attachments", def.name.c_str());
+            // A depth-only framebuffer (a shadow map) is valid; only skip when it
+            // has neither colour nor depth to attach.
+            if (def.attachments.empty() && !def.hasDepthStencil) {
+                VE_CORE_WARN_PRINT("RenderPipeline: framebuffer '%s' has no attachments", def.name.c_str());
                 continue;
             }
             m_fboRegistry[def.name] = createFramebuffer(def);
@@ -134,6 +139,11 @@ namespace ve {
     {
         buildFramebuffers();
         buildPasses();
+    }
+
+    Ref<Framebuffer> RenderPipeline::framebuffer(const std::string& name) const {
+        auto it = m_fboRegistry.find(name);
+        return (it != m_fboRegistry.end()) ? it->second : nullptr;
     }
 
     bool RenderPipeline::providerFlag(const std::string& name, const RenderContext& ctx) const {

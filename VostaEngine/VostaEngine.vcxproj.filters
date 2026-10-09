@@ -27,10 +27,43 @@
     <ClCompile Include="src\Core\AssetConfig.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Core\Project.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Core\Log.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Graph\NodeGraph.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Gui\Gui.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MCP\AgentSession.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MCP\AssetTools.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MCP\CommandRegistry.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MCP\EditorTools.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MCP\HttpClient.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MCP\LlmClient.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MCP\SceneTools.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MCP\ToolDispatchQueue.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MCP\ToolRegistry.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderer\Renderer.cpp">
@@ -108,6 +141,9 @@
     <ClCompile Include="thirdparty\stb_image\stb_image.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="thirdparty\ufbx\ufbx.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Renderer\CameraController.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -132,6 +168,9 @@
     <ClCompile Include="src\Scene\EntityRegistry.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Scene\PrefabRegistry.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Scene\Entity.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -139,6 +178,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Scene\Archive.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\BuiltinPrefabs.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Core\Json.cpp">
@@ -151,6 +193,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderer\StaticMesh.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Asset\AssetAuthoring.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Asset\AssetLibrary.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Asset\StaticMeshImporter.cpp">
@@ -168,6 +216,12 @@
     <ClCompile Include="src\Renderer\RenderPipeline.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Renderer\Shadow\ShadowCascadeCalculator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\RenderPass\ShadowPass.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Renderer\RenderPass\GBufferPass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -181,6 +235,18 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderer\Material.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\SingleMaterial.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\LayeredMaterial.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\MaterialLayerAsset.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\MaterialInstance.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderer\RenderPass\RenderPassBase.cpp">
@@ -211,6 +277,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderer\Preprocess\IBLBaker.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\Terrain\Terrain.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\Terrain\TerrainDataResource.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Scene\Terrain\TerrainMeshBuilder.cpp">
@@ -270,6 +342,18 @@
     <ClCompile Include="src\Scene\Terrain\QuadTreeTerrain.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Noise\NoiseCPU.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Noise\NoiseGraph.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Noise\NoisePlan.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Noise\NoiseGraphResource.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Core\Window.h">
@@ -281,10 +365,34 @@
     <ClInclude Include="src\Core\Core.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Core\Hash.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Core\Log.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Graph\NodeGraph.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Gui\Gui.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\MCP\AgentSession.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\MCP\CommandRegistry.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\MCP\HttpClient.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\MCP\LlmClient.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\MCP\ToolDispatchQueue.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\MCP\ToolRegistry.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderer\Renderer.h">
@@ -401,6 +509,12 @@
     <ClInclude Include="thirdparty\stb_image\stb_image.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="thirdparty\ufbx\ufbx.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\FastNoiseLite\FastNoiseLite.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Renderer\CameraController.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -420,6 +534,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Scene\EntityRegistry.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\PrefabRegistry.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Scene\Entity.h">
@@ -449,7 +566,16 @@
     <ClInclude Include="src\Core\AssetConfig.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Core\Project.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Core\AssetHandle.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Asset\AssetAuthoring.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Asset\AssetLibrary.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Asset\TextureImporter.h">
@@ -483,6 +609,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderer\RenderPipeline.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\Shadow\ShadowCascadeCalculator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\RenderPass\ShadowPass.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderer\Pipeline\PipelineConfig.h">
@@ -521,6 +653,21 @@
     <ClInclude Include="src\Renderer\Material.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Renderer\SingleMaterial.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\LayeredMaterial.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\MaterialLayer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\MaterialLayerAsset.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\MaterialInstance.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Renderer\SceneRenderer.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -549,6 +696,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderer\Preprocess\IBLBaker.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\Terrain\Terrain.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\Terrain\TerrainDataResource.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Scene\Terrain\TerrainMeshBuilder.h">
@@ -603,6 +756,24 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Scene\Terrain\QuadTreeTerrain.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Noise\NoiseSettings.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Noise\NoiseCPU.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Noise\NoiseGraph.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Noise\NoiseNodes.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Noise\NoisePlan.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Noise\NoiseGraphResource.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

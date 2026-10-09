@@ -39,6 +39,10 @@ namespace ve {
 
         const PipelineConfig& config() const { return m_config; }
 
+        // A registered framebuffer by name, or null. Lets a caller read a target's
+        // size (e.g. the shadow-map resolution for the cascade fitter).
+        Ref<Framebuffer> framebuffer(const std::string& name) const;
+
     private:
         void buildFramebuffers();
         void buildPasses();

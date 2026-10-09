@@ -186,6 +186,13 @@ vec3 getMultipleScattering(float r, float mu, float muS, bool intersects) {
 
 // Sky radiance from the precomputed single-scattering LUT (Bruneton
 // GetSkyRadiance, scattering order 1). Replaces the analytic 16-step ray march.
+// The LUT only describes rays that reach the top of the atmosphere: a downward
+// ray from ground level scatters over a near-zero path, so the LUT's ground
+// branch reads black. Below the horizon the sky therefore continues as the
+// zenith colour — the real light straight up, blue rather than a black void —
+// with the seam softened over the last kHorizonBlend of cos-elevation.
+const float kHorizonBlend = 0.08;   // cos-elevation the horizon->zenith blend spans
+
 vec3 computeAtmosphereLUT(vec3 origin, vec3 dir) {
     float bottomKm = u_PlanetRadius / kLengthUnit;
     float topKm    = (u_PlanetRadius + u_AtmosphereHeight) / kLengthUnit;
@@ -198,14 +205,27 @@ vec3 computeAtmosphereLUT(vec3 origin, vec3 dir) {
     float mu  = clamp(dot(up, dir), -1.0, 1.0);
     float muS = clamp(dot(up, u_SunDirection), -1.0, 1.0);
     float nu  = clamp(dot(dir, u_SunDirection), -1.0, 1.0);
-    bool intersects = mu < 0.0 &&
-        rKm * rKm * (mu * mu - 1.0) + bottomKm * bottomKm >= 0.0;
 
+    // Clamp the sample ray to the sky half so the LUT is never read on its
+    // unbaked ground side; the horizon value carries down to mu = 0.
+    float muSky = max(mu, 0.0);
     vec3 rayleigh, mie;
-    getSingleScattering(rKm, mu, muS, nu, intersects, rayleigh, mie);
-    vec3 multiple = getMultipleScattering(rKm, mu, muS, intersects);
+    getSingleScattering(rKm, muSky, muS, nu, false, rayleigh, mie);
+    vec3 multiple = getMultipleScattering(rKm, muSky, muS, false);
+    vec3 sky = u_SunIntensity * (rayleigh * rayleighPhase(nu) + mie * miePhase(nu) + multiple);
 
-    return u_SunIntensity * (rayleigh * rayleighPhase(nu) + mie * miePhase(nu) + multiple);
+    // Only the below-horizon half needs the zenith fallback; skip the extra
+    // LUT lookups for the sky rays that already have data.
+    if (mu < 0.0) {
+        // Zenith colour: mu = 1 (straight up) with its own sun angle nu = muS.
+        vec3 topRayleigh, topMie;
+        getSingleScattering(rKm, 1.0, muS, muS, false, topRayleigh, topMie);
+        vec3 topMultiple = getMultipleScattering(rKm, 1.0, muS, false);
+        vec3 skyTop = u_SunIntensity * (topRayleigh * rayleighPhase(muS)
+                                      + topMie * miePhase(muS) + topMultiple);
+        sky = mix(sky, skyTop, smoothstep(0.0, kHorizonBlend, -mu));
+    }
+    return sky;
 }
 
 float sunDisk(float mu){

@@ -3,6 +3,7 @@
 #include "Core.h"
 #include "AssetHandle.h"
 #include <string>
+#include <utility>
 #include <vector>
 #include <unordered_map>
 
@@ -82,6 +83,37 @@ namespace ve {
         void remove(const std::string& path) {
             AssetHandle handle = find(path);
             if (handle.isValid()) remove(handle);
+        }
+
+        // Re-key entries after a file or folder is renamed/moved on disk, keeping
+        // the in-memory resources (and any unsaved edits) instead of reloading.
+        // `oldPath`/`newPath` are storage-relative. Handles a single file and a
+        // folder prefix alike.
+        void renamePrefix(const std::string& oldPath, const std::string& newPath) {
+            if (oldPath.empty() || oldPath == newPath)
+                return;
+
+            const std::string dirPrefix = oldPath + "/";
+            std::vector<std::pair<std::string, AssetHandle>> moved;
+            for (auto it = m_pathToHandle.begin(); it != m_pathToHandle.end(); ) {
+                if (it->first == oldPath) {
+                    moved.emplace_back(newPath, it->second);
+                    it = m_pathToHandle.erase(it);
+                }
+                else if (it->first.rfind(dirPrefix, 0) == 0) {
+                    moved.emplace_back(newPath + it->first.substr(oldPath.size()), it->second);
+                    it = m_pathToHandle.erase(it);
+                }
+                else {
+                    ++it;
+                }
+            }
+
+            for (auto& [path, handle] : moved) {
+                m_pathToHandle[path] = handle;
+                if (handle.index() < m_entries.size())
+                    m_entries[handle.index()].path = path;
+            }
         }
 
         bool contains(AssetHandle handle) const {

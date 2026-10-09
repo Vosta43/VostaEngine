@@ -6,6 +6,7 @@
 #include "Renderer/RendererAPI.h"
 #include "Renderer/Buffer.h"
 #include "Renderer/Material.h"
+#include "Renderer/SingleMaterial.h"
 
 namespace ve {
 
@@ -82,7 +83,7 @@ namespace ve {
             for (const auto& sub : submeshes) {
                 // Bind the albedo map from the sub-mesh's material, if one exists.
                 if (sub.materialHandle.isValid()) {
-                    Ref<Material> material = ResourceManager::get<Material>(sub.materialHandle);
+                    auto material = std::dynamic_pointer_cast<SingleMaterial>(ResourceManager::get<Material>(sub.materialHandle));
                     if (material && material->albedoMapHandle.isValid()) {
                         Ref<Texture2D> texture = ResourceManager::get<Texture2D>(material->albedoMapHandle);
                         if (texture) {

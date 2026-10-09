@@ -4,15 +4,19 @@
 #include "Math/Math.h"
 
 namespace ve {
-	Ref<StaticMesh> QuadTreeTerrain::build(const Ref<TextureResource>& heightMap, float tileSize, float heightScale, int maxDepth, int segments) {
-		Ref<StaticMeshResource> res = TerrainMeshBuilder::buildMeshResourceFromHeightMap(heightMap, tileSize, heightScale);
+	Ref<StaticMesh> QuadTreeTerrain::build(const Ref<TextureResource>& heightMap, float tileSize, float heightScale, int maxDepth, int segments, const glm::vec2& worldOrigin) {
+		Ref<StaticMeshResource> res = TerrainMeshBuilder::buildMeshResourceFromHeightMap(heightMap, tileSize, heightScale, TerrainMeshBuilder::kDefaultUvTileMeters, worldOrigin);
 		int size = (int)sqrt((double)res->vertexBuffer.size());
 		segments = (std::max)(1, segments);
 		
-		int depthBySegments = 0;
-		for(int room = size / segments; room > 1; room >>= 1)
-			depthBySegments++;
-		maxDepth = math::clamp(maxDepth,0,depthBySegments);
+		// Smallest depth whose root still spans the whole grid, so every tile gets a
+		// complete mesh. Sizing the build off the incoming Max Depth instead let the
+		// far edge go ungenerated whenever the resolution was not a clean multiple of
+		// segments, which reads as a gap between neighbouring tiles.
+		int buildDepth = 0;
+		while (((size_t)1 << buildDepth) * (size_t)segments < (size_t)(size - 1))
+			++buildDepth;
+		maxDepth = buildDepth;
 		mMaxDepth = maxDepth; // remember the depth we actually built
 
 		std::vector<int> indices;
@@ -34,7 +38,7 @@ namespace ve {
 					ChunkRange range;
 					range.firstIndex = firstIndex;
 					range.indexCount = (uint32_t)indices.size() - firstIndex;
-					range.centerWorld = glm::vec2((x0 + nodeSpan * 0.5) * tileSize, (z0 + nodeSpan * 0.5) * tileSize);
+					range.centerWorld = worldOrigin + glm::vec2((x0 + nodeSpan * 0.5) * tileSize, (z0 + nodeSpan * 0.5) * tileSize);
 					range.worldSize = nodeWorldSize;
 					mChunks.push_back(range);
 				}
@@ -47,15 +51,23 @@ namespace ve {
 	}
 
 	void QuadTreeTerrain::generateNode(int x0, int z0, int stride, int size, int segments, std::vector<int>& indices) {
+		// The last tile's node grid usually overhangs the vertex grid; clamp each quad
+		// back to the final row/column so the mesh ends exactly on the edge instead of
+		// indexing past the vertex buffer.
+		const int last = size - 1;
 		for (int qx = 0; qx < segments; qx++) {
+			const int i = x0 + qx * stride; // grid row (x)
+			if (i >= last) break;
+			const int i1 = (std::min)(i + stride, last);
 			for (int qz = 0; qz < segments; qz++) {
-				int i = x0 + qx * stride; // grid row (x)
-				int j = z0 + qz * stride; // grid col (z)
+				const int j = z0 + qz * stride; // grid col (z)
+				if (j >= last) break;
+				const int j1 = (std::min)(j + stride, last);
 
 				int leftUp    = i * size + j;
-				int rightUp   = i * size + j + stride;
-				int leftDown  = (i + stride) * size + j;
-				int rightDown = (i + stride) * size + j + stride;
+				int rightUp   = i * size + j1;
+				int leftDown  = i1 * size + j;
+				int rightDown = i1 * size + j1;
 
 				indices.push_back(leftUp);
 				indices.push_back(rightUp);
@@ -78,6 +90,22 @@ namespace ve {
 		if (mChunks.empty()) return mActives; 
 		maxDepth = (std::min)(maxDepth, mMaxDepth); // never split deeper than build() generated
 		walk(0, 0, 0, maxDepth, cameraPos, lodDetail, renderDistance);
+
+		// Node ranges tile the shared index buffer back to back, so neighbouring
+		// chunks draw contiguous indices. Coalescing them collapses a fully
+		// subdivided tile into one draw instead of one per chunk.
+		std::sort(mActives.begin(), mActives.end(),
+			[](const ChunkRange& a, const ChunkRange& b) { return a.firstIndex < b.firstIndex; });
+		size_t kept = 0;
+		for (size_t i = 0; i < mActives.size(); ++i) {
+			if (kept > 0 &&
+				mActives[kept - 1].firstIndex + mActives[kept - 1].indexCount == mActives[i].firstIndex)
+				mActives[kept - 1].indexCount += mActives[i].indexCount;
+			else
+				mActives[kept++] = mActives[i];
+		}
+		mActives.resize(kept);
+
 		return mActives;
 	}
 

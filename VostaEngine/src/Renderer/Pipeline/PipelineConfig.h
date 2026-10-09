@@ -37,6 +37,8 @@ namespace ve {
 		uint32_t width = 0;
 		uint32_t height = 0;
 		bool     hasDepthStencil = false;
+		// Put the depth attachment in compare mode (sampler2DShadow). Shadow maps.
+		bool     depthCompare = false;
 		std::vector<FboAttachmentDef> attachments;
 	};
 
@@ -105,6 +107,7 @@ namespace ve {
 		std::string type;       // dispatch key for createPassByType
 		std::string target;     // FBO name written by this pass, or "@default"
 		std::string shader;     // shader name from the shaders list
+		int         index = -1; // pass-defined integer (currently the shadow cascade)
 		std::vector<PassInputDef>    inputs;
 		std::vector<UniformValueDef> uniforms;
 		std::vector<std::string>     history;   // ping-pong pair of FBO names

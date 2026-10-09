@@ -24,4 +24,20 @@ VE_API std::string toAbsolute(const std::string& path);
 // warning and returns the path unchanged.
 VE_API std::string toRelative(const std::string& path);
 
+// ── Project root ────────────────────────────────────────────────────────
+// The folder of the currently open project. Unlike the asset root this can be
+// reassigned whenever another project is opened, so it is deliberately not
+// guarded by the once-only assert. Empty when no project is open.
+
+// Set the current project folder (absolute). Pass "" to close the project.
+VE_API void setProjectRoot(const std::string& absolutePath);
+VE_API const std::filesystem::path& getProjectRoot();
+VE_API bool hasProjectRoot();
+
+// Resolve a project-relative path against the project root. Returns "" when no
+// project is open.
+VE_API std::string toProjectAbsolute(const std::string& path);
+// Strip the project-root prefix from an absolute path.
+VE_API std::string toProjectRelative(const std::string& path);
+
 } // namespace ve

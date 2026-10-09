@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Core/Core.h"
+
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
@@ -36,7 +38,7 @@ struct Task {
     std::mutex mtx;
 };
 
-class JobSystem {
+class VE_API JobSystem {
 public:
     static JobSystem& get();
 
@@ -126,6 +128,12 @@ TaskHandle<void> JobSystem::parallelFor(int begin, int end, F&& function) {
     auto future  = promise->get_future().share();
     g->function = [promise] { promise->set_value(); };
 
+    // Register every chunk as a dependency of `g` before enqueuing any of them.
+    // Enqueuing inside this loop races: a worker can finish an early chunk and
+    // drive g->unfinished to 0, scheduling g, before the remaining chunks have
+    // incremented the counter — then g runs again when the last chunk finishes,
+    // and promise::set_value() throws future_error(promise_already_satisfied).
+    std::vector<std::shared_ptr<Task>> chunks;
     for (int i = begin; i < end; i += chunkSize) {
         int low  = i;
         int high = (std::min)(i + chunkSize, end);
@@ -136,8 +144,10 @@ TaskHandle<void> JobSystem::parallelFor(int begin, int end, F&& function) {
         };
         task->dependents.push_back(g);
         g->unfinished.fetch_add(1);
-        enqueue(std::move(task));
+        chunks.push_back(std::move(task));
     }
+    for (auto& chunk : chunks)
+        enqueue(std::move(chunk));
     return TaskHandle<void>{ g, std::move(future) };
 }
 

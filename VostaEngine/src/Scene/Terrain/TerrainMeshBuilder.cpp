@@ -5,20 +5,7 @@
 
 namespace ve {
 
-	static int getChannelCount(TextureFormat format) {
-		switch (format) {
-			case TextureFormat::R8:       return 1;
-			case TextureFormat::R16F:     return 1;
-			case TextureFormat::RGB:      return 3;
-			case TextureFormat::RGBA:     return 4;
-			case TextureFormat::RG16F:    return 2;
-			case TextureFormat::RGB16F:   return 3;
-			case TextureFormat::RGBA16F:  return 4;
-			default:                      return 3;
-		}
-	}
-
-	Ref<StaticMeshResource> TerrainMeshBuilder::buildMeshResourceFromHeightMap(const Ref<TextureResource>& heightMap,float tileSize,float heightScale) {
+	Ref<StaticMeshResource> TerrainMeshBuilder::buildMeshResourceFromHeightMap(const Ref<TextureResource>& heightMap,float tileSize,float heightScale,float uvTileMeters,const glm::vec2& worldOrigin) {
 
 		const int w = (int)heightMap->width;
 		const int h = (int)heightMap->height;
@@ -68,7 +55,9 @@ namespace ve {
 				Vertex vertex;
 				vertex.position = glm::vec3(x, height, z);
 				vertex.normal = normal;
-				vertex.uv = glm::vec2((float)i / (w - 1), (float)j / (h - 1));
+				// World-space UV, so a tile set keeps one continuous texture across
+				// its seams instead of restarting at every tile's local zero.
+				vertex.uv = (glm::vec2(x, z) + worldOrigin) / uvTileMeters;
 				mesh->vertexBuffer.push_back(vertex);
 			}
 		}
@@ -99,8 +88,54 @@ namespace ve {
 		return mesh;
 	}
 
-	Ref<StaticMesh> TerrainMeshBuilder::buildMeshFromHeightMap(const Ref<TextureResource>& heightMap,float tileSize,float heightScale) {
-		return StaticMesh::create(buildMeshResourceFromHeightMap(heightMap, tileSize, heightScale));
+	Ref<StaticMesh> TerrainMeshBuilder::buildMeshFromHeightMap(const Ref<TextureResource>& heightMap,float tileSize,float heightScale,float uvTileMeters,const glm::vec2& worldOrigin) {
+		return StaticMesh::create(buildMeshResourceFromHeightMap(heightMap, tileSize, heightScale, uvTileMeters, worldOrigin));
+	}
+
+	Ref<StaticMeshResource> TerrainMeshBuilder::buildFlatMeshResource(float worldSize, int segments, float uvTileMeters, const glm::vec2& worldOrigin) {
+
+		if (segments < 1) segments = 1;
+
+		Ref<StaticMeshResource> mesh = CreateRef<StaticMeshResource>();
+
+		const int n = segments + 1;
+		const float step = worldSize / (float)segments;
+
+		// Same vertex/index layout and corner origin as the heightmap path, just
+		// with a constant height and straight-up normals, so both meshes face the
+		// same way and cover the same footprint.
+		for (int i = 0; i < n; i++) {
+			for (int j = 0; j < n; j++) {
+				Vertex vertex;
+				vertex.position = glm::vec3(i * step, 0.0f, j * step);
+				vertex.normal = glm::vec3(0.0f, 1.0f, 0.0f);
+				vertex.uv = (glm::vec2(vertex.position.x, vertex.position.z) + worldOrigin) / uvTileMeters;
+				mesh->vertexBuffer.push_back(vertex);
+			}
+		}
+
+		for (int i = 0; i < segments; i++) {
+			for (int j = 0; j < segments; j++) {
+				int leftUp    = i * n + j;
+				int rightUp   = i * n + j + 1;
+				int leftDown  = (i + 1) * n + j;
+				int rightDown = (i + 1) * n + j + 1;
+
+				mesh->indexBuffer.push_back(leftUp);
+				mesh->indexBuffer.push_back(rightUp);
+				mesh->indexBuffer.push_back(leftDown);
+
+				mesh->indexBuffer.push_back(rightUp);
+				mesh->indexBuffer.push_back(rightDown);
+				mesh->indexBuffer.push_back(leftDown);
+			}
+		}
+
+		return mesh;
+	}
+
+	Ref<StaticMesh> TerrainMeshBuilder::buildFlatMesh(float worldSize, int segments, float uvTileMeters, const glm::vec2& worldOrigin) {
+		return StaticMesh::create(buildFlatMeshResource(worldSize, segments, uvTileMeters, worldOrigin));
 	}
 
 	std::vector<Ref<StaticMesh>> TerrainMeshBuilder::buildMeshesFromHeightMap(const Ref<TextureResource>& heightMap, float tileSize, float heightScale, int blocks){

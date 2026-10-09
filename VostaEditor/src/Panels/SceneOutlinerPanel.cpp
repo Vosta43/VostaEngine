@@ -72,60 +72,18 @@ void SceneOutliner::onGuiRender(uint32_t& selectedEntity)
         ImGui::SetNextWindowSize(popupSize, ImGuiCond_Appearing);
         ImGui::OpenPopup("Create Entity");
         if (ImGui::BeginPopupModal("Create Entity", &m_showEntityCreatePopup, ImGuiWindowFlags_NoResize)) {
-            if (ImGui::Button("Empty", ImVec2(-1.0f, 0.0f))) {
-                Entity newEntity = m_sceneContext->createEntity();
-                m_sceneContext->assignComponent<TransformComponent>(newEntity, glm::mat4(1.0f));
-                selectedEntity = newEntity.m_id;
+            // One button per registered prefab, so the editor and the agent spawn
+            // from the same templates. The scroll child keeps the list usable as it
+            // grows past the fixed modal size.
+            ImGui::BeginChild("##prefabs");
+            for (const PrefabInfo& prefab : PrefabRegistry::get().list()) {
+                if (ImGui::Button(prefab.displayName.c_str(), ImVec2(-1.0f, 0.0f))) {
+                    Entity spawned = PrefabRegistry::get().spawn(prefab.key, *m_sceneContext);
+                    if (spawned.getId() != 0xFFFFFFFFu)
+                        selectedEntity = spawned.getId();
+                }
             }
-            if (ImGui::Button("Light", ImVec2(-1.0f, 0.0f))) {
-                Entity newEntity = m_sceneContext->createEntity();
-                m_sceneContext->assignComponent<NameComponent>(newEntity, "Light");
-                m_sceneContext->assignComponent<TransformComponent>(newEntity, glm::mat4(1.0f));
-                m_sceneContext->assignComponent<LightComponent>(newEntity);
-                selectedEntity = newEntity.m_id;
-            }
-            if (ImGui::Button("Static Mesh", ImVec2(-1.0f, 0.0f))) {
-                Entity newEntity = m_sceneContext->createEntity();
-                m_sceneContext->assignComponent<NameComponent>(newEntity, "Mesh");
-                m_sceneContext->assignComponent<TransformComponent>(newEntity, glm::mat4(1.0f));
-                m_sceneContext->assignComponent<StaticMeshComponent>(newEntity);
-                selectedEntity = newEntity.m_id;
-            }
-            if (ImGui::Button("Skybox", ImVec2(-1.0f, 0.0f))) {
-                Entity newEntity = m_sceneContext->createEntity();
-                m_sceneContext->assignComponent<NameComponent>(newEntity, "Skybox");
-                m_sceneContext->assignComponent<TransformComponent>(newEntity, glm::mat4(1.0f));
-                m_sceneContext->assignComponent<SkyBoxComponent>(newEntity);
-                selectedEntity = newEntity.m_id;
-            }
-            if (ImGui::Button("Atmosphere", ImVec2(-1.0f, 0.0f))) {
-                Entity newEntity = m_sceneContext->createEntity();
-                m_sceneContext->assignComponent<NameComponent>(newEntity, "Atmosphere");
-
-                // Planet centre sits directly below the scene origin, so y = 0 is the surface.
-                float planetRadius = AtmosphereComponent().atmosphere.planetRadius;
-                glm::mat4 transform(1.0f);
-                transform[3] = glm::vec4(0.0f, -planetRadius, 0.0f, 1.0f);
-                m_sceneContext->assignComponent<TransformComponent>(newEntity, transform);
-
-                m_sceneContext->assignComponent<AtmosphereComponent>(newEntity);
-                selectedEntity = newEntity.m_id;
-            }
-            if (ImGui::Button("Sprite", ImVec2(-1.0f, 0.0f))) {
-                Entity newEntity = m_sceneContext->createEntity();
-                m_sceneContext->assignComponent<NameComponent>(newEntity, "Sprite");
-                m_sceneContext->assignComponent<TransformComponent>(newEntity, glm::mat4(1.0f));
-                m_sceneContext->assignComponent<SpriteRendererComponent>(newEntity);
-                selectedEntity = newEntity.m_id;
-            }
-            if (ImGui::Button("Terrain", ImVec2(-1.0f, 0.0f))) {
-                Entity newEntity = m_sceneContext->createEntity();
-                m_sceneContext->assignComponent<NameComponent>(newEntity, "Terrain");
-                m_sceneContext->assignComponent<TransformComponent>(newEntity, glm::mat4(1.0f));
-                m_sceneContext->assignComponent<TerrainComponent>(newEntity);
-                selectedEntity = newEntity.m_id;
-            }
-
+            ImGui::EndChild();
             ImGui::EndPopup();
         }
     }

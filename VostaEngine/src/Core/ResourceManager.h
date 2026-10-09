@@ -29,9 +29,15 @@ namespace ve {
         template<typename T>
         static AssetHandle store(const std::string& path) {
             std::string relativePath = toRelative(path);
-            std::string absolutePath = toAbsolute(relativePath);
-            Ref<T> resource = T::create(absolutePath);
             auto& st = storage<T>();
+            // Resolve before creating: re-importing an already-registered path
+            // would build a throwaway resource and then discard it, and paths
+            // that have no file behind them (built-in "__builtin_..." keys) can
+            // only be resolved this way.
+            AssetHandle existing = st.find(relativePath);
+            if (existing.isValid()) return existing;
+
+            Ref<T> resource = T::create(toAbsolute(relativePath));
             if (!resource) return INVALID_ASSET_HANDLE;
             return st.store(relativePath, resource);
         }
@@ -97,6 +103,11 @@ namespace ve {
                 callback(handle, path);
             }
         }
+
+        // Re-key every loaded resource of every type under `oldPath` (a single
+        // file or a folder prefix) to `newPath`, so a rename/move on disk keeps
+        // the in-memory resources — and any handles pointing at them — valid.
+        static void renamePrefixAll(const std::string& oldPath, const std::string& newPath);
 
     private:
         // Implementation is in ResourceManager.cpp; explicit template
