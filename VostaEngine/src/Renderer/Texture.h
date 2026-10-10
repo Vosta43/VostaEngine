@@ -38,6 +38,11 @@ namespace ve {
 		static Ref<Texture2D> create(uint32_t rendererID, uint32_t width, uint32_t height);
 		// Creates an empty 2D texture with the given format (RGBA, RGB, R8, RG16F, etc.).
 		static Ref<Texture2D> create(uint32_t width, uint32_t height, TextureFormat format);
+
+		// Uploads a w×h block of tightly-packed pixels into the (x, y) corner of the
+		// texture, leaving the rest untouched. Lets a dynamic atlas grow a glyph at a
+		// time instead of re-uploading the whole surface.
+		virtual void setSubData(const void* data, uint32_t x, uint32_t y, uint32_t w, uint32_t h) = 0;
 	};
 
 	class VE_API TextureCubeMap : public Texture {

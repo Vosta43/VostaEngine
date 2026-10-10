@@ -232,7 +232,7 @@ namespace ve {
 //		ppl.init(512,512);
 //		
 //		//TODO: Cache
-//		auto sphere = ResourceManager::store<StaticMesh>("SandBox/assets/models/sphere.obj");
+//		auto sphere = ResourceManager::store<StaticMesh>("VostaEngine/resources/models/sphere.obj");
 //
 //		RenderContext ctx;
 //

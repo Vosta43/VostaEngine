@@ -10,7 +10,7 @@ namespace ve {
 
 	// Data description of the render pipeline. The pipeline is a list of passes
 	// wired to named framebuffers; nothing here references a live GL object. The
-	// JSON asset in SandBox/assets/pipelines is loaded into this; makeDefault()
+	// JSON asset in VostaEngine/resources/pipelines is loaded into this; makeDefault()
 	// reproduces the hardcoded pipeline that predates the data-driven build, so a
 	// missing/broken asset degrades to today's behaviour.
 

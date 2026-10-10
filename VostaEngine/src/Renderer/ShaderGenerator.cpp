@@ -47,6 +47,8 @@ layout(location = 1) out vec4 Frag1_Normal;
 layout(location = 2) out vec4 Frag2_Material;
 layout(location = 3) out vec4 Frag3_Emissive;
 
+uniform float u_Time;
+
 )";
 
 	// Insert a GLSL type conversion when source and destination pin types differ,
@@ -191,13 +193,10 @@ layout(location = 3) out vec4 Frag3_Emissive;
 
 			}
 			else {
-				// TextureSamplerNode UV input: use sentinel so the node can fall
-				// back to v_TexCoord instead of the Float2 default (vec2(0.0)).
-				if (dynamic_cast<TextureSamplerNode*>(node.get()) && i == 0) {
-					inputVars.push_back("DEFAULT_uv");
-				} else {
-					inputVars.push_back(getDefaultValue(node->m_inputPins[i].type));
-				}
+				// A node may supply a meaningful default for an optional pin
+				// (mesh UVs, the engine clock); otherwise it is the type's zero.
+				std::string def = node->inputDefaultExpr(i);
+				inputVars.push_back(def.empty() ? getDefaultValue(node->m_inputPins[i].type) : def);
 			}
 		}
 

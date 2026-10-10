@@ -5,6 +5,10 @@
 #include <typeindex>
 #include <array>
 #include <algorithm>
+#include <functional>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
 #include "Core/Core.h"
 #include "Entity.h"

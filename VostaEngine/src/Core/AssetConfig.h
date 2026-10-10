@@ -14,14 +14,16 @@ VE_API void setAssetRoot(const std::string& absolutePath);
 // Returns the absolute project root path.
 VE_API const std::filesystem::path& getAssetRoot();
 
-// Resolves a project-relative path against the asset root to produce an
-// absolute filesystem path. If the input is already absolute, returns it
-// unchanged (lexically normalized).
+// Resolves a stored key to an absolute filesystem path. Keys beginning with
+// "content/" belong to the open project and resolve against the project root;
+// every other key is asset-root-relative. If the input is already absolute,
+// returns it unchanged (lexically normalized).
 VE_API std::string toAbsolute(const std::string& path);
 
-// Strips the asset-root prefix from an absolute path to produce a
-// project-relative path. If the path is not under the asset root, logs a
-// warning and returns the path unchanged.
+// Produces the stored key for an absolute path. Files under the open project's
+// content/ folder become project-root-relative ("content/..."), everything else
+// becomes asset-root-relative. Paths outside the asset root are logged and
+// returned unchanged.
 VE_API std::string toRelative(const std::string& path);
 
 // ── Project root ────────────────────────────────────────────────────────

@@ -17,34 +17,61 @@
 #include <imgui.h>
 #include <windows.h>
 #include <commdlg.h>
+#include <shlobj.h>
 #include <cstdio>
 #include <fstream>
 #include <algorithm>
 #include <cctype>
 
-//TODO: This is Windows only function
-static std::string openFileDialogWindows() {
-    OPENFILENAMEA ofn = {};
-    char szFile[1024] = {};
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = GetActiveWindow();
-    ofn.lpstrFile = szFile;
-    ofn.nMaxFile = sizeof(szFile);
-    ofn.lpstrFilter = "All\0*.*\0Textures\0*.png;*.jpg;*.hdr\0Models\0*.obj;*.fbx\0";
-    ofn.nFilterIndex = 1;
-    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-    if (GetOpenFileNameA(&ofn)) {
-        return ofn.lpstrFile;
-    }
-    return {};
-}
-
-
 namespace ve {
 
     // Defined below; used by refreshFiles() and findBaked().
     static std::string normalizedStem(const std::string& path);
+
+    // Win32 shell dialogs, kept here as the editor's single home for them so no
+    // other translation unit has to pull in <windows.h>. "" when cancelled.
+
+    std::string openImportFileDialog() {
+        OPENFILENAMEA ofn = {};
+        char szFile[1024] = {};
+        ofn.lStructSize = sizeof(ofn);
+        ofn.hwndOwner = GetActiveWindow();
+        ofn.lpstrFile = szFile;
+        ofn.nMaxFile = sizeof(szFile);
+        ofn.lpstrFilter = "All\0*.*\0Textures\0*.png;*.jpg;*.hdr\0Models\0*.obj;*.fbx\0";
+        ofn.nFilterIndex = 1;
+        ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+        if (GetOpenFileNameA(&ofn))
+            return ofn.lpstrFile;
+        return {};
+    }
+
+    namespace {
+        int CALLBACK browseFolderCallback(HWND hwnd, UINT msg, LPARAM, LPARAM data) {
+            if (msg == BFFM_INITIALIZED && data)
+                SendMessageA(hwnd, BFFM_SETSELECTIONA, TRUE, data);
+            return 0;
+        }
+    }
+
+    std::string pickFolderDialog(const std::string& initial) {
+        char display[MAX_PATH] = {};
+        BROWSEINFOA bi = {};
+        bi.hwndOwner      = GetActiveWindow();
+        bi.pszDisplayName = display;
+        bi.lpszTitle      = "Select a folder";
+        bi.ulFlags        = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+        bi.lpfn           = browseFolderCallback;
+        bi.lParam         = reinterpret_cast<LPARAM>(initial.c_str());
+
+        LPITEMIDLIST idl = SHBrowseForFolderA(&bi);
+        if (!idl)
+            return {};
+        char path[MAX_PATH] = {};
+        const bool ok = SHGetPathFromIDListA(idl, path) != FALSE;
+        CoTaskMemFree(idl);
+        return ok ? std::string(path) : std::string();
+    }
 
     FileBrowser::FileBrowser()
         : m_rootPath(".") {
@@ -62,6 +89,14 @@ namespace ve {
 
     void FileBrowser::setOnFileSelect(FileSelectCallback callback) {
         m_onFileSelect = std::move(callback);
+    }
+
+    void FileBrowser::setOnSetDefaultScene(SetDefaultSceneCallback callback) {
+        m_onSetDefaultScene = std::move(callback);
+    }
+
+    void FileBrowser::setDefaultScenePath(const std::string& path) {
+        m_defaultScenePath = path;
     }
 
     void FileBrowser::requestRefresh() {
@@ -232,15 +267,15 @@ namespace ve {
     }
 
     void FileBrowser::loadIcons() {
-        m_folderIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/folder.png"));
-        m_shaderIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/shader.png"));
-        m_sourceIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/source_code.png"));
-        m_materialIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/material.png"));
-        m_staticMeshIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/static_mesh.png"));
-        m_terrainIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/terrain.png"));
-        m_noiseIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/noise_resource_2.png"));
-        m_terrainDataIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/terrain_data.png"));
-        m_notImportedIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEngine/resources/icons/not_imported_file.png"));
+        m_folderIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/folder.png"));
+        m_shaderIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/shader.png"));
+        m_sourceIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/source_code.png"));
+        m_materialIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/material.png"));
+        m_staticMeshIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/static_mesh.png"));
+        m_terrainIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/terrain.png"));
+        m_noiseIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/noise_resource_2.png"));
+        m_terrainDataIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/terrain_data.png"));
+        m_notImportedIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/not_imported_file.png"));
     }
 
     // Source types the importer can turn into project assets.
@@ -456,7 +491,7 @@ namespace ve {
         ImGui::Begin("File Browser");
 
         if (ImGui::Button("Import")) {
-            std::string filePath = openFileDialogWindows();
+            std::string filePath = openImportFileDialog();
             if (!filePath.empty()) {
                 // Import into the directory the browser is currently showing.
                 ImportManager::import(filePath, m_currentPath);
@@ -719,6 +754,17 @@ namespace ve {
             // Full name, since the cell label truncates long ones.
             ImGui::TextDisabled("%s", displayName(m_contextName).c_str());
             ImGui::Separator();
+
+            // Actions that only apply to one asset kind. A .veworld can be the
+            // project's default scene; other kinds get their own entries here.
+            if (ve::utils::getExtension(m_contextPath) == ".veworld") {
+                std::error_code ec;
+                const bool isDefault = !m_defaultScenePath.empty()
+                    && std::filesystem::equivalent(m_contextPath, m_defaultScenePath, ec) && !ec;
+                if (ImGui::MenuItem("Set as Default Scene", nullptr, isDefault) && !isDefault)
+                    m_onSetDefaultScene(m_contextPath);
+                ImGui::Separator();
+            }
 
             // Only for raw sources the importer understands; a directory or an
             // already-baked .veasset has nothing to import.

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <defs>
+    <mask id="m0">
+      <rect width="64" height="64" fill="#fff"/>
+      <g fill="#000" stroke="#000" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M 21.9652 24.318 L 42.0348 24.318 L 42.0348 39.682 L 21.9652 39.682 Z"/>
+        <circle cx="54.5635" cy="9.43646" r="5.43646"/>
+        <circle cx="9.43646" cy="9.43646" r="5.43646"/>
+        <circle cx="9.43646" cy="54.5635" r="5.43646"/>
+        <circle cx="54.5635" cy="54.5635" r="5.43646"/>
+      </g>
+    </mask>
+  </defs>
+  <path d="M 33.7549 33.7549 L 56.3185 11.1914 L 52.8086 7.68152 L 30.2451 30.2451 Z" fill="#fff" mask="url(#m0)"/>
+  <path d="M 33.7549 30.2451 L 11.1914 7.68152 L 7.68152 11.1914 L 30.2451 33.7549 Z" fill="#fff" mask="url(#m0)"/>
+  <path d="M 30.2451 30.2451 L 7.68152 52.8086 L 11.1914 56.3185 L 33.7549 33.7549 Z" fill="#fff" mask="url(#m0)"/>
+  <path d="M 30.2451 33.7549 L 52.8086 56.3185 L 56.3185 52.8086 L 33.7549 30.2451 Z" fill="#fff" mask="url(#m0)"/>
+  <path d="M 37.3816 39.682 L 34.007 39.682 L 32.6655 36.1921 L 26.5241 36.1921 L 25.256 39.682 L 21.9652 39.682 L 27.9494 24.318 L 31.2297 24.318 Z M 31.6699 33.6035 L 29.5529 27.9023 L 27.4778 33.6035 Z M 38.9326 39.682 L 38.9326 24.318 L 42.0348 24.318 L 42.0348 39.682 Z" fill="#fff" fill-rule="evenodd"/>
+  <circle cx="54.5635" cy="9.43646" r="5.43646" fill="#fff"/>
+  <circle cx="9.43646" cy="9.43646" r="5.43646" fill="#fff"/>
+  <circle cx="9.43646" cy="54.5635" r="5.43646" fill="#fff"/>
+  <circle cx="54.5635" cy="54.5635" r="5.43646" fill="#fff"/>
+</svg>

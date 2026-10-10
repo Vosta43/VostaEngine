@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core.h"
 #include "Scene/EntityRegistry.h"
 #include "Core/Json.h"
 
@@ -31,23 +32,36 @@ namespace ve {
 		std::function<void(EntityRegistry&, Entity)> initialize;
 	};
 
-	// Meyers singleton. A function-local static is safe from static-initialization-
-	// order issues: VECOMPONENT's registration objects run before main() and
-	// always find this already-constructed.
-	inline std::vector<ComponentTypeInfo>& componentRegistry() {
-		static std::vector<ComponentTypeInfo> reg;
-		return reg;
-	}
+	// The one component registry, owned by the engine DLL (see
+	// ComponentRegistry.cpp). Declared VE_API so a game module imports this single
+	// instance instead of compiling its own copy -- two copies would mean the
+	// engine never sees components a module registers.
+	VE_API std::vector<ComponentTypeInfo>& componentRegistry();
 
 	// Called by each VECOMPONENT registration object. Components.h is included
 	// from many translation units and each emits its own internal-linkage
 	// registration object, so dedup by type keeps exactly one entry per component.
-	inline void registerComponentType(const ComponentTypeInfo& info) {
+	// Returns true only for the registration that actually inserted the entry.
+	inline bool registerComponentType(const ComponentTypeInfo& info) {
 		auto& reg = componentRegistry();
 		for (const auto& existing : reg)
 			if (existing.type == info.type)
-				return;
+				return false;
 		reg.push_back(info);
+		return true;
+	}
+
+	// Drops a type's entry. Called from VECOMPONENT's registration-object
+	// destructor so a module's entries -- which hold module-code std::functions --
+	// leave the registry before the module's DLL is freed.
+	inline void unregisterComponentType(std::type_index type) {
+		auto& reg = componentRegistry();
+		for (auto it = reg.begin(); it != reg.end(); ++it) {
+			if (it->type == type) {
+				reg.erase(it);
+				return;
+			}
+		}
 	}
 
 	inline const ComponentTypeInfo* findComponentType(const std::string& typeKey) {
@@ -67,10 +81,18 @@ namespace ve {
 	// Attach the post-add initializer for a component type. Call it from the
 	// header that VECOMPONENT-declares the type, AFTER the registration object,
 	// so the entry already exists (dynamic init is ordered within a TU).
+	//
+	// First registrant wins -- symmetric with registerComponentType. A game module
+	// re-includes Components.h, so its TUs re-run this with a lambda compiled into
+	// the module DLL; letting it overwrite would leave the registry holding a
+	// function pointer that dangles once the module is unloaded.
 	template<typename T>
 	inline void setComponentInitializer(std::function<void(EntityRegistry&, Entity)> fn) {
-		if (const ComponentTypeInfo* info = findComponentType(std::type_index(typeid(T))))
-			const_cast<ComponentTypeInfo*>(info)->initialize = std::move(fn);
+		if (const ComponentTypeInfo* info = findComponentType(std::type_index(typeid(T)))) {
+			auto* mutableInfo = const_cast<ComponentTypeInfo*>(info);
+			if (!mutableInfo->initialize)
+				mutableInfo->initialize = std::move(fn);
+		}
 	}
 
 	// Run the init hook registered for T, if any.
@@ -89,8 +111,9 @@ namespace ve {
 // EntityRegistry::emplace<className>, which requires a complete type.
 #define VECOMPONENT(className, displayName, category) \
 	static struct __compReg_##className { \
+		bool m_owned = false; \
 		__compReg_##className() { \
-			ve::registerComponentType({ \
+			m_owned = ve::registerComponentType({ \
 				std::type_index(typeid(className)), \
 				displayName, category, \
 				#className, \
@@ -99,6 +122,10 @@ namespace ve {
 				[](ve::EntityRegistry& reg, ve::Entity e, ve::JsonWriter& w) { reg.get<className>(e).serialize(w); }, \
 				[](ve::EntityRegistry& reg, ve::Entity e, const ve::JsonReader& r) { reg.emplace<className>(e).deserialize(r); ve::runComponentInit<className>(reg, e); } \
 			}); \
+		} \
+		~__compReg_##className() { \
+			if (m_owned) \
+				ve::unregisterComponentType(std::type_index(typeid(className))); \
 		} \
 	} __compRegInstance_##className;
 

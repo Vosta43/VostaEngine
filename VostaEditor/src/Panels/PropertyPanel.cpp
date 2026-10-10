@@ -33,6 +33,12 @@ void PropertyPanel::onGuiRender(uint32_t& selectedEntity)
 {
     ImGui::Begin("Properties");
 
+    if (m_locked) {
+        ImGui::TextDisabled("Play mode: editing is disabled.");
+        ImGui::End();
+        return;
+    }
+
     // Applied before anything takes a component pointer, so the spawn/destroy
     // below cannot pull the storage out from under this frame's draws.
     if (m_sceneContext && m_pendingTileOp != PendingTileOp::None) {
@@ -173,6 +179,8 @@ void PropertyPanel::drawProperty(const std::string& typeName, void* compPtr, con
         drawDragProperty(typeName, ptr, prop);
     } else if (prop.uiType == "input") {
         drawInputProperty(ptr, prop);
+    } else if (prop.uiType == "bool") {
+        drawBoolProperty(ptr, prop);
     } else if (prop.uiType == "material") {
         drawMaterialProperty(ptr, prop);
     } else if (prop.uiType == "texture") {
@@ -292,6 +300,12 @@ void PropertyPanel::drawInputProperty(void* ptr, const ReflectionProperty& prop)
     if (ImGui::InputText(prop.name.c_str(), buf.data(), buf.size())) {
         *val = std::string(buf.data());
     }
+}
+
+void PropertyPanel::drawBoolProperty(void* ptr, const ReflectionProperty& prop)
+{
+    bool* val = static_cast<bool*>(ptr);
+    ImGui::Checkbox(prop.name.c_str(), val);
 }
 
 void PropertyPanel::drawMaterialProperty(void* ptr, const ReflectionProperty& prop)

@@ -9,7 +9,6 @@ EditorViewController::EditorViewController(Ref<Scene> scene, OpenMaterialEditorF
     : m_scene(std::move(scene))
     , m_outliner(m_scene)
     , m_propertyPanel(m_scene)
-    , m_viewRenderer(CreateRef<SceneViewRenderer>(m_scene))
 {
     m_propertyPanel.setOnOpenMaterialEditor(std::move(onOpenMaterial));
     m_propertyPanel.setOnOpenMaterialLayerEditor(std::move(onOpenMaterialLayer));
@@ -29,7 +28,15 @@ void EditorViewController::rebind(Ref<Scene> newScene, OpenMaterialEditorFn onOp
     m_propertyPanel.setOnOpenMaterialLayerEditor(std::move(onOpenMaterialLayer));
     m_propertyPanel.setOnDrawTerrainBrush(std::move(onDrawTerrainBrush));
     m_propertyPanel.setOnOpenTerrainMap(std::move(onOpenTerrainMap));
-    m_viewRenderer = CreateRef<SceneViewRenderer>(m_scene);
+    m_outliner.setLocked(m_locked);
+    m_propertyPanel.setLocked(m_locked);
+}
+
+void EditorViewController::setLocked(bool locked)
+{
+    m_locked = locked;
+    m_outliner.setLocked(locked);
+    m_propertyPanel.setLocked(locked);
 }
 
 void EditorViewController::onGuiRender(uint32_t& selectedEntity)

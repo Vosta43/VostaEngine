@@ -26,10 +26,10 @@ namespace ve {
 
     void SplashScreen::createResources() {
         if (!m_texture) {
-            m_texture = Texture2D::create("SandBox/assets/textures/ve.png");
+            m_texture = Texture2D::create("VostaEngine/resources/textures/ve.png");
         }
         if (!m_shader) {
-            m_shaderLibrary.load("SandBox/assets/shaders/Texture.glsl");
+            m_shaderLibrary.load("VostaEngine/resources/shaders/Texture.glsl");
             m_shader = m_shaderLibrary.get("Texture");
         }
         if (!m_vertexArray) {

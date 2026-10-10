@@ -71,6 +71,11 @@ namespace ve {
             m_entityRegistry.clearAllEntity();
         }
 
+        // The entity holding the primary CameraComponent (Unity's Camera.main).
+        // Falls back to any camera when none is flagged primary; returns an
+        // invalid handle (id 0xFFFFFFFF) when the scene has no camera at all.
+        Entity getPrimaryCameraEntity();
+
         void addSystem(const Ref<ECSystemBase>& system) {
             m_ecsystemGraph.addSystem(system);
         }

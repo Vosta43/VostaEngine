@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shared build settings for a Vosta game module (a project's gameplay DLL).
+
+  The project ships a self-contained copy of the engine in <project>/engine/, and
+  this file lives at <project>/engine/buildsystem/Vosta.GameModule.props. Every
+  path below is anchored to $(MSBuildThisFileDirectory), so it resolves with no
+  edits wherever the project folder is moved.
+
+  A project's .vcxproj imports this once through its PropertySheets ImportGroup
+  and only lists its own .cpp files.
+
+  Imported after Microsoft.Cpp.props on purpose: a property sheet is the only
+  place an ItemDefinitionGroup may safely set AdditionalIncludeDirectories and
+  OutDir. PlatformToolset / ConfigurationType stay in the .vcxproj because they
+  must be set before Microsoft.Cpp.props.
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- <project>/engine/: the folder holding include/, lib/, bin/, and the
+       engine's own resource tree. -->
+  <PropertyGroup>
+    <VostaEngineRoot>$(MSBuildThisFileDirectory)..\</VostaEngineRoot>
+  </PropertyGroup>
+
+  <!-- The host resolves <projectRoot>/Binaries/game.dll, so the name and output
+       folder must not gain a configuration suffix. -->
+  <PropertyGroup>
+    <TargetName>game</TargetName>
+    <OutDir>$(ProjectDir)Binaries\</OutDir>
+  </PropertyGroup>
+
+  <!-- F5 launches the player from the project's own engine copy. The working dir
+       is the project folder and the argument is ".", which sidesteps quoting the
+       engine path. The player locates the engine root from its own location
+       (<project>/engine/), so no environment variable is needed. -->
+  <PropertyGroup>
+    <LocalDebuggerCommand>$(VostaEngineRoot)bin\VostaPlayer.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>.</LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(VostaEngineRoot)include;$(VostaEngineRoot)include\src;$(VostaEngineRoot)include\thirdparty\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(VostaEngineRoot)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>VostaEngine.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+    <ClCompile>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+</Project>

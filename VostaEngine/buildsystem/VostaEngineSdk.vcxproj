@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Assembles SDK/: the engine's redistributable payload plus the project
+       template. SDK/ is the source of truth from which a new project copies its
+       own engine/ folder; it is a build product and is gitignored.
+
+       A Utility project: it compiles nothing and only orders after the engine
+       and the player, then runs the copy targets below. -->
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>18.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{5c2f7a30-9d41-4e6b-8a75-0b3c6d9e1f24}</ProjectGuid>
+    <RootNamespace>VostaEngineSdk</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+
+  <!-- $(VostaRepoRoot) / $(VostaEngineDir) come from the repo-root Directory.Build.props;
+       every project outputs into $(VostaEngineDir)$(Platform)\$(Configuration). -->
+  <PropertyGroup>
+    <VostaSdkDir>$(VostaRepoRoot)SDK\</VostaSdkDir>
+    <VostaBuildOut>$(VostaEngineDir)$(Platform)\$(Configuration)\</VostaBuildOut>
+  </PropertyGroup>
+
+  <!-- Build order only: the payload is read from their output folders, never
+       linked in, so linking is disabled. -->
+  <ItemGroup>
+    <ProjectReference Include="..\VostaEngine.vcxproj">
+      <Project>{d785d540-5557-434a-9d5b-119948540da9}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <ProjectReference Include="..\..\VostaPlayer\VostaPlayer.vcxproj">
+      <Project>{c3d4e5f6-3333-4444-8555-666677778888}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemGroup>
+
+  <Target Name="AssembleSdk" AfterTargets="Build">
+    <ItemGroup>
+      <SdkUmbrella Include="$(VostaEngineDir)VostaEngine.h" />
+      <SdkHeaders Include="$(VostaEngineDir)src\**\*.h" />
+      <SdkGlm Include="$(VostaEngineDir)thirdparty\glm\**\*.*" />
+      <SdkResources Include="$(VostaEngineDir)resources\**\*.*" />
+      <SdkBuildsystem Include="$(VostaEngineDir)buildsystem\Vosta.GameModule.props" />
+      <SdkTemplates Include="$(VostaEngineDir)buildsystem\templates\**\*.*" />
+    </ItemGroup>
+
+    <!-- Fail before a single file is written. A half-copied SDK/ on disk is worse
+         than none: the project generator would consume it and hand the user a
+         project whose F5 cannot launch. -->
+    <Error Condition="!Exists('$(VostaBuildOut)VostaEngine.lib')"
+           Text="SDK payload: '$(VostaBuildOut)VostaEngine.lib' is missing. Build the VostaEngine project first." />
+    <Error Condition="!Exists('$(VostaBuildOut)VostaEngine.dll')"
+           Text="SDK payload: '$(VostaBuildOut)VostaEngine.dll' is missing. Build the VostaEngine project first." />
+    <Error Condition="!Exists('$(VostaBuildOut)VostaPlayer.exe')"
+           Text="SDK payload: '$(VostaBuildOut)VostaPlayer.exe' is missing. Build the VostaPlayer project first." />
+
+    <Copy SourceFiles="@(SdkUmbrella)" DestinationFolder="$(VostaSdkDir)include" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(SdkHeaders)"
+          DestinationFiles="@(SdkHeaders->'$(VostaSdkDir)include\src\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(SdkGlm)"
+          DestinationFiles="@(SdkGlm->'$(VostaSdkDir)include\thirdparty\glm\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(SdkResources)"
+          DestinationFiles="@(SdkResources->'$(VostaSdkDir)VostaEngine\resources\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(SdkBuildsystem)" DestinationFolder="$(VostaSdkDir)buildsystem" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(SdkTemplates)"
+          DestinationFiles="@(SdkTemplates->'$(VostaSdkDir)templates\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+
+    <Copy SourceFiles="$(VostaBuildOut)VostaEngine.lib" DestinationFolder="$(VostaSdkDir)lib" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(VostaBuildOut)VostaEngine.dll" DestinationFolder="$(VostaSdkDir)bin" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(VostaBuildOut)VostaPlayer.exe" DestinationFolder="$(VostaSdkDir)bin" SkipUnchangedFiles="true" />
+
+    <Message Importance="high" Text="Vosta engine payload assembled at $(VostaSdkDir)" />
+  </Target>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

@@ -1,4 +1,5 @@
 #include "vepch.h"
+#include "MCP/CommandRegistry.h"
 #include "MCP/ToolRegistry.h"
 
 #include "Asset/AssetAuthoring.h"
@@ -63,6 +64,34 @@ namespace ve {
 			"Overwrite an existing asset, or create it if it is missing. The argument and 'data' shape are identical to create_asset; use this once you have read an asset and edited it. Call read_asset first so you keep the fields you are not changing.",
 			R"SCHEMA({"type":"object","properties":{"path":{"type":"string","description":"the asset to write, e.g. 'materials/rusty.veasset'"},"data":{"type":"object","description":"the asset body; must carry 'kind'","properties":{"kind":{"type":"string","enum":["material","noise","material_layer","layered_material"]}},"required":["kind"]}},"required":["path","data"]})SCHEMA",
 			overwriteAsset
+		};
+
+		// ── commands ───────────────────────────────────────────────────────
+		// Imperative operations reach the model through the single `editor_action`
+		// tool (see EditorTools.cpp), not as a tool of their own. Baked noise needs
+		// engine code -- a CPU graph evaluation -- so it belongs here rather than in
+		// the declarative create_asset/write_asset pair.
+
+		std::string bakeNoise(const JsonReader& args) {
+			const std::string source = args.getString("source", "");
+			if (source.empty())
+				return toolError("missing 'source' (a noise .veasset path; call list_assets for the ones that exist)");
+			const std::string out = args.getString("out", "");
+			if (out.empty())
+				return toolError("missing 'out' (the texture .veasset path to write)");
+
+			return bakeNoiseToTexture(source, out, args.getInt("size", 256), args.getBool("overwrite", false));
+		}
+
+		CommandRegistrar reg_bakeNoise{
+			"bake_noise",
+			"Bake a noise graph asset into a texture asset the material and terrain systems "
+			"sample. Runs the graph on the CPU and writes a square grayscale RGBA .veasset. "
+			"Read the noise asset with read_asset first if you need to author its graph.",
+			"source (string, required) - the noise .veasset to bake; out (string, required) - the "
+			"texture .veasset to write; size (int, optional, default 256) - square resolution in "
+			"pixels, clamped to 8..4096; overwrite (bool, optional) - replace an existing out file",
+			bakeNoise
 		};
 
 	} // namespace

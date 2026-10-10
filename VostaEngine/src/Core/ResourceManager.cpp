@@ -33,11 +33,11 @@ namespace ve {
     template class  VE_API ResourceStorage<Texture2D>;
     template class  VE_API ResourceStorage<TextureCubeMap>;
     template class  VE_API ResourceStorage<StaticMesh>;
-    template struct VE_API ResourceStorage<Material>;
+    template class VE_API ResourceStorage<Material>;
     template class VE_API ResourceStorage<StaticMeshResource>;
-    template struct VE_API ResourceStorage<NoiseGraphResource>;
-    template struct VE_API ResourceStorage<MaterialLayerAsset>;
-    template struct VE_API ResourceStorage<TerrainDataResource>;
+    template class VE_API ResourceStorage<NoiseGraphResource>;
+    template class VE_API ResourceStorage<MaterialLayerAsset>;
+    template class VE_API ResourceStorage<TerrainDataResource>;
 
     void ResourceManager::renamePrefixAll(const std::string& oldPath, const std::string& newPath) {
         // Keep this list in step with the explicit instantiations above.

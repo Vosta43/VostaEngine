@@ -1,6 +1,7 @@
 #include "MaterialGraphPanel.h"
 
 #include "AssetSaveRegistry.h"
+#include "Asset/Utils.h"
 #include "Core/Application.h"
 #include "Core/Log.h"
 #include "Core/ResourceManager.h"
@@ -63,10 +64,12 @@ void MaterialGraphPanel::markDirty(const Ref<SingleMaterial>& material, const st
     if (!material || assetKey.empty()) return;
 
     auto mat = material;
+    auto diskTicks = m_diskTicks;   // shared: this write must not read back as external
     const std::string path = toAbsolute(assetKey);
-    AssetSaveRegistry::get().markDirty(assetKey, [path, mat]() {
+    AssetSaveRegistry::get().markDirty(assetKey, [path, mat, diskTicks]() {
         TextArchive ar(path, ArchiveMode::write);
         if (ar.isGood()) mat->serialize(ar);
+        *diskTicks = utils::fileWriteTicks(path);
     });
 }
 
@@ -91,6 +94,29 @@ void MaterialGraphPanel::onGuiRender(Ref<SingleMaterial> material, bool& needsRe
     if (assetKey != m_lastName) {
         m_lastName = assetKey;
         m_graphHash = hashMaterialGraph(material->graph);
+        *m_diskTicks = utils::fileWriteTicks(assetPath);
+        m_externalChange = false;
+    }
+
+    // Did the asset change on disk since we loaded it? Re-read the file's write
+    // time: any writer bumps it, in this process or not. Reload when we hold no
+    // unsaved edits; otherwise flag a conflict and let the user choose. Doing this
+    // BEFORE the toolbar lets the banner and buttons share the same frame's state.
+    const int64_t liveTicks = utils::fileWriteTicks(assetPath);
+    if (liveTicks != 0 && liveTicks != *m_diskTicks) {
+        *m_diskTicks = liveTicks;   // track it either way; do not retry each frame
+        if (!AssetSaveRegistry::get().isDirty(assetKey)) {
+            if (Material::refreshFromFile(assetKey)) {
+                // refreshFromFile updates the same instance `material` points at, so
+                // the canvas redraws the new graph on this frame.
+                m_graphHash = hashMaterialGraph(material->graph);
+                if (originalMaterialHandle.isValid())
+                    ThumbnailRenderer::invalidate(originalMaterialHandle);
+            }
+            m_externalChange = false;
+        } else {
+            m_externalChange = true;
+        }
     }
 
     // --- Toolbar ---
@@ -111,6 +137,7 @@ void MaterialGraphPanel::onGuiRender(Ref<SingleMaterial> material, bool& needsRe
             // Compiling wrote the file, so the graph is clean and the baseline moved.
             AssetSaveRegistry::get().markClean(assetKey);
             m_graphHash = hashMaterialGraph(material->graph);
+            *m_diskTicks = utils::fileWriteTicks(assetPath);
 
             if (originalMaterialHandle.isValid()) {
                 ThumbnailRenderer::invalidate(originalMaterialHandle);
@@ -131,6 +158,31 @@ void MaterialGraphPanel::onGuiRender(Ref<SingleMaterial> material, bool& needsRe
     if (AssetSaveRegistry::get().isDirty(assetKey)) {
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(0.95f, 0.75f, 0.30f, 1.0f), "unsaved");
+    }
+
+    // The asset changed on disk while we have unsaved edits. Never pick a winner
+    // silently: the user reloads (dropping their edits) or keeps theirs (to be
+    // saved over the disk copy) explicitly.
+    if (m_externalChange) {
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.2f, 1.0f), "changed on disk");
+        ImGui::SameLine();
+        if (ImGui::Button("Reload")) {
+            if (Material::refreshFromFile(assetKey)) {
+                AssetSaveRegistry::get().markClean(assetKey);
+                m_graphHash = hashMaterialGraph(material->graph);
+                if (originalMaterialHandle.isValid())
+                    ThumbnailRenderer::invalidate(originalMaterialHandle);
+            }
+            *m_diskTicks = utils::fileWriteTicks(assetPath);
+            m_externalChange = false;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Keep mine")) {
+            // Stop tracking this write: our next save is an intentional overwrite.
+            *m_diskTicks = utils::fileWriteTicks(assetPath);
+            m_externalChange = false;
+        }
     }
 
     ImGui::Separator();

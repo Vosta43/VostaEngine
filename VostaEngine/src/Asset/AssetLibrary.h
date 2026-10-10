@@ -42,9 +42,14 @@ namespace ve {
 		const std::vector<AssetEntry>& list() const;
 
 		// Bumped by every writer that changes an asset on disk (save, AI write).
-		// A view that shows assets polls this and rescans when it moves, instead
-		// of every writer knowing which views exist.
+		// A view that shows the whole catalogue polls this and rescans when it
+		// moves, instead of every writer knowing which views exist. A view with ONE
+		// asset open does not use this — it re-reads that file's write time instead
+		// (utils::fileWriteTicks), which also catches writers outside this process.
 		uint64_t revision() const;
+
+		// Record that some asset changed on disk. Bumps the listing revision so a
+		// browser rescan; carries no per-asset detail by design.
 		void notifyChanged();
 
 	private:

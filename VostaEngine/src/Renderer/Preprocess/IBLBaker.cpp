@@ -34,7 +34,7 @@ Ref<TextureCubeMap> IBLBaker::bakeIrradianceMap(
     }
 
     auto& shaderLib = Application::get().getShaderLibrary();
-    shaderLib.load("SandBox/assets/shaders/irradianceMap.glsl");
+    shaderLib.load("VostaEngine/resources/shaders/irradianceMap.glsl");
     Ref<Shader> shader = shaderLib.get("irradianceMap");
     if (!shader) {
         VE_CORE_ERROR_PRINT("%s", "IBLBaker: failed to load irradianceMap shader");
@@ -103,7 +103,7 @@ Ref<TextureCubeMap> IBLBaker::bakePrefilteredEnvMap(
     }
 
     auto& shaderLib = Application::get().getShaderLibrary();
-    shaderLib.load("SandBox/assets/shaders/prefilterEnvMap.glsl");
+    shaderLib.load("VostaEngine/resources/shaders/prefilterEnvMap.glsl");
     Ref<Shader> shader = shaderLib.get("prefilterEnvMap");
     if (!shader) {
         VE_CORE_ERROR_PRINT("%s", "IBLBaker: failed to load prefilterEnvMap shader");
@@ -160,7 +160,7 @@ Ref<TextureCubeMap> IBLBaker::bakePrefilteredEnvMap(
 
 Ref<Texture2D> IBLBaker::bakeBRDFLUT() {
     auto& shaderLib = Application::get().getShaderLibrary();
-    shaderLib.load("SandBox/assets/shaders/brdfLut.glsl");
+    shaderLib.load("VostaEngine/resources/shaders/brdfLut.glsl");
     Ref<Shader> shader = shaderLib.get("brdfLut");
     if (!shader) {
         VE_CORE_ERROR_PRINT("%s", "IBLBaker: failed to load brdfLut shader");

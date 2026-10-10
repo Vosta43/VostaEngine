@@ -1,12 +1,16 @@
 ﻿
-/* Intended for use within the sandbox application only.*/
+/* The public umbrella a game module includes. Anything not reachable from here
+ * is engine-internal and may change without notice. */
 
 #pragma warning(push)
 #pragma warning(disable : 4251)
 
 #include "src/Core/Application.h"
+#include "src/Core/Layers/Layers.h"
 #include "src/Core/Log.h"
 #include "src/Core/Reflection.h"
+#include "src/Core/GameModule.h"
+#include "src/Core/GameModuleHost.h"
 
 
 #include "src/Input.h"
@@ -45,6 +49,15 @@
 #include "src/Asset/StaticMeshResource.h"
 
 #include "src/Gui/Gui.h"
+#include "src/Gui/Vellum/VellumLayer.h"
+#include "src/Gui/Vellum/WidgetTree.h"
+#include "src/Gui/Vellum/Widgets/ColoredBox.h"
+#include "src/Gui/Vellum/Widgets/Stack.h"
+#include "src/Gui/Vellum/Widgets/Button.h"
+#include "src/Gui/Vellum/Widgets/TextBlock.h"
+#include "src/Gui/Vellum/Text/FontAtlas.h"
+#include "src/Gui/Vellum/Text/FontManager.h"
+#include "src/Gui/Vellum/Text/Utf8.h"
 #include "src/Renderer/Renderer.h"
 #include "src/Renderer/Renderer2D.h"
 #include "src/Renderer/Renderer3D.h"
@@ -56,6 +69,7 @@
 #include "src/Renderer/RenderPipeline.h"
 #include "src/Renderer/SceneRenderer.h"
 #include "src/Renderer/SceneViewRenderer.h"
+#include "src/Renderer/SceneView.h"
 #include "src/Renderer/ThumbnailRenderer.h"
 #include "src/Renderer/Preprocess/BakeService.h"
 

@@ -24,6 +24,11 @@ namespace ve {
 			return;
 		}
 
+		// Opaque pass: every attachment must be written unconditionally. Some
+		// material shaders emit alpha 0 on the normal/material targets, so an
+		// inherited blend state would drop those writes and leave the cleared black.
+		RenderCommand::setBlend(false);
+
 		// Debug wireframe: rasterize triangles as outlines. Restored right after
 		// the loop so the deferred full-screen passes and skybox stay filled.
 		RenderCommand::setWireframe(ctx.wireframe);
@@ -39,6 +44,7 @@ namespace ve {
 			activeShader->bind();
 			activeShader->setMat4("u_ViewProj", ctx.projMatrix * ctx.viewMatrix);
 			activeShader->setMat4("u_Model", cmd.transform);
+			activeShader->setFloat("u_Time", ctx.totalTime);
 
 			// The material decides what to bind; this pass only applies it. The
 			// set is a member so its vectors keep their capacity across draws.

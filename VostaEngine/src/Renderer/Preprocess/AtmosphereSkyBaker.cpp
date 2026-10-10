@@ -39,7 +39,7 @@ Ref<TextureCubeMap> AtmosphereSkyBaker::bakeSkyCubemap(
     }
 
     auto& shaderLib = Application::get().getShaderLibrary();
-    shaderLib.load("SandBox/assets/shaders/atmosphereSky.glsl");
+    shaderLib.load("VostaEngine/resources/shaders/atmosphereSky.glsl");
     Ref<Shader> shader = shaderLib.get("atmosphereSky");
     if (!shader) {
         VE_CORE_ERROR_PRINT("%s", "AtmosphereSkyBaker: failed to load atmosphereSky shader");

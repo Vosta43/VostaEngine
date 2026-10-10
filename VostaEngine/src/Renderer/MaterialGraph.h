@@ -52,6 +52,21 @@ namespace ve {
 		Lerp              = 10,
 		Clamp             = 11,
 		MaterialOutput    = 12,
+		Time              = 13,
+		Power             = 14,
+		Panner            = 15,
+		WorldPosition     = 16,
+		VertexNormal      = 17,
+		Frac              = 18,
+		OneMinus          = 19,
+		Sin               = 20,
+		Cos               = 21,
+		Floor             = 22,
+		Step              = 23,
+		Smoothstep        = 24,
+		Saturate          = 25,
+		ComponentMask     = 26,
+		Append            = 27,
 	};
 
 	// Material node: a GraphNode that additionally knows how to emit GLSL.

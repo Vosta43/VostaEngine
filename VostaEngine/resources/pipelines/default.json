@@ -1,0 +1,124 @@
+{
+  "shaders": [
+    { "name": "gbuffer",           "path": "VostaEngine/resources/shaders/gbuffer.glsl" },
+    { "name": "terrain_layers",    "path": "VostaEngine/resources/shaders/terrain_layers.glsl" },
+    { "name": "shadow_depth",      "path": "VostaEngine/resources/shaders/shadow_depth.glsl" },
+    { "name": "volume_cloud_pass", "path": "VostaEngine/resources/shaders/volume_cloud_pass.glsl" },
+    { "name": "cloud_taa",         "path": "VostaEngine/resources/shaders/cloud_taa.glsl" },
+    { "name": "pbrlighting",       "path": "VostaEngine/resources/shaders/pbrlighting.glsl" },
+    { "name": "taa",               "path": "VostaEngine/resources/shaders/taa.glsl" },
+    { "name": "postprocess",       "path": "VostaEngine/resources/shaders/postprocess.glsl" },
+    { "name": "screen",            "path": "VostaEngine/resources/shaders/screen.glsl" }
+  ],
+
+  "framebuffers": [
+    {
+      "name": "gbuffer",
+      "depth": true,
+      "attachments": [
+        { "slot": 0, "internalFormat": "RGBA8" },
+        { "slot": 1, "internalFormat": "RGBA16F" },
+        { "slot": 2, "internalFormat": "RGBA8" },
+        { "slot": 3, "internalFormat": "RGBA8" }
+      ]
+    },
+    {
+      "name": "shadow0", "width": 2048, "height": 2048,
+      "depth": true, "depthCompare": true, "attachments": []
+    },
+    {
+      "name": "shadow1", "width": 2048, "height": 2048,
+      "depth": true, "depthCompare": true, "attachments": []
+    },
+    {
+      "name": "shadow2", "width": 2048, "height": 2048,
+      "depth": true, "depthCompare": true, "attachments": []
+    },
+    { "name": "hdr", "attachments": [ { "slot": 0, "internalFormat": "RGBA16F" } ] },
+    { "name": "cloud", "widthScale": 0.5, "heightScale": 0.5, "attachments": [ { "slot": 0, "internalFormat": "RGBA16F" } ] },
+    { "name": "cloudTaaA", "widthScale": 0.5, "heightScale": 0.5, "attachments": [ { "slot": 0, "internalFormat": "RGBA16F" } ] },
+    { "name": "cloudTaaB", "widthScale": 0.5, "heightScale": 0.5, "attachments": [ { "slot": 0, "internalFormat": "RGBA16F" } ] },
+    { "name": "taaA", "attachments": [ { "slot": 0, "internalFormat": "RGBA16F" } ] },
+    { "name": "taaB", "attachments": [ { "slot": 0, "internalFormat": "RGBA16F" } ] },
+    { "name": "post", "attachments": [ { "slot": 0, "internalFormat": "RGBA8" } ] }
+  ],
+
+  "passes": [
+    {
+      "name": "shadow0", "type": "shadow", "target": "shadow0", "shader": "shadow_depth",
+      "index": 0, "when": { "from": "hasAtmosphere" }
+    },
+    {
+      "name": "shadow1", "type": "shadow", "target": "shadow1", "shader": "shadow_depth",
+      "index": 1, "when": { "from": "hasAtmosphere" }
+    },
+    {
+      "name": "shadow2", "type": "shadow", "target": "shadow2", "shader": "shadow_depth",
+      "index": 2, "when": { "from": "hasAtmosphere" }
+    },
+
+    { "name": "gbuffer", "type": "gbuffer", "target": "gbuffer", "shader": "gbuffer" },
+
+    { "name": "cloud", "type": "cloud", "target": "cloud", "shader": "volume_cloud_pass" },
+
+    {
+      "name": "cloudTaa", "type": "cloudtaa", "target": "cloudTaaA", "shader": "cloud_taa",
+      "history": [ "cloudTaaA", "cloudTaaB" ],
+      "inputs": [
+        { "uniform": "u_CloudColor", "unit": 0, "source": "cloud" },
+        { "uniform": "u_History",    "unit": 1, "source": "@history" }
+      ]
+    },
+
+    {
+      "name": "hdr", "type": "hdr", "target": "hdr", "shader": "pbrlighting",
+      "inputs": [
+        { "uniform": "u_AlbedoMap",        "unit": 0, "source": "gbuffer", "attachment": 0 },
+        { "uniform": "u_NormalMap",        "unit": 1, "source": "gbuffer", "attachment": 1 },
+        { "uniform": "u_MaterialMap",      "unit": 2, "source": "gbuffer", "attachment": 2 },
+        { "uniform": "u_DepthMap",         "unit": 3, "source": "gbuffer", "depth": true },
+        { "uniform": "u_CloudTex",         "unit": 4, "source": "cloudTaa" },
+        { "uniform": "u_SkyboxMap",        "unit": 5, "source": "@skybox", "type": "cube" },
+        { "uniform": "u_IrradianceMap",    "unit": 6, "source": "@irradiance", "type": "cube" },
+        { "uniform": "u_PrefilteredEnvMap","unit": 7, "source": "@prefilteredEnv", "type": "cube" },
+        { "uniform": "u_BRDFLUT",          "unit": 8, "source": "@brdfLUT" },
+        { "uniform": "u_ShadowMap0",       "unit": 13, "source": "shadow0", "depth": true },
+        { "uniform": "u_ShadowMap1",       "unit": 14, "source": "shadow1", "depth": true },
+        { "uniform": "u_ShadowMap2",       "unit": 15, "source": "shadow2", "depth": true }
+      ],
+      "uniforms": [
+        { "uniform": "SHADOW_SAMPLES", "kind": "Float", "x": 9.0 }
+      ]
+    },
+
+    {
+      "name": "taa", "type": "taa", "target": "taaA", "shader": "taa",
+      "history": [ "taaA", "taaB" ],
+      "inputs": [
+        { "uniform": "u_HDRColor", "unit": 0, "source": "@previous" },
+        { "uniform": "u_DepthMap", "unit": 1, "source": "gbuffer", "depth": true },
+        { "uniform": "u_History",  "unit": 2, "source": "@history" },
+        { "uniform": "u_CloudTex", "unit": 3, "source": "cloudTaa" }
+      ]
+    },
+
+    {
+      "name": "post", "type": "post", "target": "post", "shader": "postprocess",
+      "inputs": [
+        { "uniform": "u_HDRColor", "unit": 0, "source": "@previous" }
+      ]
+    },
+
+    {
+      "name": "present", "type": "present", "target": "@default", "shader": "screen",
+      "inputs": [
+        { "uniform": "u_ScreenTexture", "unit": 0, "source": "@previous" },
+        { "uniform": "u_DepthMap",      "unit": 1, "source": "gbuffer", "depth": true }
+      ]
+    }
+  ],
+
+  "settings": [
+    { "name": "SHADOW_DISTANCE", "apply": "uniform", "value": 250.0, "min": 50.0, "max": 1000.0 }
+  ]
+}

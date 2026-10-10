@@ -50,6 +50,19 @@ namespace ve {
 
         const glm::vec3& getPosition() const { return m_position; }
 
+        // Pose straight from a world matrix (an entity's Transform): the view is
+        // its inverse, the position its translation. The yaw/pitch/roll fields are
+        // left alone -- they only drive the input-driven fly-cam.
+        void setWorldTransform(const glm::mat4& world) {
+            m_position = glm::vec3(world[3]);
+            m_viewMatrix = glm::inverse(world);
+        }
+
+        void setNearPlane(float np) {
+            m_nearPlane = np;
+            recalculateProjection();
+        }
+
         float getYaw() const { return m_yaw; }
         float getPitch() const { return m_pitch; }
 

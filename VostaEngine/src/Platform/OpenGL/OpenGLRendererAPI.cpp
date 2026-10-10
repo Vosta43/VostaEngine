@@ -33,9 +33,29 @@ namespace ve {
         glViewport(x, y, width, height);
     }
 
+    void OpenGLRendererAPI::setScissor(int32_t x, int32_t y, int32_t width, int32_t height) {
+        glScissor(x, y, width, height);
+    }
+
+    void OpenGLRendererAPI::setScissorTest(bool enabled) {
+        if (enabled) {
+            glEnable(GL_SCISSOR_TEST);
+        }
+        else {
+            glDisable(GL_SCISSOR_TEST);
+        }
+    }
+
     void OpenGLRendererAPI::drawIndexed(const Ref<VertexArray>& vertexArray) {
         vertexArray->bind();
         glDrawElements(GL_TRIANGLES, vertexArray->getIndexBuffer()->getCount(), GL_UNSIGNED_INT, nullptr);
+    }
+
+    void OpenGLRendererAPI::drawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount, uint32_t firstIndex) {
+        vertexArray->bind();
+        // firstIndex is an offset in indices, so scale it to bytes for the pointer offset.
+        glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT,
+                       reinterpret_cast<const void*>(static_cast<uintptr_t>(firstIndex) * sizeof(uint32_t)));
     }
 
     void OpenGLRendererAPI::setDepthTesting(bool enabled) {

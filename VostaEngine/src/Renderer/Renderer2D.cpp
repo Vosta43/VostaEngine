@@ -76,6 +76,7 @@ namespace ve {
         s_Data.quadVertexArray->setIndexBuffer(s_Data.quadIndexBuffer);
 
         auto& shaderLib = Application::get().getShaderLibrary();
+        shaderLib.load("VostaEngine/resources/shaders/Texture.glsl");
         s_Data.quadShader = shaderLib.get("Texture");
 
         s_Data.quadVertexBufferBase = new QuadVertex[s_Data.maxVertices];

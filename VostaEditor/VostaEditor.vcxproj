@@ -45,6 +45,7 @@
     <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerEnvironment>VOSTA_ENGINE_ROOT=$(VostaRepoRoot)</LocalDebuggerEnvironment>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -53,6 +54,7 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerEnvironment>VOSTA_ENGINE_ROOT=$(VostaRepoRoot)</LocalDebuggerEnvironment>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -79,6 +81,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -94,6 +97,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -104,14 +108,17 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;IMGUI_API=__declspec(dllimport);IMGUI_IMPL_API=__declspec(dllimport);%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\VostaEditor\src;$(SolutionDir)thirdparty\glm;$(SolutionDir)thirdparty\IMGUIZMO;$(SolutionDir)thirdparty\IMGUI;$(SolutionDir)thirdparty\imgui-node-editor;$(SolutionDir)..\VostaEngine\src;$(SolutionDir)..\VostaEngine</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4251</DisableSpecificWarnings>
+      <AdditionalIncludeDirectories>$(VostaRepoRoot)VostaEditor\src;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)thirdparty\imgui-node-editor;$(VostaEngineDir)src;$(VostaEngineDir)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(VostaEngineDir)x64\$(Configuration)\</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -123,14 +130,15 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;IMGUI_API=__declspec(dllimport);IMGUI_IMPL_API=__declspec(dllimport);%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\VostaEditor\src;$(SolutionDir)thirdparty\glm;$(SolutionDir)thirdparty\IMGUIZMO;$(SolutionDir)thirdparty\IMGUI;$(SolutionDir)thirdparty\imgui-node-editor;$(SolutionDir)..\VostaEngine\src;$(SolutionDir)..\VostaEngine</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4251</DisableSpecificWarnings>
+      <AdditionalIncludeDirectories>$(VostaRepoRoot)VostaEditor\src;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)thirdparty\imgui-node-editor;$(VostaEngineDir)src;$(VostaEngineDir)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)x64\$(Configuration)\</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(VostaEngineDir)x64\$(Configuration)\</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -142,6 +150,7 @@
     <ClCompile Include="src\EditorLayer.cpp" />
     <ClCompile Include="src\EditorMcpTools.cpp" />
     <ClCompile Include="src\EditorViewController.cpp" />
+    <ClCompile Include="src\PlaySession.cpp" />
     <ClCompile Include="src\Graph\NodeGraphPanel.cpp" />
     <ClCompile Include="src\Graph\MaterialEditorSchema.cpp" />
     <ClCompile Include="src\Graph\NoiseEditorSchema.cpp" />
@@ -168,6 +177,7 @@
     <ClInclude Include="src\EditorLayer.h" />
     <ClInclude Include="src\EditorMcpTools.h" />
     <ClInclude Include="src\EditorViewController.h" />
+    <ClInclude Include="src\PlaySession.h" />
     <ClInclude Include="src\Graph\NodeGraphPanel.h" />
     <ClInclude Include="src\Graph\NodeGraphEditorSchema.h" />
     <ClInclude Include="src\Graph\MaterialEditorSchema.h" />

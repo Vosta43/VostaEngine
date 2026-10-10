@@ -9,13 +9,13 @@ namespace ve {
 	class VE_API Layer {
 	public:
 		Layer();
-		~Layer();
+		virtual ~Layer();
 		virtual void onAttach() {};
 		virtual void onDetach() {};
 		virtual void onUpdate() {};
 		virtual void onEvent(Event& event) {};
 
-		virtual void onImGuiRender() {};
+		virtual void onUIRender() {};
 
 	private:
 

@@ -13,6 +13,9 @@ namespace ve {
     class ShaderLibrary;
     class SplashScreen;
 
+    namespace vellum { class VellumLayer; }
+
+
     class VE_API Application {
     public:
         Application();
@@ -33,15 +36,25 @@ namespace ve {
             m_layerStack.pushOverlay(layer);
         }
 
+        void popLayer(Layer* layer) {
+            m_layerStack.popLayer(layer);
+        }
+
+        void popOverLay(Layer* layer) {
+            m_layerStack.popOverlay(layer);
+        }
+
         bool isViewportHovered() const;
         ShaderLibrary& getShaderLibrary();
         GuiLayer* getGuiLayer();
+        vellum::VellumLayer* getVellumLayer();
 
     private:
         static Application* s_instance;
         std::unique_ptr<EventDispatcher> m_dispatcher;
         std::unique_ptr<Window> m_window;
         std::unique_ptr<GuiLayer> m_GuiLayer;
+        std::unique_ptr<vellum::VellumLayer> m_vellumLayer;
         std::unique_ptr<ShaderLibrary> m_shaderLibrary;
         std::unique_ptr<SplashScreen> m_splash;
 

@@ -5,6 +5,7 @@
 #include "MaterialNodes.h"
 #include "Core/Log.h"
 #include "Core/AssetConfig.h"
+#include "Core/ResourceManager.h"
 
 namespace ve {
 
@@ -65,6 +66,28 @@ namespace ve {
 			}
 		}
 		return material;
+	}
+
+	bool Material::refreshFromFile(const std::string& path) {
+		const AssetHandle handle = ResourceManager::find<Material>(path);
+		if (!handle.isValid())
+			return false;
+
+		Ref<Material> material = ResourceManager::get<Material>(handle);
+		if (!material)
+			return false;
+
+		TextArchive ar(toAbsolute(path), ArchiveMode::read);
+		if (!ar.isGood())
+			return false;
+
+		// deserialize replaces the graph, re-loads the maps and, when the file says
+		// the material was compiled, rebuilds the GL shader (see SingleMaterial).
+		material->deserialize(ar);
+		// The body's name can be stale after a rename; the registry path wins, same
+		// rule create() applies.
+		material->setAssetPath(toRelative(toAbsolute(path)));
+		return true;
 	}
 
 }

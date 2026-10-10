@@ -61,6 +61,11 @@ namespace ve {
         virtual void bind() = 0;
         virtual void unbind() = 0;
 
+        // Copy the color attachment into the default (window) framebuffer,
+        // scaling to the destination size. Presents an offscreen view to the
+        // screen; the depth attachment is not copied.
+        virtual void blitToDefault(uint32_t dstWidth, uint32_t dstHeight) = 0;
+
         virtual void resize(uint32_t width, uint32_t height) = 0;
 
         virtual uint32_t getColorAttachmentRendererID() const = 0;

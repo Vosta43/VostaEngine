@@ -13,14 +13,27 @@ namespace ve {
         return map;
     }
 
-    void ReflectionSystem::registerGetter(const std::string& typeName,
+    bool ReflectionSystem::registerGetter(const std::string& typeName,
         std::function<void* (void*, const std::string&)> getter) {
-        getGetters()[typeName] = std::move(getter);
+        auto& map = getGetters();
+        if (map.find(typeName) != map.end())
+            return false;
+        map.emplace(typeName, std::move(getter));
+        return true;
     }
 
-    void ReflectionSystem::registerProperties(const std::string& typeName,
+    bool ReflectionSystem::registerProperties(const std::string& typeName,
         std::function<std::vector<ReflectionProperty>& ()> propFunc) {
-        getPropertyFuncs()[typeName] = std::move(propFunc);
+        auto& map = getPropertyFuncs();
+        if (map.find(typeName) != map.end())
+            return false;
+        map.emplace(typeName, std::move(propFunc));
+        return true;
+    }
+
+    void ReflectionSystem::unregisterType(const std::string& typeName) {
+        getGetters().erase(typeName);
+        getPropertyFuncs().erase(typeName);
     }
 
     void* ReflectionSystem::get(const std::string& typeName, void* obj, const std::string& propName) {

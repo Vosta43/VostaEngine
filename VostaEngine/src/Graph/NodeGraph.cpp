@@ -64,6 +64,7 @@ namespace ve {
 		link.startPin = from;
 		link.endPin = to;
 		links.push_back(link);
+		propagateTypes();
 		return nullptr;
 	}
 
@@ -79,18 +80,51 @@ namespace ve {
 			[nodeId](const Ref<GraphNode>& n) {
 				return n->id == nodeId;
 			}), nodes.end());
+
+		propagateTypes();
+	}
+
+	void NodeGraph::propagateTypes() {
+		// Start from each pin's declared type so a pin that lost its link drops the
+		// type it had picked up.
+		for (auto& node : nodes) {
+			for (auto& pin : node->m_inputPins)  pin.type = pin.baseType;
+			for (auto& pin : node->m_outputPins) pin.type = pin.baseType;
+		}
+
+		auto sorted = topologicalSort();
+		if (sorted.empty()) return;
+
+		for (auto& node : sorted) {
+			// Adaptive inputs adopt the type of whatever is wired into them.
+			if (node->adaptsInputTypes()) {
+				for (auto& link : links) {
+					if (link.endPin.id != node->id) continue;
+					GraphNode* src = findNode(link.startPin.id);
+					if (!src) continue;
+
+					uint32_t outIdx = link.startPin.pinIndex - (uint32_t)src->m_inputPins.size();
+					uint32_t inIdx  = link.endPin.pinIndex;
+					if (inIdx < node->m_inputPins.size() && outIdx < src->m_outputPins.size())
+						node->m_inputPins[inIdx].type = src->m_outputPins[outIdx].type;
+				}
+			}
+			node->computeOutputTypes();
+		}
 	}
 
 	void NodeGraph::removeLink(uint32_t linkId) {
 		links.erase(std::remove_if(links.begin(), links.end(),
 			[linkId](const GraphLink& l) { return l.id == linkId; }),
 			links.end());
+		propagateTypes();
 	}
 
 	void NodeGraph::removeLinksTo(PinId target) {
 		links.erase(std::remove_if(links.begin(), links.end(),
 			[target](const GraphLink& l) { return l.endPin == target; }),
 			links.end());
+		propagateTypes();
 	}
 
 	GraphNode* NodeGraph::findNode(uint32_t id) const {
@@ -198,6 +232,8 @@ namespace ve {
 			links.push_back(link);
 		}
 		m_nextLinkId = maxLinkId + 1;
+
+		propagateTypes();
 	}
 
 }

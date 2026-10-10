@@ -123,11 +123,12 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>IMGUI_API=__declspec(dllexport);IMGUI_IMPL_API=__declspec(dllexport);%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\glad\include;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUI</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -146,7 +147,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)thirdparty\glad\include;$(SolutionDir)thirdparty\GLFW\include;$(SolutionDir)..\VostaEngine\src;$(SolutionDir)thirdparty\IMGUI\backends;$(SolutionDir)thirdparty\IMGUI</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\glad\include;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUI</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>
       </ForcedIncludeFiles>
     </ClCompile>

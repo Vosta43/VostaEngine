@@ -10,6 +10,11 @@
 
 namespace ve {
 
+    // Win32 shell dialogs. Defined in FileBrowser.cpp, which is the editor's
+    // single home for <windows.h>. Both return "" when the user cancels.
+    std::string openImportFileDialog();
+    std::string pickFolderDialog(const std::string& initial);
+
     class FileBrowser {
     public:
         FileBrowser();
@@ -29,6 +34,16 @@ namespace ve {
 
         using FileSelectCallback = std::function<void(const std::string& path)>;
         void setOnFileSelect(FileSelectCallback callback);
+
+        // Scene-specific action from the item context menu ("Set as Default
+        // Scene"). The panel only knows paths; the host owns what "default"
+        // means and where it persists.
+        using SetDefaultSceneCallback = std::function<void(const std::string& path)>;
+        void setOnSetDefaultScene(SetDefaultSceneCallback callback);
+
+        // Absolute path of the current default scene, so its menu item shows a
+        // check mark. Empty when the project has none.
+        void setDefaultScenePath(const std::string& path);
 
     private:
         void refreshFiles();
@@ -57,6 +72,8 @@ namespace ve {
         bool m_sortByType = false;
         bool m_refreshRequested = false;
         FileSelectCallback m_onFileSelect;
+        SetDefaultSceneCallback m_onSetDefaultScene;
+        std::string m_defaultScenePath;
         std::string m_selectedPath;
 
         std::shared_ptr<Texture2D> m_folderIcon;

@@ -14,6 +14,9 @@ public:
     // terrain, the same way the outliner does.
     void onGuiRender(uint32_t& selectedEntity);
 
+    // While locked the panel renders no editing UI (a play session is live).
+    void setLocked(bool locked) { m_locked = locked; }
+
     // Callback invoked when the user clicks "Open Editor" next to a material.
     using OpenMaterialEditorFn = std::function<void(AssetHandle)>;
     void setOnOpenMaterialEditor(OpenMaterialEditorFn callback) { m_onOpenMaterialEditor = std::move(callback); }
@@ -39,6 +42,7 @@ private:
     // Per-uiType drawers.
     void drawDragProperty(const std::string& typeName, void* compPtr, const ReflectionProperty& prop);
     void drawInputProperty(void* ptr, const ReflectionProperty& prop);
+    void drawBoolProperty(void* ptr, const ReflectionProperty& prop);
     void drawMaterialProperty(void* ptr, const ReflectionProperty& prop);
     void drawTextureProperty(void* ptr);
     void drawSkyboxTextureProperty(void* ptr);
@@ -59,6 +63,7 @@ private:
     void drawTexturePropertyWidget(const std::string& label, AssetHandle& textureHandle, AssetHandle materialHandle);
 
     Ref<Scene> m_sceneContext;
+    bool m_locked = false;
     OpenMaterialEditorFn m_onOpenMaterialEditor;
     OpenMaterialEditorFn m_onOpenMaterialLayerEditor;
     OpenTerrainMapFn m_onOpenTerrainMap;

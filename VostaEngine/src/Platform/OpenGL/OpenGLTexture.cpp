@@ -210,6 +210,13 @@ namespace ve {
                             dataFormat, textureFormatToOpenGLType(m_format), data);
     }
 
+    void OpenGLTexture2D::setSubData(const void* data, uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
+        GLenum internalFormat, dataFormat;
+        textureFormatToOpenGL(m_format, internalFormat, dataFormat);
+        glTextureSubImage2D(m_rendererId, 0, x, y, w, h,
+                            dataFormat, textureFormatToOpenGLType(m_format), data);
+    }
+
     void OpenGLTexture2D::bind(uint32_t slot) const {
         glActiveTexture(GL_TEXTURE0 + slot);
         glBindTexture(GL_TEXTURE_2D, m_rendererId);

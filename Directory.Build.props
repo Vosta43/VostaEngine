@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <VostaRepoRoot>$(MSBuildThisFileDirectory)</VostaRepoRoot>
+    <VostaEngineDir>$(VostaRepoRoot)VostaEngine\</VostaEngineDir>
+  </PropertyGroup>
+</Project>

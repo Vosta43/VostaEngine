@@ -7,6 +7,7 @@
 #include "Renderer/Texture.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -26,6 +27,10 @@ namespace ve {
     private:
         // Seeds the default Noise Unit -> Output graph when none is loaded.
         void ensureDefaultGraph();
+        // Reads m_filePath into m_graph (empty/legacy files fall back to the default
+        // graph) and rebuilds the preview. Shared by open and by a reload after an
+        // external write.
+        void loadGraphFromDisk();
         void rebuildPreview();
         void saveToFile();
         // Registers a self-contained saver (path + graph snapshot) with the dirty
@@ -46,6 +51,14 @@ namespace ve {
         // tracked apart so a deferred save can lag the live preview.
         uint32_t m_graphHash = 0;
         uint32_t m_savedHash = 0;
+
+        // The file's last-write time as this panel last saw it, compared against a
+        // fresh read each frame so a write landing on disk while the graph is open —
+        // from an MCP tool, another editor, or a program outside this one — is
+        // noticed. Shared with the registered saver (which writes the file without
+        // the panel running), so its own write reads back as ours, not a conflict.
+        std::shared_ptr<int64_t> m_diskTicks = std::make_shared<int64_t>(0);
+        bool     m_externalChange = false;
 
         // Empty when the panel is a scratch pad (opened from the Window menu rather
         // than by double-clicking an asset); edits are then not persisted.

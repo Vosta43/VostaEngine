@@ -4,7 +4,10 @@ set(ENGINE_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 set(ENGINE_SOURCES
     # Core
     src/Core/Application.cpp
+    src/Core/ComponentRegistry.cpp
+    src/Core/GameModuleHost.cpp
     src/Core/AssetConfig.cpp
+    src/Core/EnginePaths.cpp
     src/Core/Deltatime.cpp
     src/Core/JobSystem.cpp
     src/Core/Json.cpp
@@ -50,6 +53,7 @@ set(ENGINE_SOURCES
     src/Renderer/RenderPipeline.cpp
     src/Renderer/SceneRenderer.cpp
     src/Renderer/SceneViewRenderer.cpp
+    src/Renderer/SceneView.cpp
     src/Renderer/Shader.cpp
     src/Renderer/ShaderGenerator.cpp
     src/Renderer/SplashScreen.cpp
@@ -88,6 +92,7 @@ set(ENGINE_SOURCES
     src/Scene/EntityRegistry.cpp
     src/Scene/PrefabRegistry.cpp
     src/Scene/Scene.cpp
+    src/Scene/SceneClone.cpp
     src/Scene/SceneSerializer.cpp
 
     # Asset import
@@ -99,6 +104,18 @@ set(ENGINE_SOURCES
 
     # GUI
     src/Gui/Gui.cpp
+
+    # Vellum (retained-mode UI)
+    src/Gui/Vellum/Core/Widget.cpp
+    src/Gui/Vellum/Text/FontAtlas.cpp
+    src/Gui/Vellum/Text/FontManager.cpp
+    src/Gui/Vellum/Widgets/Button.cpp
+    src/Gui/Vellum/Widgets/ColoredBox.cpp
+    src/Gui/Vellum/Widgets/Stack.cpp
+    src/Gui/Vellum/Widgets/TextBlock.cpp
+    src/Gui/Vellum/VellumRenderer.cpp
+    src/Gui/Vellum/WidgetTree.cpp
+    src/Gui/Vellum/VellumLayer.cpp
 
     # MCP tool layer
     src/MCP/ToolRegistry.cpp
@@ -120,11 +137,12 @@ set(ENGINE_SOURCES
     thirdparty/IMGUI/backends/imgui_impl_glfw.cpp
     thirdparty/IMGUI/backends/imgui_impl_opengl3.cpp
     thirdparty/stb_image/stb_image.cpp
+    thirdparty/stb_truetype/stb_truetype.cpp
     thirdparty/ufbx/ufbx.c
 )
 
 # ── Engine shared library ───────────────────────────────────────────────
-add_library(VostaEngine STATIC ${ENGINE_SOURCES})
+add_library(VostaEngine SHARED ${ENGINE_SOURCES})
 
 # ── Jolt Physics (vendored, see THIRD_PARTY_NOTICES.md) ─────────────────
 add_subdirectory(thirdparty/Jolt)
@@ -141,6 +159,7 @@ target_include_directories(VostaEngine
         ${ENGINE_ROOT}/thirdparty/IMGUI/backends
         ${ENGINE_ROOT}/thirdparty/glm
         ${ENGINE_ROOT}/thirdparty/stb_image
+        ${ENGINE_ROOT}/thirdparty/stb_truetype
         ${ENGINE_ROOT}/thirdparty/ufbx
         ${ENGINE_ROOT}/thirdparty/JSON/include
 )
@@ -194,6 +213,13 @@ set_source_files_properties(
         SKIP_PRECOMPILE_HEADERS ON
 )
 
+# stb_truetype 实现单独一个 TU，同样跳过预编译头
+set_source_files_properties(
+    thirdparty/stb_truetype/stb_truetype.cpp
+    PROPERTIES
+        SKIP_PRECOMPILE_HEADERS ON
+)
+
 # ── Compile definitions ─────────────────────────────────────────────────
 target_compile_definitions(VostaEngine
     PUBLIC
@@ -201,6 +227,7 @@ target_compile_definitions(VostaEngine
     PRIVATE
         NOMINMAX
         _CRT_SECURE_NO_WARNINGS
+        VE_BUILD_DLL
 )
 
 # ── Warnings ────────────────────────────────────────────────────────────

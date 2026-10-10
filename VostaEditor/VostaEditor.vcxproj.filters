@@ -66,6 +66,9 @@
     <ClCompile Include="src\EditorViewController.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\PlaySession.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Graph\NodeGraphPanel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -120,6 +123,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\EditorViewController.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PlaySession.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Graph\NodeGraphPanel.h">

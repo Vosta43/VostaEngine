@@ -15,23 +15,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="EntryPoint.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Application.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\SandBoxLayer.cpp">
+    <ClCompile Include="src\SandBoxModule.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\shaders\Model.glsl" />
     <None Include="assets\shaders\Texture.glsl" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="src\SandBoxLayer.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

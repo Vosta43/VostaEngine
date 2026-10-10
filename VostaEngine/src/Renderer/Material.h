@@ -74,6 +74,13 @@ namespace ve {
 		// Factory: reads the file's type tag and builds the matching kind.
 		// Returns null when the tag names no known kind.
 		static Ref<Material> create(const std::string& path);
+
+		// Reload the material registered at `path` from disk, in place, so every
+		// holder of its handle (a drawn mesh, the open editor) sees the new content
+		// without re-fetching. A compiled material rebuilds its shader (deserialize
+		// recompiles). No-op when nothing is registered at `path`. Returns true when
+		// a reload happened.
+		static bool refreshFromFile(const std::string& path);
 	};
 
 }

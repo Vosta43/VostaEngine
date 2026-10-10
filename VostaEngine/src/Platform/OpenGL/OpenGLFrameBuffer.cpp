@@ -192,6 +192,19 @@ namespace ve {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
+    void OpenGLFramebuffer::blitToDefault(uint32_t dstWidth, uint32_t dstHeight) {
+        if (dstWidth == 0 || dstHeight == 0) return;
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, m_rendererID);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        // NEAREST: the default framebuffer is not multisampled, so a linear
+        // filter is not permitted when the sizes differ.
+        glBlitFramebuffer(0, 0, static_cast<GLint>(m_width), static_cast<GLint>(m_height),
+                          0, 0, static_cast<GLint>(dstWidth), static_cast<GLint>(dstHeight),
+                          GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
     void OpenGLFramebuffer::resize(uint32_t width, uint32_t height) {
         m_width = width;
         m_height = height;

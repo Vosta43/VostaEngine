@@ -2,10 +2,12 @@
 #include "Asset/AssetAuthoring.h"
 
 #include "Asset/AssetLibrary.h"
+#include "Asset/TextureImporter.h"
 #include "Asset/Utils.h"
 #include "Core/AssetConfig.h"
 #include "Core/ResourceManager.h"
 #include "Graph/NodeGraph.h"
+#include "Noise/NoiseBaker.h"
 #include "Noise/NoiseGraph.h"
 #include "Noise/NoiseGraphResource.h"
 #include "Noise/NoiseNodes.h"
@@ -55,8 +57,10 @@ namespace ve {
 		}
 
 		// Report a write to the asset library when it landed, then pass the reply
-		// through. Every writer goes through here, so a view that shows assets learns
-		// about a new file without the writer knowing the view exists.
+		// through. Every writer goes through here, so a view that shows the catalogue
+		// learns about a new file without the writer knowing the view exists. A view
+		// with one asset OPEN does not rely on this — it re-reads that file's write
+		// time itself, so it also sees writers outside this process.
 		std::string announceWrite(std::string reply) {
 			if (reply.rfind("{\"ok\":true", 0) == 0)
 				AssetLibrary::get().notifyChanged();
@@ -186,6 +190,21 @@ namespace ve {
 				{ "Clamp",             "Value, Min, Max", "Result",         {} },
 				{ "MaterialOutput",    "Base Color, Metallic, Roughness, Ambient Occlusion, Normal, Emissive, Opacity Mask",
 				                       "",              {} },
+				{ "Time",              "",              "Time",             {} },
+				{ "Power",             "Base, Exp",     "Result",           {} },
+				{ "Panner",            "UV, Time",      "UV",               { {"speed","vec2"} } },
+				{ "WorldPosition",     "",              "WorldPos",         {} },
+				{ "VertexNormal",      "",              "Normal",           {} },
+				{ "Frac",              "Value",         "Result",           {} },
+				{ "OneMinus",          "Value",         "Result",           {} },
+				{ "Sin",               "Value",         "Result",           {} },
+				{ "Cos",               "Value",         "Result",           {} },
+				{ "Floor",             "Value",         "Result",           {} },
+				{ "Step",              "Edge, Value",   "Result",           {} },
+				{ "Smoothstep",        "Min, Max, Value", "Result",         {} },
+				{ "Saturate",          "Value",         "Result",           {} },
+				{ "ComponentMask",     "Input",         "R, G, B, A",       {} },
+				{ "Append",            "A, B",          "Result",           {} },
 			};
 			return specs;
 		}
@@ -331,6 +350,10 @@ namespace ve {
 				std::string ignored;
 				storeTexture(p, "texture", n.textureHandle, ignored);
 				break; }
+			case (int)MaterialNodeTag::Panner: {
+				auto& n = static_cast<PannerNode&>(node);
+				n.speed = p.getVec2("speed", n.speed);
+				break; }
 			default: break;
 			}
 		}
@@ -360,6 +383,10 @@ namespace ve {
 			case (int)MaterialNodeTag::TextureSampler:
 				w.beginObject("params");
 				w.set("texture", texturePath(static_cast<const TextureSamplerNode&>(node).textureHandle));
+				w.end(); break;
+			case (int)MaterialNodeTag::Panner:
+				w.beginObject("params");
+				w.set("speed", static_cast<const PannerNode&>(node).speed);
 				w.end(); break;
 			default: break;
 			}
@@ -960,6 +987,34 @@ namespace ve {
 
 		return errorJson("unknown kind '" + kind +
 		                 "' (expected material, noise, material_layer or layered_material)");
+	}
+
+	std::string bakeNoiseToTexture(const std::string& source, const std::string& out,
+	                               int size, bool overwrite) {
+		std::string error;
+		const std::string srcFile = resolveAssetPath(source, false, error);
+		if (!error.empty())
+			return errorJson(error);
+
+		// Loads through the same reader the terrain and the noise editor use, so a
+		// bad header or an unknown node is reported rather than half-baked.
+		Ref<NoiseGraphResource> noise = NoiseGraphResource::create(srcFile);
+		if (!noise)
+			return errorJson("'" + srcFile + "' is not a readable noise asset");
+
+		const std::string outFile = resolveAssetPath(out, true, error);
+		if (!error.empty())
+			return errorJson(error);
+
+		std::error_code ec;
+		if (std::filesystem::exists(outFile, ec) && !overwrite)
+			return errorJson("'" + outFile + "' already exists; pass overwrite:true to replace it");
+
+		const uint32_t resolution = (uint32_t)std::clamp(size, 8, 4096);
+
+		TextureResource texture = bakeNoiseGraphTexture(noise->graph, resolution);
+		TextureImporter::serialize(texture, outFile);
+		return announceWrite(okJson(out, "texture"));
 	}
 
 }

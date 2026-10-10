@@ -27,20 +27,20 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
@@ -74,7 +74,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;VE_BUILD_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
@@ -89,7 +89,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;VE_BUILD_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
@@ -102,13 +102,20 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);IMGUI_DLL</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;VE_BUILD_DLL;IMGUI_IMPL_OPENGL_LOADER_GLAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>vepch.h</PrecompiledHeaderFile>
+      <DisableSpecificWarnings>4251</DisableSpecificWarnings>
+      <AdditionalOptions>/Zc:preprocessor /utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(VostaEngineDir)x64\$(Configuration)\;$(VostaEngineDir)thirdparty\GLFW\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glfw3.lib;%(AdditionalDependencies);Imgui.lib;Jolt.lib;winhttp.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -119,17 +126,17 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;VE_BUILD_DLL;IMGUI_IMPL_OPENGL_LOADER_GLAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)thirdparty\stb_image;$(SolutionDir)thirdparty\ufbx;$(SolutionDir)thirdparty\glm;$(SolutionDir)thirdparty\GLAD\include;$(SolutionDir)src\Core;$(SolutionDir)thirdparty\IMGUI\backends;$(SolutionDir)thirdparty\IMGUIZMO;$(SolutionDir)thirdparty\IMGUI;$(SolutionDir)src;$(SolutionDir)thirdparty\GLFW\include;$(SolutionDir)thirdparty\JSON\include;$(SolutionDir)thirdparty\FastNoiseLite;$(SolutionDir)thirdparty\Jolt;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>vepch.h</PrecompiledHeaderFile>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zc:preprocessor /utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)x64\$(Configuration)\;$(SolutionDir)thirdparty\GLFW\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(VostaEngineDir)x64\$(Configuration)\;$(VostaEngineDir)thirdparty\GLFW\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>glfw3.lib;%(AdditionalDependencies);Imgui.lib;Jolt.lib;winhttp.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -141,17 +148,20 @@
     <ClCompile Include="src\Asset\StaticMeshImporter.cpp" />
     <ClCompile Include="src\Asset\TextureImporter.cpp" />
     <ClCompile Include="src\Core\Application.cpp" />
+    <ClCompile Include="src\Core\ComponentRegistry.cpp" />
+    <ClCompile Include="src\Core\GameModuleHost.cpp" />
     <ClCompile Include="src\Core\AssetConfig.cpp" />
+    <ClCompile Include="src\Core\EnginePaths.cpp" />
     <ClCompile Include="src\Core\Deltatime.cpp" />
     <ClCompile Include="src\Core\Project.cpp" />
     <ClCompile Include="src\Core\Events\EventDispatcher.h">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\Core\Events\KeyPressedEvent.h">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\Core\Events\MouseEvent.h">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\Core\JobSystem.cpp" />
     <ClCompile Include="src\Core\Json.cpp" />
@@ -162,11 +172,21 @@
     <ClCompile Include="src\Core\ResourceManager.cpp" />
     <ClCompile Include="src\Core\test.cpp" />
     <ClCompile Include="src\Core\vepch.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\Core\Window.cpp" />
     <ClCompile Include="src\Graph\NodeGraph.cpp" />
     <ClCompile Include="src\Gui\Gui.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Core\Widget.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Text\FontAtlas.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Text\FontManager.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Widgets\Button.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Widgets\ColoredBox.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Widgets\Stack.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Widgets\TextBlock.cpp" />
+    <ClCompile Include="src\Gui\Vellum\VellumRenderer.cpp" />
+    <ClCompile Include="src\Gui\Vellum\WidgetTree.cpp" />
+    <ClCompile Include="src\Gui\Vellum\VellumLayer.cpp" />
     <ClCompile Include="src\MCP\AgentSession.cpp" />
     <ClCompile Include="src\MCP\AssetTools.cpp" />
     <ClCompile Include="src\MCP\CommandRegistry.cpp" />
@@ -178,6 +198,7 @@
     <ClCompile Include="src\MCP\ToolRegistry.cpp" />
     <ClCompile Include="src\Noise\NoiseCPU.cpp" />
     <ClCompile Include="src\Noise\NoiseGraph.cpp" />
+    <ClCompile Include="src\Noise\NoiseBaker.cpp" />
     <ClCompile Include="src\Noise\NoisePlan.cpp" />
     <ClCompile Include="src\Noise\NoiseGraphResource.cpp" />
     <ClCompile Include="src\Platform\OpenGL\OpenGLBuffer.cpp" />
@@ -227,6 +248,7 @@
     <ClCompile Include="src\Renderer\Pipeline\SettingsRegistry.cpp" />
     <ClCompile Include="src\Renderer\SceneRenderer.cpp" />
     <ClCompile Include="src\Renderer\SceneViewRenderer.cpp" />
+    <ClCompile Include="src\Renderer\SceneView.cpp" />
     <ClCompile Include="src\Renderer\Shader.cpp" />
     <ClCompile Include="src\Renderer\ShaderGenerator.cpp" />
     <ClCompile Include="src\Renderer\SplashScreen.cpp" />
@@ -244,26 +266,30 @@
     <ClCompile Include="src\Scene\EntityRegistry.cpp" />
     <ClCompile Include="src\Scene\PrefabRegistry.cpp" />
     <ClCompile Include="src\Scene\Scene.cpp" />
+    <ClCompile Include="src\Scene\SceneClone.cpp" />
     <ClCompile Include="src\Scene\SceneSerializer.cpp" />
     <ClCompile Include="src\Scene\Terrain\QuadTreeTerrain.cpp" />
     <ClCompile Include="src\Scene\Terrain\Terrain.cpp" />
     <ClCompile Include="src\Scene\Terrain\TerrainDataResource.cpp" />
     <ClCompile Include="src\Scene\Terrain\TerrainMeshBuilder.cpp" />
     <ClCompile Include="thirdparty\GLAD\src\glad.c">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="thirdparty\IMGUI\backends\imgui_impl_glfw.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="thirdparty\IMGUI\backends\imgui_impl_opengl3.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="thirdparty\stb_image\stb_image.cpp" />
+    <ClCompile Include="thirdparty\stb_truetype\stb_truetype.cpp">
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="thirdparty\ufbx\ufbx.c">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="VostaEngine.h">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -277,7 +303,10 @@
     <ClInclude Include="src\Asset\TextureResource.h" />
     <ClInclude Include="src\Asset\Utils.h" />
     <ClInclude Include="src\Core\Application.h" />
+    <ClInclude Include="src\Core\GameModule.h" />
+    <ClInclude Include="src\Core\GameModuleHost.h" />
     <ClInclude Include="src\Core\AssetConfig.h" />
+    <ClInclude Include="src\Core\EnginePaths.h" />
     <ClInclude Include="src\Core\AssetHandle.h" />
     <ClInclude Include="src\Core\ComponentRegistry.h" />
     <ClInclude Include="src\Core\Project.h" />
@@ -308,6 +337,23 @@
     <ClInclude Include="src\Core\Window.h" />
     <ClInclude Include="src\Graph\NodeGraph.h" />
     <ClInclude Include="src\Gui\Gui.h" />
+    <ClInclude Include="src\Gui\Vellum\Core\DrawList.h" />
+    <ClInclude Include="src\Gui\Vellum\Core\InputFrame.h" />
+    <ClInclude Include="src\Gui\Vellum\Core\Layout.h" />
+    <ClInclude Include="src\Gui\Vellum\Core\PaintContext.h" />
+    <ClInclude Include="src\Gui\Vellum\Core\Reply.h" />
+    <ClInclude Include="src\Gui\Vellum\Core\Widget.h" />
+    <ClInclude Include="src\Gui\Vellum\Text\FontAtlas.h" />
+    <ClInclude Include="src\Gui\Vellum\Text\FontManager.h" />
+    <ClInclude Include="src\Gui\Vellum\Text\Utf8.h" />
+    <ClInclude Include="src\Gui\Vellum\Widgets\Button.h" />
+    <ClInclude Include="src\Gui\Vellum\Widgets\ColoredBox.h" />
+    <ClInclude Include="src\Gui\Vellum\Widgets\Stack.h" />
+    <ClInclude Include="src\Gui\Vellum\Widgets\TextBlock.h" />
+    <ClInclude Include="thirdparty\stb_truetype\stb_truetype.h" />
+    <ClInclude Include="src\Gui\Vellum\VellumRenderer.h" />
+    <ClInclude Include="src\Gui\Vellum\WidgetTree.h" />
+    <ClInclude Include="src\Gui\Vellum\VellumLayer.h" />
     <ClInclude Include="src\Input.h" />
     <ClInclude Include="src\KeyCodes.h" />
     <ClInclude Include="src\Math\Math.h" />
@@ -320,6 +366,7 @@
     <ClInclude Include="src\MouseButtonCodes.h" />
     <ClInclude Include="src\Noise\NoiseCPU.h" />
     <ClInclude Include="src\Noise\NoiseGraph.h" />
+    <ClInclude Include="src\Noise\NoiseBaker.h" />
     <ClInclude Include="src\Noise\NoiseGraphResource.h" />
     <ClInclude Include="src\Noise\NoiseNodes.h" />
     <ClInclude Include="src\Noise\NoisePlan.h" />
@@ -379,6 +426,7 @@
     <ClInclude Include="src\Renderer\Pipeline\SettingsRegistry.h" />
     <ClInclude Include="src\Renderer\SceneRenderer.h" />
     <ClInclude Include="src\Renderer\SceneViewRenderer.h" />
+    <ClInclude Include="src\Renderer\SceneView.h" />
     <ClInclude Include="src\Renderer\Shader.h" />
     <ClInclude Include="src\Renderer\ShaderGenerator.h" />
     <ClInclude Include="src\Renderer\SplashScreen.h" />
@@ -396,6 +444,7 @@
     <ClInclude Include="src\Scene\EntityRegistry.h" />
     <ClInclude Include="src\Scene\PrefabRegistry.h" />
     <ClInclude Include="src\Scene\Scene.h" />
+    <ClInclude Include="src\Scene\SceneClone.h" />
     <ClInclude Include="src\Scene\SceneSerializer.h" />
     <ClInclude Include="src\Scene\Terrain\QuadTreeTerrain.h" />
     <ClInclude Include="src\Scene\Terrain\Terrain.h" />

@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.21)
-project(VostaEngine VERSION 0.2.6 LANGUAGES CXX)
+project(VostaEngine VERSION 0.2.7 LANGUAGES CXX)
 
-option(VE_BUILD_SANDBOX "Build SandBox demo application" ON)
+option(VE_BUILD_SANDBOX "Build SandBox gameplay module" ON)
 option(VE_BUILD_EDITOR "Build VostaEditor application" ON)
+option(VE_BUILD_PLAYER "Build VostaPlayer runtime host" ON)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -23,4 +24,8 @@ endif()
 
 if(VE_BUILD_EDITOR)
     add_subdirectory(VostaEditor)
+endif()
+
+if(VE_BUILD_PLAYER)
+    add_subdirectory(VostaPlayer)
 endif()

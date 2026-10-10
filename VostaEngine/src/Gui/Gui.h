@@ -16,7 +16,7 @@ namespace ve {
 		void renderViewportSettings();
 		void setDarkThemeColors();
 		void onUpdate();
-		void onImGuiRender() override;
+		void onUIRender() override;
 		void onEvent(Event& event) override;
 
 		void setViewportBounds(const glm::vec2& pos, const glm::vec2& size);

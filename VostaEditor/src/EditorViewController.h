@@ -30,14 +30,18 @@ public:
     // Renders the outliner and property panels.
     void onGuiRender(uint32_t& selectedEntity);
 
-    Ref<Scene>             getScene()       { return m_scene; }
-    Ref<SceneViewRenderer> getViewRenderer() { return m_viewRenderer; }
+    // Puts both panels into read-only mode while a play session is live: they
+    // stop drawing their editing UI rather than editing a scene the viewport is no
+    // longer showing.
+    void setLocked(bool locked);
+
+    Ref<Scene> getScene() { return m_scene; }
 
 private:
-    Ref<Scene>               m_scene;
-    SceneOutliner            m_outliner;
-    PropertyPanel            m_propertyPanel;
-    Ref<SceneViewRenderer>   m_viewRenderer;
+    Ref<Scene>    m_scene;
+    SceneOutliner m_outliner;
+    PropertyPanel m_propertyPanel;
+    bool          m_locked = false;
 };
 
 } // namespace ve

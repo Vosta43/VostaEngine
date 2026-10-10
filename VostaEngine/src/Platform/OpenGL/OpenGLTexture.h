@@ -21,6 +21,7 @@ namespace ve {
 		const std::string& getTextureFilePath() const override {return m_path;}
 
 		void setData(void* data,uint32_t size) override;
+		void setSubData(const void* data, uint32_t x, uint32_t y, uint32_t w, uint32_t h) override;
 
 		void bind(uint32_t slot = 0) const override;
 		uint32_t getRendererID() const override { return m_rendererId; }

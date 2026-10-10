@@ -76,6 +76,9 @@ void MaterialEditorSchema::drawNodeContent(GraphNode* node) {
 	} else if (auto* tc = dynamic_cast<TextureCoordinateNode*>(node)) {
 		ImGui::SetNextItemWidth(160);
 		ImGui::DragFloat2("##uvScale", &tc->uvScale.x, 0.1f);
+	} else if (auto* pan = dynamic_cast<PannerNode*>(node)) {
+		ImGui::SetNextItemWidth(160);
+		ImGui::DragFloat2("##speed", &pan->speed.x, 0.01f);
 	} else if (auto* texNode = dynamic_cast<TextureSamplerNode*>(node)) {
 		const float previewSize = 130.0f;   // 1.3x the previous 100px
 
@@ -112,6 +115,14 @@ void MaterialEditorSchema::buildCreateMenu(NodeGraph& graph, const glm::vec2& ca
 	if (ImGui::BeginMenu("Input")) {
 		if (ImGui::MenuItem("Texture Coordinate"))
 			addNode(CreateRef<TextureCoordinateNode>(), canvasPos);
+		if (ImGui::MenuItem("Time"))
+			addNode(CreateRef<TimeNode>(), canvasPos);
+		if (ImGui::MenuItem("Panner"))
+			addNode(CreateRef<PannerNode>(), canvasPos);
+		if (ImGui::MenuItem("World Position"))
+			addNode(CreateRef<WorldPositionNode>(), canvasPos);
+		if (ImGui::MenuItem("Vertex Normal"))
+			addNode(CreateRef<VertexNormalNode>(), canvasPos);
 		ImGui::EndMenu();
 	}
 
@@ -124,8 +135,26 @@ void MaterialEditorSchema::buildCreateMenu(NodeGraph& graph, const glm::vec2& ca
 			addNode(CreateRef<MultiplyNode>(), canvasPos);
 		if (ImGui::MenuItem("Divide"))
 			addNode(CreateRef<DivideNode>(), canvasPos);
+		if (ImGui::MenuItem("Power"))
+			addNode(CreateRef<PowerNode>(), canvasPos);
 		if (ImGui::MenuItem("Lerp"))
 			addNode(CreateRef<LerpNode>(), canvasPos);
+		if (ImGui::MenuItem("Frac"))
+			addNode(CreateRef<FracNode>(), canvasPos);
+		if (ImGui::MenuItem("One Minus"))
+			addNode(CreateRef<OneMinusNode>(), canvasPos);
+		if (ImGui::MenuItem("Sin"))
+			addNode(CreateRef<SinNode>(), canvasPos);
+		if (ImGui::MenuItem("Cos"))
+			addNode(CreateRef<CosNode>(), canvasPos);
+		if (ImGui::MenuItem("Floor"))
+			addNode(CreateRef<FloorNode>(), canvasPos);
+		if (ImGui::MenuItem("Step"))
+			addNode(CreateRef<StepNode>(), canvasPos);
+		if (ImGui::MenuItem("Smoothstep"))
+			addNode(CreateRef<SmoothstepNode>(), canvasPos);
+		if (ImGui::MenuItem("Append"))
+			addNode(CreateRef<AppendNode>(), canvasPos);
 		ImGui::EndMenu();
 	}
 
@@ -150,6 +179,10 @@ void MaterialEditorSchema::buildCreateMenu(NodeGraph& graph, const glm::vec2& ca
 	if (ImGui::BeginMenu("Utility")) {
 		if (ImGui::MenuItem("Clamp"))
 			addNode(CreateRef<ClampNode>(), canvasPos);
+		if (ImGui::MenuItem("Saturate"))
+			addNode(CreateRef<SaturateNode>(), canvasPos);
+		if (ImGui::MenuItem("Component Mask"))
+			addNode(CreateRef<ComponentMaskNode>(), canvasPos);
 		ImGui::EndMenu();
 	}
 }

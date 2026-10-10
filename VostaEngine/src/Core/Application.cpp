@@ -14,6 +14,7 @@
 #include "Deltatime.h"
 
 #include "Gui/Gui.h"
+#include "Gui/Vellum/VellumLayer.h"
 #include "Renderer/Shader.h"
 #include "Renderer/SplashScreen.h"
 #include "Asset/BuiltinReousrces.h"
@@ -33,7 +34,7 @@ namespace ve {
         m_dispatcher = std::make_unique<EventDispatcher>();
         VE_CORE_SUCCESS("Event dispatcher initialized");
 
-        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.6 dev", m_dispatcher.get());
+        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.7 dev", m_dispatcher.get());
         VE_CORE_SUCCESS("Window created");
 
         m_shaderLibrary = std::make_unique<ShaderLibrary>();
@@ -41,6 +42,9 @@ namespace ve {
 
         m_GuiLayer = std::make_unique<GuiLayer>();
         pushOverLay(m_GuiLayer.get());
+
+        m_vellumLayer = std::make_unique<vellum::VellumLayer>();
+        pushOverLay(m_vellumLayer.get());
 
     }
 
@@ -56,6 +60,7 @@ namespace ve {
     }
 
     Application::~Application() {
+        m_layerStack.popOverlay(m_vellumLayer.get());
         m_layerStack.popOverlay(m_GuiLayer.get());
     }
 
@@ -80,7 +85,7 @@ namespace ve {
 
             m_GuiLayer->begin();
             for (Layer* layer : m_layerStack) {
-                layer->onImGuiRender();
+                layer->onUIRender();
             }
             m_GuiLayer->end();
 
@@ -104,6 +109,10 @@ namespace ve {
 
     GuiLayer* Application::getGuiLayer() {
         return m_GuiLayer.get();
+    }
+
+    vellum::VellumLayer* Application::getVellumLayer() {
+        return m_vellumLayer.get();
     }
 
 }

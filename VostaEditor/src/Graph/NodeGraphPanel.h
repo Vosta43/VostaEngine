@@ -64,6 +64,12 @@ private:
 	uint32_t    m_instanceId = 0;
 
 	uint32_t    m_selectedNodeId = 0;
+
+	// Create-node menu state. createPos is kept across frames because the menu
+	// stays open long after the frame it was opened on; blockCreateMenu stops the
+	// same right-click that dismisses it from immediately reopening it.
+	glm::vec2 m_createPos = glm::vec2(0.0f);
+	bool      m_blockCreateMenu = false;
 };
 
 }

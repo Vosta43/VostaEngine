@@ -119,8 +119,8 @@ namespace ve {
         }
 
         // Project content root: scenes + imported assets, resolved against the
-        // project root. Engine resources (shaders, meshes, icons) stay under the
-        // engine root in SandBox/assets.
+        // project root. Engine resources (shaders, pipelines, fonts) live under
+        // VostaEngine/resources.
         std::filesystem::path scenesDir() {
             return std::filesystem::path(toProjectAbsolute("content/scenes"));
         }
@@ -189,6 +189,26 @@ namespace ve {
             return value;
         }
 
+        // Square PNG-icon push button (no toggle state). Returns true on click.
+        bool iconButton(const char* id, const char* tooltip, const Ref<Texture2D>& icon) {
+            const float h = ImGui::GetFrameHeight();
+            ImVec2 p0 = ImGui::GetCursorScreenPos();
+            const bool clicked = ImGui::InvisibleButton(id, ImVec2(h, h));
+            const bool hovered = ImGui::IsItemHovered();
+            ImU32 bg = hovered ? ImGui::GetColorU32(ImGuiCol_ButtonHovered)
+                               : ImGui::GetColorU32(ImGuiCol_Button);
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            dl->AddRectFilled(p0, ImVec2(p0.x + h, p0.y + h), bg, 3.0f);
+            if (icon && icon->getRendererID()) {
+                dl->AddImageRounded((ImTextureID)(uintptr_t)icon->getRendererID(),
+                                    p0, ImVec2(p0.x + h, p0.y + h),
+                                    ImVec2(0, 1), ImVec2(1, 0), IM_COL32(255, 255, 255, 255), 3.0f);
+            }
+            if (hovered)
+                ImGui::SetTooltip("%s", tooltip);
+            return clicked;
+        }
+
         // Project a world point into viewport pixel coordinates (y-down — the
         // space ImGui draw lists and m_mouseViewportPos both use). False when the
         // point is behind the camera.
@@ -204,6 +224,19 @@ namespace ve {
             return true;
         }
 
+        // The editor view's scene scaffolding (shaders, pipeline, camera input)
+        // is shared with SandBox through SceneView. Only the asset paths differ.
+        SceneViewConfig editorViewConfig() {
+            SceneViewConfig cfg;
+            cfg.width        = 1280;
+            cfg.height       = 720;
+            cfg.pipelinePath = "VostaEngine/resources/pipelines/default.json";
+            cfg.perspective  = true;
+            cfg.sceneShaders = { "VostaEngine/resources/shaders/Model.glsl",
+                                 "VostaEngine/resources/shaders/Texture.glsl" };
+            return cfg;
+        }
+
     }
 
     EditorLayer::EditorLayer()
@@ -212,6 +245,7 @@ namespace ve {
                        [this](AssetHandle handle) { openMaterialLayerEditor(handle); },
                        [this](Scene& scene) { m_terrainEditor.drawInspector(m_showTerrainBrush, scene); },
                        [this]() { m_showTerrainMap = true; })
+        , m_sceneView(m_editorView.getScene(), editorViewConfig())
     {
         // A layer stack opens the individual layer assets in their own window.
         m_layeredMaterialEditor.setOnOpenLayer(
@@ -223,37 +257,26 @@ namespace ve {
         bootstrapProject();
         m_fileBrowser.setRootPath(toProjectAbsolute("content"));
         m_fileBrowser.setOnFileSelect([this](const std::string& path) { openFile(path); });
+        m_fileBrowser.setOnSetDefaultScene([this](const std::string& path) {
+            m_project.defaultScene = toProjectRelative(path);
+            Project::save(m_project);
+            m_fileBrowser.setDefaultScenePath(path);
+        });
+        // Reflect the project's current default scene in the browser (check mark).
+        m_fileBrowser.setDefaultScenePath(m_project.defaultScene.empty()
+            ? std::string() : toProjectAbsolute(m_project.defaultScene));
         // Prefills the save/load dialogs only; no scene is bound until one is
         // opened, so nothing camera-related keys off this.
         m_currentSceneName = readLastSceneName();
 
+        // SceneView owns the shared scene scaffolding: content shaders, the
+        // renderer subsystem init, the render pipeline, and camera input.
+        m_sceneView.onAttach();
+
+        // Picking is editor-only and stays here.
         auto& shaderLib = Application::get().getShaderLibrary();
-        shaderLib.load("SandBox/assets/shaders/Model.glsl");
-        m_Shader = shaderLib.get("Model");
-
-        shaderLib.load("SandBox/assets/shaders/Texture.glsl");
-        m_TextureShader = shaderLib.get("Texture");
-
-        shaderLib.load("SandBox/assets/shaders/Picking.glsl");
+        shaderLib.load("VostaEngine/resources/shaders/Picking.glsl");
         m_pickingShader = shaderLib.get("Picking");
-
-        RenderCommand::init();
-        RenderCommand::setDepthTesting(true);
-        RenderCommand::setCursorVisible(true);
-        Renderer2D::init();
-        Renderer3D::init();
-
-        m_renderPipeline = CreateRef<RenderPipeline>();
-        m_renderPipeline->init(1280, 720, "SandBox/assets/pipelines/default.json");
-
-        m_cameraController.getCamera().setProjectionType(true);
-
-        Application::get().getDispatcher()->subscribe(Event::Type::MouseScrolled,
-            [this](Event& e) {
-                if (Application::get().isViewportHovered()) {
-                    m_cameraController.onEvent(e);
-                }
-            });
 
         Application::get().getDispatcher()->subscribe(Event::Type::MouseMoved,
             [this](Event& e) {
@@ -269,23 +292,20 @@ namespace ve {
         Application::get().getDispatcher()->subscribe(Event::Type::MouseButtonPressed,
             [this](Event& e) {
                 auto& me = static_cast<MouseButtonPressedEvent&>(e);
-                // Right click to control the camera
-                if (me.getButton() == VE_MOUSE_BUTTON_RIGHT && Application::get().isViewportHovered()) {
-                    m_cameraController.setActive(true);
-                    RenderCommand::setCursorVisible(false);
-                }
-                // Left click to pick entity in scene
-                else if (me.getButton() == VE_MOUSE_BUTTON_LEFT && Application::get().isViewportHovered()) {
+                // Left click picks an entity; right-click camera control is
+                // SceneView's job.
+                if (me.getButton() == VE_MOUSE_BUTTON_LEFT && Application::get().isViewportHovered()) {
 
                     if (ImGuizmo::IsOver() || ImGuizmo::IsUsing())return;
 
                     // While the terrain brush is on, LMB paints instead of picking.
                     // The stroke itself is driven from the viewport's own mouse
-                    // state below (see the ImGui brush block).
-                    if (m_showTerrainBrush)
+                    // state below (see the ImGui brush block). Picking is off during
+                    // a play session too.
+                    if (m_showTerrainBrush || m_playSession.isLive())
                         return;
 
-                    float fboY = m_framebuffer->getHeight() - m_mouseViewportPos.y;
+                    float fboY = (float)m_sceneView.getHeight() - m_mouseViewportPos.y;
                     m_pickPos = { m_mouseViewportPos.x, fboY };
                     m_needsPicking = true;
                 }
@@ -295,29 +315,22 @@ namespace ve {
         Application::get().getDispatcher()->subscribe(Event::Type::MouseButtonReleased,
             [this](Event& e) {
                 auto& me = static_cast<MouseButtonReleasedEvent&>(e);
-                if (me.getButton() == VE_MOUSE_BUTTON_RIGHT) {
-                    m_cameraController.setActive(false);
-                    RenderCommand::setCursorVisible(true);
-                }
-                else if (me.getButton() == VE_MOUSE_BUTTON_LEFT) {
+                if (me.getButton() == VE_MOUSE_BUTTON_LEFT) {
                     m_terrainPainting = false;
                 }
             });
 
-        Application::get().getDispatcher()->subscribe(Event::Type::WindowResize, [this](Event& e) {
-            auto& resizeEvent = static_cast<WindowResizeEvent&>(e);
-            uint32_t width = static_cast<uint32_t>(resizeEvent.getWidth());
-            uint32_t height = static_cast<uint32_t>(resizeEvent.getHeight());
-            RenderCommand::setViewport(0, 0, width, height);
-            m_cameraController.getCamera().setAspectRatio(static_cast<float>(width) / static_cast<float>(height));
-            });
-
         // Load editor infrastructure assets (icons for light billboards, etc.)
-        m_pointLightIcon = ResourceManager::store<Texture2D>("VostaEngine/resources/icons/point_light.png");
-        m_wireframeIcon  = Texture2D::create("VostaEngine/resources/icons/cube_tri.png");
-        m_groundGridIcon = Texture2D::create("VostaEngine/resources/icons/ground_grid.png");
+        m_pointLightIcon = ResourceManager::store<Texture2D>("VostaEditor/resources/icons/point_light.png");
+        m_cameraIcon     = ResourceManager::store<Texture2D>("VostaEditor/resources/icons/camera.png");
+        m_wireframeIcon  = Texture2D::create("VostaEditor/resources/icons/cube_tri.png");
+        m_groundGridIcon = Texture2D::create("VostaEditor/resources/icons/ground_grid.png");
+        m_playIcon       = Texture2D::create("VostaEditor/resources/icons/run.png");
+        m_pauseIcon      = Texture2D::create("VostaEditor/resources/icons/pause.png");
+        m_stepIcon       = Texture2D::create("VostaEditor/resources/icons/step.png");
+        m_stopIcon       = Texture2D::create("VostaEditor/resources/icons/stop.png");
         ve::BuiltinResources::getBuiltinSphere();
-        ve::ResourceManager::store<ve::StaticMesh>("SandBox/assets/models/cube.obj");
+        ve::ResourceManager::store<ve::StaticMesh>("VostaEngine/resources/models/cube.obj");
 
         // The editor-side adapter owns every tool-layer wire detail (the scene
         // provider, the save_scene command, the {error} envelopes, the dispatch
@@ -334,7 +347,7 @@ namespace ve {
         EditorMcpTools::detach();
     }
 
-    void EditorLayer::onImGuiRender() {
+    void EditorLayer::onUIRender() {
         static bool dockspaceOpen = true;
         static bool opt_fullscreen_persistant = true;
         bool opt_fullscreen = opt_fullscreen_persistant;
@@ -408,23 +421,85 @@ namespace ve {
 
                 static float cameraMoveSpeed = 12.0f;
                 ImGui::SliderFloat("Camera Speed", &cameraMoveSpeed, 0.1f, 64.0f);
-                m_cameraController.setMoveSpeed(cameraMoveSpeed);
+                m_sceneView.getCameraController().setMoveSpeed(cameraMoveSpeed);
                 ImGui::SameLine();
-                static float farPlane = m_cameraController.getCamera().getFarPlane();
+                static float farPlane = m_sceneView.getEditorCamera().getFarPlane();
                 float oldFarPlane = farPlane;
                 ImGui::SliderFloat("View Distance", &farPlane, 0.1f, 29600.0f);
                 if (farPlane != oldFarPlane) {
-                    m_cameraController.getCamera().setFarPlane(farPlane);
+                    m_sceneView.getEditorCamera().setFarPlane(farPlane);
                 }
                 ImGui::SameLine(0.0f, 12.0f);
                 static bool wireframe = false;
                 iconToggleButton("##wireframe", wireframe, "Wireframe", m_wireframeIcon);
-                m_editorView.getViewRenderer()->setWireframe(wireframe);
+                m_sceneView.setWireframe(wireframe);
 
                 ImGui::SameLine(0.0f, 12.0f);
                 static bool groundGrid = false;
                 iconToggleButton("##groundGrid", groundGrid, "Ground Grid", m_groundGridIcon);
-                m_editorView.getViewRenderer()->setGroundGrid(groundGrid);
+                m_sceneView.setGroundGrid(groundGrid);
+
+                // Play-in-Editor transport. Play starts a session; while live the
+                // cluster becomes Pause/Resume, Step and Stop.
+                ImGui::SameLine(0.0f, 24.0f);
+                if (!m_playSession.isLive()) {
+                    if (iconButton("##play", "Play", m_playIcon))
+                        startPlay();
+                } else {
+                    if (m_playSession.state() == PlaySession::State::Play) {
+                        if (iconButton("##pause", "Pause", m_pauseIcon))
+                            m_playSession.pause();
+                    } else {
+                        if (iconButton("##resume", "Resume", m_playIcon))
+                            m_playSession.resume();
+                    }
+                    ImGui::SameLine(0.0f, 6.0f);
+                    if (iconButton("##step", "Step", m_stepIcon))
+                        m_playSession.stepOnce();
+                    ImGui::SameLine(0.0f, 6.0f);
+                    if (iconButton("##stop", "Stop", m_stopIcon))
+                        stopPlay();
+                }
+
+                // View camera picker: the free (editor) camera, or any scene
+                // CameraComponent to pilot through the viewport.
+                ImGui::SameLine(0.0f, 12.0f);
+                {
+                    Ref<Scene> scene = m_editorView.getScene();
+                    const bool sceneDriven =
+                        m_sceneView.getCameraSource() == SceneView::CameraSource::Scene;
+                    const uint32_t activeId = sceneDriven
+                        ? m_sceneView.getSceneCameraEntity().getId() : 0xFFFFFFFFu;
+
+                    auto entityName = [&](uint32_t id) -> std::string {
+                        if (scene->getRegistry().has<NameComponent>(id))
+                            return scene->getComponent<NameComponent>(id).name;
+                        return "Camera " + std::to_string(id);
+                    };
+
+                    std::string label = sceneDriven ? "Camera" : "Free Camera";
+                    if (sceneDriven) {
+                        uint32_t shown = activeId;
+                        if (shown == 0xFFFFFFFFu) shown = scene->getPrimaryCameraEntity().getId();
+                        if (shown != 0xFFFFFFFFu) label = entityName(shown);
+                    }
+
+                    ImGui::SetNextItemWidth(160.0f);
+                    if (ImGui::BeginCombo("##viewCamera", label.c_str())) {
+                        if (ImGui::Selectable("Free Camera", !sceneDriven))
+                            m_sceneView.setCameraSource(SceneView::CameraSource::Editor);
+
+                        for (auto eid : scene->getRegistry().view<CameraComponent>()) {
+                            const bool sel = sceneDriven && eid == activeId;
+                            const std::string item = entityName(eid) + "###cam" + std::to_string(eid);
+                            if (ImGui::Selectable(item.c_str(), sel)) {
+                                m_sceneView.setSceneCameraEntity(scene->getEntity(eid));
+                                m_sceneView.setCameraSource(SceneView::CameraSource::Scene);
+                            }
+                        }
+                        ImGui::EndCombo();
+                    }
+                }
 
                 ImGui::SameLine(0.0f, 24.0f);
                 static bool vsync = false;
@@ -441,6 +516,8 @@ namespace ve {
             glm::vec2 size(viewportSize.x, viewportSize.y);
             Application::get().getGuiLayer()->setViewportBounds(pos, size);
             Application::get().getGuiLayer()->setViewportWindowHovered(ImGui::IsWindowHovered());
+            // Camera input follows viewport hover, computed by the Gui layer.
+            m_sceneView.setInputEnabled(Application::get().isViewportHovered());
 
             // The terrain brush is driven from ImGui's mouse state, not the
             // MouseMoved event: the Gui layer marks mouse-move events handled
@@ -457,7 +534,7 @@ namespace ve {
             }
             // Hold-to-paint: only a physically held LMB advances the stroke, so a
             // click paints one dab and releasing ends it.
-            if (m_showTerrainBrush && mouseInViewport
+            if (!m_playSession.isLive() && m_showTerrainBrush && mouseInViewport
                 && !ImGuizmo::IsOver() && !ImGuizmo::IsUsing()
                 && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                 m_terrainPainting = true;
@@ -467,16 +544,13 @@ namespace ve {
             }
 
             if (viewportSize.x > 0 && viewportSize.y > 0) {
-                if (!m_framebuffer || m_framebuffer->getWidth() != (uint32_t)viewportSize.x ||
-                    m_framebuffer->getHeight() != (uint32_t)viewportSize.y) {
-                    m_framebuffer = Framebuffer::create((uint32_t)viewportSize.x, (uint32_t)viewportSize.y);
-                }
+                m_sceneView.setSize((uint32_t)viewportSize.x, (uint32_t)viewportSize.y);
                 if (!m_pickingFramebuffer || m_pickingFramebuffer->getWidth() != (uint32_t)viewportSize.x ||
                     m_pickingFramebuffer->getHeight() != (uint32_t)viewportSize.y) {
                     m_pickingFramebuffer = Framebuffer::create((uint32_t)viewportSize.x, (uint32_t)viewportSize.y,Framebuffer::Format::Picking);
                 }
 
-                ImGui::Image((void*)(intptr_t)m_framebuffer->getColorAttachmentRendererID(),
+                ImGui::Image((void*)(intptr_t)m_sceneView.getColorAttachmentId(),
                     viewportSize, ImVec2(0, 1), ImVec2(1, 0));
 
                 ImGuizmo::BeginFrame();
@@ -500,7 +574,7 @@ namespace ve {
                         if (ImGui::IsKeyPressed(ImGuiKey_E)) op = ImGuizmo::ROTATE;
                         if (ImGui::IsKeyPressed(ImGuiKey_R)) op = ImGuizmo::SCALE;
 
-                        auto& camera = m_cameraController.getCamera();
+                        auto& camera = m_sceneView.getCamera();
                         glm::mat4 view = camera.getViewMatrix();
                         glm::mat4 proj = camera.getProjectionMatrix();
                         glm::mat4 transform = tc.transform;
@@ -521,6 +595,64 @@ namespace ve {
                     }
                 }
 
+                // Camera gizmo: the frustum wireframe of every CameraComponent, so
+                // a game camera's placement and facing read at a glance. Editor
+                // overlay only -- the engine draws nothing for cameras. Skipped
+                // during a play session, where the viewport shows the runtime scene.
+                if (!m_playSession.isLive()) {
+                    Ref<Scene> scene = m_editorView.getScene();
+                    auto cameraView = scene->getRegistry().view<CameraComponent>();
+                    if (!cameraView.empty()) {
+                        // The piloted camera IS the viewport camera, so its own
+                        // frustum would be drawn at the eye -- skip it.
+                        const bool sceneDriven =
+                            m_sceneView.getCameraSource() == SceneView::CameraSource::Scene;
+                        uint32_t activeCam = m_sceneView.getSceneCameraEntity().getId();
+                        if (activeCam == 0xFFFFFFFFu) activeCam = scene->getPrimaryCameraEntity().getId();
+
+                        const glm::mat4 viewProj =
+                            m_sceneView.getCamera().getProjectionMatrix() *
+                            m_sceneView.getCamera().getViewMatrix();
+                        const float aspect = viewportSize.x / viewportSize.y;
+                        ImDrawList* dl = ImGui::GetWindowDrawList();
+
+                        for (auto entity : cameraView) {
+                            if (sceneDriven && entity == activeCam) continue;
+                            if (!scene->getRegistry().has<TransformComponent>(entity)) continue;
+                            const auto& cam = scene->getComponent<CameraComponent>(entity);
+                            const auto& tf  = scene->getComponent<TransformComponent>(entity);
+
+                            // View-space corners (a GL camera looks down -Z),
+                            // widened by the aspect this viewport would give it.
+                            const float tanHalf = std::tan(glm::radians(cam.fov) * 0.5f);
+                            const float nH = tanHalf * cam.nearPlane, nW = nH * aspect;
+                            const float fH = tanHalf * cam.farPlane,  fW = fH * aspect;
+                            const glm::vec3 corners[8] = {
+                                {-nW, -nH, -cam.nearPlane}, { nW, -nH, -cam.nearPlane},
+                                { nW,  nH, -cam.nearPlane}, {-nW,  nH, -cam.nearPlane},
+                                {-fW, -fH, -cam.farPlane }, { fW, -fH, -cam.farPlane },
+                                { fW,  fH, -cam.farPlane }, {-fW,  fH, -cam.farPlane },
+                            };
+                            ImVec2 screen[8];
+                            bool ok[8];
+                            for (int i = 0; i < 8; ++i) {
+                                const glm::vec3 world = glm::vec3(tf.transform * glm::vec4(corners[i], 1.0f));
+                                ok[i] = projectToViewport(viewProj, world, viewportPos, viewportSize, screen[i]);
+                            }
+
+                            static const int edges[12][2] = {
+                                {0,1},{1,2},{2,3},{3,0},   // near rect
+                                {4,5},{5,6},{6,7},{7,4},   // far rect
+                                {0,4},{1,5},{2,6},{3,7},   // connectors
+                            };
+                            for (const auto& e : edges) {
+                                if (ok[e[0]] && ok[e[1]])
+                                    dl->AddLine(screen[e[0]], screen[e[1]], IM_COL32(255, 200, 60, 220), 1.5f);
+                            }
+                        }
+                    }
+                }
+
                 bool isOver = ImGuizmo::IsOver();
 
                 // Terrain brush cursor: a ring on the surface where a stroke
@@ -528,7 +660,7 @@ namespace ve {
                 // instead of reading as a flat top-down disc, and its radius
                 // matches the world-space paint ball.
                 if (m_showTerrainBrush && mouseInViewport) {
-                    auto& camera = m_cameraController.getCamera();
+                    auto& camera = m_sceneView.getCamera();
                     glm::vec3 hit, hitNormal(0.0f, 1.0f, 0.0f);
                     if (m_terrainEditor.hoverPoint(camera.getViewMatrix(), camera.getProjectionMatrix(),
                             m_mouseViewportPos, size, *m_editorView.getScene(),
@@ -703,8 +835,16 @@ namespace ve {
             {
                 ImGui::PopFont();
 
+                // Project/scene switching and saving are disabled while a play
+                // session is live: the viewport renders the runtime duplicate and
+                // the authored document must not move.
+                ImGui::BeginDisabled(m_playSession.isLive());
+
                 if (ImGui::MenuItem("New Project..."))
                 {
+                    if (m_newProjectLocationBuffer[0] == '\0')
+                        std::snprintf(m_newProjectLocationBuffer, sizeof(m_newProjectLocationBuffer),
+                                      "%s", Project::projectsDir().c_str());
                     m_showNewProjectPopup = true;
                 }
 
@@ -730,6 +870,8 @@ namespace ve {
                     refreshSceneFileList();
                     m_showLoadPopup = true;
                 }
+
+                ImGui::EndDisabled();
 
                 ImGui::Separator();
 
@@ -879,14 +1021,29 @@ namespace ve {
             if (ImGui::BeginPopupModal("New Project", &m_showNewProjectPopup))
             {
                 ImGui::InputText("Name", m_newProjectNameBuffer, sizeof(m_newProjectNameBuffer));
-                ImGui::TextDisabled("Location: %s", Project::projectsDir().c_str());
+                ImGui::SetNextItemWidth(360.0f);
+                ImGui::InputText("Location", m_newProjectLocationBuffer, sizeof(m_newProjectLocationBuffer));
+                ImGui::SameLine();
+                if (ImGui::Button("Browse..."))
+                {
+                    const std::string picked = pickFolderDialog(m_newProjectLocationBuffer);
+                    if (!picked.empty())
+                        std::snprintf(m_newProjectLocationBuffer, sizeof(m_newProjectLocationBuffer),
+                                      "%s", picked.c_str());
+                }
+
+                ImGui::Checkbox("C++ gameplay module", &m_newProjectWithModule);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Generates src/Game.cpp and a standalone .slnx that builds Binaries/game.dll");
 
                 if (ImGui::Button("Create"))
                 {
                     ProjectInfo info;
-                    const std::string dir = (std::filesystem::path(Project::projectsDir())
+                    const std::string parent = m_newProjectLocationBuffer[0]
+                        ? m_newProjectLocationBuffer : Project::projectsDir();
+                    const std::string dir = (std::filesystem::path(parent)
                                              / m_newProjectNameBuffer).string();
-                    if (Project::create(m_newProjectNameBuffer, info))
+                    if (Project::create(parent, m_newProjectNameBuffer, m_newProjectWithModule, info))
                     {
                         applyProject(dir);
                         m_showNewProjectPopup = false;
@@ -967,10 +1124,10 @@ namespace ve {
 
     void EditorLayer::restoreCameraFor(const std::filesystem::path& scenePath)
     {
-        auto& cam = m_cameraController.getCamera();
-        float speed = m_cameraController.getMoveSpeed();
+        auto& cam = m_sceneView.getEditorCamera();
+        float speed = m_sceneView.getCameraController().getMoveSpeed();
         readEditorCamera(scenePath, cam, speed);
-        m_cameraController.setMoveSpeed(speed);
+        m_sceneView.getCameraController().setMoveSpeed(speed);
 
         // Remember what is on disk so the idle save below does not immediately
         // rewrite an unchanged camera.
@@ -981,12 +1138,12 @@ namespace ve {
 
     bool EditorLayer::saveCurrentCamera(bool force)
     {
-        auto& cam = m_cameraController.getCamera();
+        auto& cam = m_sceneView.getEditorCamera();
         if (!force && cam.getPosition() == m_savedCamPos
             && cam.getYaw() == m_savedCamYaw && cam.getPitch() == m_savedCamPitch)
             return false;
 
-        writeEditorCamera(m_currentScenePath, cam, m_cameraController.getMoveSpeed());
+        writeEditorCamera(m_currentScenePath, cam, m_sceneView.getCameraController().getMoveSpeed());
         m_savedCamPos = cam.getPosition();
         m_savedCamYaw = cam.getYaw();
         m_savedCamPitch = cam.getPitch();
@@ -1003,6 +1160,11 @@ namespace ve {
 
     bool EditorLayer::saveScene()
     {
+        if (m_playSession.isLive()) {
+            VE_CORE_WARN_PRINT("%s", "Cannot save the scene while a play session is running.");
+            return false;
+        }
+
         if (m_saveFileName.empty())
         {
             VE_CORE_ERROR("No filename specified for saving!");
@@ -1113,6 +1275,11 @@ namespace ve {
 
     bool EditorLayer::openScene(const std::filesystem::path& absolutePath)
     {
+        if (m_playSession.isLive()) {
+            VE_CORE_WARN_PRINT("%s", "Cannot open a scene while a play session is running.");
+            return false;
+        }
+
         auto newScene = CreateRef<Scene>();
 
         SceneSerializer loader(newScene);
@@ -1126,6 +1293,7 @@ namespace ve {
             [this](AssetHandle handle) { openMaterialLayerEditor(handle); },
             [this](Scene& scene) { m_terrainEditor.drawInspector(m_showTerrainBrush, scene); },
             [this]() { m_showTerrainMap = true; });
+        m_sceneView.setScene(m_editorView.getScene());
         m_selectedEntity = UINT32_MAX;
 
         // Persist the outgoing scene's camera before the name flips, then load
@@ -1247,6 +1415,8 @@ namespace ve {
         setProjectRoot(projectDir);
         writeLastProjectDir(projectDir);
         m_fileBrowser.setRootPath(toProjectAbsolute("content"));
+        m_fileBrowser.setDefaultScenePath(m_project.defaultScene.empty()
+            ? std::string() : toProjectAbsolute(m_project.defaultScene));
 
         // Start on the project's default scene, or a fresh empty one.
         auto scene = CreateRef<Scene>();
@@ -1273,6 +1443,7 @@ namespace ve {
             [this](AssetHandle handle) { openMaterialLayerEditor(handle); },
             [this](Scene& scene) { m_terrainEditor.drawInspector(m_showTerrainBrush, scene); },
             [this]() { m_showTerrainMap = true; });
+        m_sceneView.setScene(m_editorView.getScene());
         m_selectedEntity = UINT32_MAX;
         writeLastSceneName(m_currentSceneName);
         restoreCameraFor(m_currentScenePath);
@@ -1294,8 +1465,8 @@ namespace ve {
         // ambiguous with cleared background.
         RenderCommand::clearInt(-1);
 
-        Renderer2D::beginPickingScene(m_cameraController.getCamera().getViewProjectionMatrix(), m_pickingShader);
-        Renderer3D::beginPickingScene(m_cameraController.getCamera().getViewProjectionMatrix());
+        Renderer2D::beginPickingScene(m_sceneView.getCamera().getViewProjectionMatrix(), m_pickingShader);
+        Renderer3D::beginPickingScene(m_sceneView.getCamera().getViewProjectionMatrix());
 
         m_editorView.getScene()->onPickingRender();
 
@@ -1303,8 +1474,8 @@ namespace ve {
         {
             auto lightView = m_editorView.getScene()->getRegistry().view<LightComponent>();
             if (!lightView.empty() && m_pointLightIcon.isValid()) {
-                const auto& viewMatrix = m_cameraController.getCamera().getViewMatrix();
-                const auto& cameraPos = m_cameraController.getCamera().getPosition();
+                const auto& viewMatrix = m_sceneView.getCamera().getViewMatrix();
+                const auto& cameraPos = m_sceneView.getCamera().getPosition();
 
                 for (auto entity : lightView) {
                     auto& transform = m_editorView.getScene()->getComponent<TransformComponent>(entity);
@@ -1335,11 +1506,50 @@ namespace ve {
 
     void EditorLayer::paintTerrain() {
 
-        auto& camera = m_cameraController.getCamera();
+        auto& camera = m_sceneView.getCamera();
         const glm::vec2 viewportSize = Application::get().getGuiLayer()->getViewportBounds().second;
 
         m_terrainEditor.paintAt(camera.getViewMatrix(), camera.getProjectionMatrix(),
                                 m_mouseViewportPos, viewportSize, *m_editorView.getScene());
+    }
+
+    void EditorLayer::startPlay() {
+        if (m_playSession.isLive())
+            return;
+
+        // Gameplay module, if the project ships one. Absent is not an error: the
+        // session still clones and ticks the scene, just with no gameplay code.
+        const std::string dllPath = (getProjectRoot() / "Binaries" / "game.dll").string();
+
+        if (!m_playSession.play(Application::get(), m_editorView.getScene(), dllPath))
+            return;
+
+        m_prePlayCameraSource = m_sceneView.getCameraSource();
+        m_prePlayCameraEntity = m_sceneView.getSceneCameraEntity();
+
+        // Editor-only interaction points at the authored scene; drop it and point
+        // the viewport at the runtime duplicate.
+        m_selectedEntity = UINT32_MAX;
+        m_needsPicking = false;
+        m_showTerrainBrush = false;
+        m_terrainPainting = false;
+
+        m_sceneView.setScene(m_playSession.runtimeScene());
+        m_sceneView.setCameraSource(SceneView::CameraSource::Scene);
+        m_editorView.setLocked(true);
+    }
+
+    void EditorLayer::stopPlay() {
+        if (!m_playSession.isLive())
+            return;
+
+        m_playSession.stop();
+
+        m_editorView.setLocked(false);
+        m_sceneView.setScene(m_editorView.getScene());
+        m_sceneView.setCameraSource(m_prePlayCameraSource);
+        m_sceneView.setSceneCameraEntity(m_prePlayCameraEntity);
+        m_selectedEntity = UINT32_MAX;
     }
 
     void EditorLayer::onUpdate() {
@@ -1357,15 +1567,12 @@ namespace ve {
 
         syncTerrainDataDirty();
 
-        uint32_t fbW = 0, fbH = 0;
-        if (!m_framebuffer) return;
+        // Drive the runtime scene while a play session is live. Runs before the
+        // view renders so this frame shows the tick's result.
+        m_playSession.tick(DeltaTime::get().getDeltaTime());
 
-        fbW = m_framebuffer->getWidth();
-        fbH = m_framebuffer->getHeight();
-
-        m_cameraController.onUpdate(DeltaTime::get().getDeltaTime());
-        m_cameraController.getCamera().setAspectRatio((float)fbW / (float)fbH);
-        m_cameraController.getCamera().setViewportSize(fbW, fbH);
+        // Camera update + aspect/viewport + scene render, all owned by the view.
+        m_sceneView.onUpdate(DeltaTime::get().getDeltaTime());
 
         // Session-state camera autosave: throttled, and only while the mouse is
         // idle so an in-progress fly-around or drag does not hammer the disk.
@@ -1378,14 +1585,14 @@ namespace ve {
             saveCurrentCamera();
         }
 
-        if (m_renderPipeline) {
-            m_editorView.getViewRenderer()->render(
-                m_cameraController.getCamera(), m_renderPipeline, m_framebuffer);
-
-            // Overlay: light billboard icons (editor gizmo)
-            renderLightBillboards(m_cameraController.getCamera().getViewMatrix(),
-                                  m_cameraController.getCamera().getProjectionMatrix(),
-                                  m_cameraController.getCamera().getPosition());
+        if (m_sceneView.getFramebuffer() && !m_playSession.isLive()) {
+            // Overlay: light + camera billboard icons (editor gizmos)
+            renderLightBillboards(m_sceneView.getCamera().getViewMatrix(),
+                                  m_sceneView.getCamera().getProjectionMatrix(),
+                                  m_sceneView.getCamera().getPosition());
+            renderCameraBillboards(m_sceneView.getCamera().getViewMatrix(),
+                                   m_sceneView.getCamera().getProjectionMatrix(),
+                                   m_sceneView.getCamera().getPosition());
         }
 
         if (m_needsPicking && m_pickingFramebuffer) {
@@ -1436,6 +1643,40 @@ namespace ve {
 
             glm::mat4 billboardMat = makeBillboard(lightPos, viewMatrix);
             Renderer2D::drawQuad(billboardMat, glm::vec2(scale), m_pointLightIcon);
+        }
+
+        Renderer2D::endScene();
+        RenderCommand::setDepthTesting(true);
+        Renderer2D::setBlending(false);
+    }
+
+    void EditorLayer::renderCameraBillboards(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, const glm::vec3& cameraPos) {
+        auto cameraView = m_editorView.getScene()->getRegistry().view<CameraComponent>();
+        if (cameraView.empty() || !m_cameraIcon.isValid()) return;
+
+        glm::mat4 vp = projMatrix * viewMatrix;
+
+        Renderer2D::setBlending(true);
+        RenderCommand::setDepthTesting(false);
+        Renderer2D::beginScene(vp);
+
+        // The piloted camera renders the viewport, so its icon would land at the
+        // eye -- skip it, same as the frustum overlay.
+        const bool sceneDriven = m_sceneView.isSceneDriven();
+        uint32_t activeCam = m_sceneView.getSceneCameraEntity().getId();
+        if (activeCam == 0xFFFFFFFFu) activeCam = m_editorView.getScene()->getPrimaryCameraEntity().getId();
+
+        for (auto entity : cameraView) {
+            if (sceneDriven && entity == activeCam) continue;
+            if (!m_editorView.getScene()->getRegistry().has<TransformComponent>(entity)) continue;
+            auto& transform = m_editorView.getScene()->getComponent<TransformComponent>(entity);
+            glm::vec3 cameraOrigin = glm::vec3(transform.transform[3]);
+
+            float dist = glm::length(cameraOrigin - cameraPos);
+            float scale = glm::clamp(dist * 0.2f, 0.3f, 3.0f) * m_cameraIconSize;
+
+            glm::mat4 billboardMat = makeBillboard(cameraOrigin, viewMatrix);
+            Renderer2D::drawQuad(billboardMat, glm::vec2(scale), m_cameraIcon);
         }
 
         Renderer2D::endScene();

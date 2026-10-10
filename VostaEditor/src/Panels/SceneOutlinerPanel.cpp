@@ -13,6 +13,12 @@ void SceneOutliner::onGuiRender(uint32_t& selectedEntity)
 {
     ImGui::Begin("Scene Outliner");
 
+    if (m_locked) {
+        ImGui::TextDisabled("Play mode: scene editing is disabled.");
+        ImGui::End();
+        return;
+    }
+
     ImVec2 windowSize = ImGui::GetContentRegionAvail();
     float buttonHeight = ImGui::GetFrameHeightWithSpacing();
 

@@ -125,4 +125,15 @@ namespace ve {
 	Entity Scene::createEntity() {
 		return m_entityRegistry.create();
 	}
+
+	Entity Scene::getPrimaryCameraEntity() {
+		Entity fallback;   // invalid by default
+		for (uint32_t id : m_entityRegistry.view<CameraComponent>()) {
+			if (m_entityRegistry.get<CameraComponent>(id).primary)
+				return m_entityRegistry.getEntity(id);
+			if (fallback.getId() == 0xFFFFFFFFu)
+				fallback = m_entityRegistry.getEntity(id);
+		}
+		return fallback;
+	}
 }

@@ -50,8 +50,8 @@ NodeGraphPanel::NodeGraphPanel(const std::string& name) {
 	m_instanceId = s_nextInstance++;
 	m_canvasLabel = "##" + name + "_" + std::to_string(m_instanceId);
 
-	m_pinIcon = Texture2D::create("VostaEngine/resources/icons/pin.png");
-	m_pinConnectedIcon = Texture2D::create("VostaEngine/resources/icons/pin_connected.png");
+	m_pinIcon = Texture2D::create("VostaEditor/resources/icons/pin.png");
+	m_pinConnectedIcon = Texture2D::create("VostaEditor/resources/icons/pin_connected.png");
 
 	ed::Config config;
 	config.SettingsFile = nullptr; // No persistence for now
@@ -361,10 +361,9 @@ void NodeGraphPanel::draw(NodeGraph& graph, NodeGraphEditorSchema& schema) {
 	// Capture the placement from the frame the menu opens: by the time an entry is
 	// clicked the mouse is over the popup, not the canvas, so reading it then would
 	// drop the node wherever the menu happens to be.
-	glm::vec2 createPos(0.0f);
-	if (ed::ShowBackgroundContextMenu()) {
+	if (ed::ShowBackgroundContextMenu() && !m_blockCreateMenu) {
 		ImVec2 p = ed::ScreenToCanvas(ImGui::GetMousePos());
-		createPos = glm::vec2(p.x, p.y);
+		m_createPos = glm::vec2(p.x, p.y);
 		ImGui::OpenPopup("CreateNodePopup");
 	}
 
@@ -372,10 +371,27 @@ void NodeGraphPanel::draw(NodeGraph& graph, NodeGraphEditorSchema& schema) {
 		ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Create Node");
 		ImGui::Separator();
 
-		schema.buildCreateMenu(graph, createPos, addNode);
+		schema.buildCreateMenu(graph, m_createPos, addNode);
+
+		// ImGui's own click-outside-to-close path bails here: the canvas keeps a
+		// hovered item id over its whole area, and UpdateMouseMovingWindowEndFrame
+		// returns early whenever HoveredId != 0 (see imgui.cpp). Close the popup
+		// ourselves on any click that lands on something which is not a popup —
+		// the canvas, another panel, or empty space.
+		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+			ImGuiWindow* hovered = ImGui::GetCurrentContext()->HoveredWindow;
+			if (!hovered || (hovered->Flags & ImGuiWindowFlags_Popup) == 0) {
+				ImGui::CloseCurrentPopup();
+				m_blockCreateMenu = true; // don't let this click reopen it
+			}
+		}
 
 		ImGui::EndPopup();
 	}
+
+	// The dismissing gesture is over; let the menu open again.
+	if (!ImGui::IsAnyMouseDown())
+		m_blockCreateMenu = false;
 
 	// App-specific popups that need the suspended zone (e.g. texture picker).
 	schema.drawSuspendedContent(graph);

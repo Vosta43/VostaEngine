@@ -1,6 +1,7 @@
 # ── Build outputs ──────────────────────────────────────────────────────
 build/
 out/
+SDK/
 [Bb]in/
 [Dd]ebug/
 [Rr]elease/
@@ -63,6 +64,7 @@ snapshot_gui.py
 open_claude.py
 cns_scanner.py
 chinese_in_cpp.txt
+ve_build_check.bat
 
 # ── imgui-node-editor: only the core files the engine compiles are kept ─
 VostaEngine/thirdparty/imgui-node-editor/examples/
@@ -77,6 +79,7 @@ cube_default.veasset
 n.veasset
 s.veasset
 fountain_taobaodianpu_CFSC194SG.veasset
+default.veasset
 SandBox/e.veasset
 
 # Materials baked next to the built-in meshes on launch (engine-owned dir)
@@ -100,10 +103,14 @@ SandBox/content/
 Projects/
 
 # ── Editor session state (machine-generated, not for distribution) ──────
+/Saved/
 SandBox/Saved/
 
 # ── Stray nested build/artifact dir ────────────────────────────────────
 SandBox/SandBox/
+
+# ── Built game module (host loads <projectRoot>/Binaries/game.dll) ──────
+SandBox/Binaries/
 
 # ── nlohmann/json (vendored): only what the engine builds against ───────
 VostaEngine/thirdparty/JSON/*
@@ -115,3 +122,6 @@ VostaEngine/thirdparty/JSON/*
 !SandBox/assets/models/sphere.obj
 !SandBox/assets/models/cube.obj
 !VostaEditor/assets/models/sphere.obj
+
+# ── Athenaeum knowledge-base CLI (local-only tool, not for distribution) ──
+ath.py

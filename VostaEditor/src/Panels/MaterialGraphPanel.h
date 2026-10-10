@@ -5,6 +5,7 @@
 #include "Renderer/SingleMaterial.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
 
 namespace ve {
@@ -34,6 +35,17 @@ private:
     // opened, so opening a material is not itself an edit.
     uint32_t    m_graphHash = 0;
     std::string m_lastName;
+
+    // The file's last-write time as this panel last saw it, compared against a
+    // fresh read each frame so a change landing on disk while the graph is open —
+    // from an MCP tool, another editor, or a program outside this one — is noticed.
+    // Shared with the registered saver (which writes the file without the panel
+    // running), so its own write is recognised as ours rather than an external change.
+    std::shared_ptr<int64_t> m_diskTicks = std::make_shared<int64_t>(0);
+    // Set when the asset changed on disk while this panel has unsaved edits: the
+    // toolbar offers reload (discard mine) or keep-mine. Never auto-resolved, so
+    // neither side is silently thrown away.
+    bool m_externalChange = false;
 };
 
 } // namespace ve

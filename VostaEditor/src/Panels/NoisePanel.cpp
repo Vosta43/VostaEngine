@@ -1,12 +1,13 @@
 #include "NoisePanel.h"
 
 #include "AssetSaveRegistry.h"
+#include "Asset/Utils.h"
+#include "Core/AssetConfig.h"
+#include "Noise/NoiseBaker.h"
 #include "Noise/NoiseNodes.h"
-#include "Noise/NoisePlan.h"
 #include "Noise/NoiseGraphResource.h"
 #include "Scene/Archive.h"
 #include "Core/Log.h"
-#include "Core/JobSystem.h"
 #include "Core/ResourceManager.h"
 #include "Asset/TextureImporter.h"
 
@@ -85,6 +86,25 @@ namespace ve {
         if (!m_preview)
             rebuildPreview();
 
+        // Did the file change on disk since we read it (an MCP write, another
+        // editor, a program outside this one)? Re-read its write time: any writer
+        // bumps it. Reload in place when we hold no edits; otherwise flag a conflict
+        // below for the user to resolve. Runs before Begin so a reload shares the
+        // frame it is detected on.
+        if (!m_filePath.empty()) {
+            const int64_t liveTicks = utils::fileWriteTicks(toAbsolute(m_filePath));
+            if (liveTicks != 0 && liveTicks != *m_diskTicks) {
+                *m_diskTicks = liveTicks;   // track it either way; do not retry each frame
+                if (!AssetSaveRegistry::get().isDirty(m_filePath)) {
+                    loadGraphFromDisk();
+                    m_savedHash = m_graphHash;
+                    m_externalChange = false;
+                } else {
+                    m_externalChange = true;
+                }
+            }
+        }
+
         // The "###" leaves the window ID fixed while the title shows the open file.
         const std::string title = m_filePath.empty()
             ? std::string("Noise Editor###noiseEditor")
@@ -108,6 +128,24 @@ namespace ve {
         ImGui::EndDisabled();
         if (m_filePath.empty())
             ImGui::TextDisabled("not bound to a file");
+
+        // The asset changed on disk while we have unsaved edits. Never pick a winner
+        // silently: reload (dropping our edits) or keep ours (to be saved over disk).
+        if (m_externalChange) {
+            ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.2f, 1.0f), "Changed on disk");
+            if (ImGui::Button("Reload##noiseExternal", ImVec2(previewSize * 0.5f, 0.0f))) {
+                loadGraphFromDisk();
+                AssetSaveRegistry::get().markClean(m_filePath);
+                m_savedHash = m_graphHash;
+                *m_diskTicks = utils::fileWriteTicks(toAbsolute(m_filePath));
+                m_externalChange = false;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Keep mine##noiseExternal", ImVec2(previewSize * 0.5f, 0.0f))) {
+                *m_diskTicks = utils::fileWriteTicks(toAbsolute(m_filePath));
+                m_externalChange = false;
+            }
+        }
 
         // Parameters of the selected node, mirroring the widgets inside it.
         ImGui::Separator();
@@ -151,26 +189,19 @@ namespace ve {
         for (int i = 1; std::filesystem::exists(out, ec); ++i)
             out = src.parent_path() / (stem + "_texture " + std::to_string(i) + ".veasset");
 
-        // The preview buffer is already the baked field; hand it to the texture
-        // asset writer so the export is byte-identical to an imported texture.
-        TextureResource resource;
-        resource.width = kPreviewSize;
-        resource.height = kPreviewSize;
-        resource.format = TextureFormat::RGBA;
-        resource.pixels = m_pixels;
-
+        // The same bake the preview shows and the MCP command writes, so the export
+        // is byte-identical to either.
+        TextureResource resource = bakeNoiseGraphTexture(m_graph, kPreviewSize);
         TextureImporter::serialize(resource, out.string());
         VE_CORE_SUCCESS_PRINT("Exported noise texture: %s", out.string().c_str());
     }
 
-    void NoisePanel::openFile(const std::string& path) {
-        m_filePath = path;
-
+    void NoisePanel::loadGraphFromDisk() {
         m_graph.nodes.clear();
         m_graph.links.clear();
         m_schema.resetNodeState();
 
-        TextArchive ar(path, ArchiveMode::read);
+        TextArchive ar(m_filePath, ArchiveMode::read);
         if (ar.isGood()) {
             std::string token;
             ar >> token;   // "noise"
@@ -182,7 +213,14 @@ namespace ve {
 
         ensureDefaultGraph();   // fall back if the file was empty or legacy
         rebuildPreview();
+    }
+
+    void NoisePanel::openFile(const std::string& path) {
+        m_filePath = path;
+        loadGraphFromDisk();
         m_savedHash = m_graphHash;   // don't re-save what was just read
+        *m_diskTicks = utils::fileWriteTicks(toAbsolute(m_filePath));
+        m_externalChange = false;
         AssetSaveRegistry::get().markClean(m_filePath);   // freshly read, not unsaved
     }
 
@@ -193,7 +231,8 @@ namespace ve {
         // not depend on the panel still being open when it runs.
         const std::string path = m_filePath;
         const NoiseGraph graph = m_graph;
-        AssetSaveRegistry::get().markDirty(path, [path, graph]() {
+        auto diskTicks = m_diskTicks;   // shared: this write must not read back as external
+        AssetSaveRegistry::get().markDirty(path, [path, graph, diskTicks]() {
             TextArchive ar(path, ArchiveMode::write);
             if (!ar.isGood())
                 return;
@@ -201,6 +240,7 @@ namespace ve {
             ar << kNoiseFormatVersion;
             serializeNoiseGraph(graph, ar);
             NoiseGraphResource::refreshFromFile(path);
+            *diskTicks = utils::fileWriteTicks(toAbsolute(path));
         });
     }
 
@@ -218,38 +258,17 @@ namespace ve {
         // Keep the registered resource in step with what was just written, so a
         // terrain can rebuild from edits without an editor restart.
         NoiseGraphResource::refreshFromFile(m_filePath);
+        *m_diskTicks = utils::fileWriteTicks(toAbsolute(m_filePath));
     }
 
     void NoisePanel::rebuildPreview() {
         if (!m_preview)
             m_preview = Texture2D::create(kPreviewSize, kPreviewSize);
 
-        m_pixels.resize((size_t)kPreviewSize * kPreviewSize * 4);
-
-        // The Output node owns the field's display range; without one, fall back to
-        // the unit's native [-1, 1].
-        auto* out = findNoiseOutput(m_graph);
-        const float lo = out ? out->outputMin : -1.0f;
-        const float hi = out ? out->outputMax : 1.0f;
-        const float range = hi - lo;
-
-        const float half = (float)kPreviewSize * 0.5f;
-
-        // One plan for the whole bake, then rows in parallel: the flattened evaluator
-        // touches each node once per sample with no graph walking.
-        const NoisePlan plan = buildNoisePlan(m_graph);
-        JobSystem::get().parallelFor(0, kPreviewSize, [&](int y) {
-            thread_local NoisePlanScratch scratch;
-            for (int x = 0; x < kPreviewSize; ++x) {
-                const float v = plan.evaluate(scratch, (float)x - half, (float)y - half);
-                const float t = range > 1e-6f ? (v - lo) / range : 0.5f;
-                const uint8_t g = (uint8_t)std::clamp(t * 255.0f + 0.5f, 0.0f, 255.0f);
-
-                uint8_t* px = &m_pixels[((size_t)y * kPreviewSize + x) * 4];
-                px[0] = px[1] = px[2] = g;
-                px[3] = 255;
-            }
-        }).get();
+        // The bake itself lives in the engine (NoiseBaker) so the preview, the export
+        // and the MCP bake command are one implementation.
+        TextureResource texture = bakeNoiseGraphTexture(m_graph, kPreviewSize);
+        m_pixels = std::move(texture.pixels);
 
         m_preview->setData(m_pixels.data(), (uint32_t)m_pixels.size());
         m_graphHash = hashGraph(m_graph);

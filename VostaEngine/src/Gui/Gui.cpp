@@ -155,7 +155,7 @@ namespace ve {
 
 	}
 
-    void GuiLayer::onImGuiRender()
+    void GuiLayer::onUIRender()
     {
         
     }

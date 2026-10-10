@@ -4,6 +4,7 @@ set(EDITOR_SOURCES
     src/VostaEditor.cpp
     src/EditorLayer.cpp
     src/EditorViewController.cpp
+    src/PlaySession.cpp
     src/Panels/FileBrowser.cpp
     src/Panels/SceneOutlinerPanel.cpp
     src/Panels/PropertyPanel.cpp
@@ -35,5 +36,6 @@ if(MSVC)
 endif()
 
 set_target_properties(VostaEditor PROPERTIES
-    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    VS_DEBUGGER_ENVIRONMENT "VOSTA_ENGINE_ROOT=${CMAKE_SOURCE_DIR}"
 )

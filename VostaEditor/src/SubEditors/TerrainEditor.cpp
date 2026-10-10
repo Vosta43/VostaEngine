@@ -19,12 +19,12 @@ namespace ve {
 
 		// Height-sculpt palette, in enum order matching TerrainEditor::HeightTool.
 		const char* kHeightToolIcons[] = {
-			"VostaEngine/resources/icons/terrain_raise.png",
-			"VostaEngine/resources/icons/terrain_lower.png",
-			"VostaEngine/resources/icons/terrain_smooth.png",
-			"VostaEngine/resources/icons/terrain_flatten.png",
-			"VostaEngine/resources/icons/terrain_sharpen.png",
-			"VostaEngine/resources/icons/terrain_erosion.png",
+			"VostaEditor/resources/icons/terrain_raise.png",
+			"VostaEditor/resources/icons/terrain_lower.png",
+			"VostaEditor/resources/icons/terrain_smooth.png",
+			"VostaEditor/resources/icons/terrain_flatten.png",
+			"VostaEditor/resources/icons/terrain_sharpen.png",
+			"VostaEditor/resources/icons/terrain_erosion.png",
 		};
 		const char* kHeightToolNames[] = {
 			"Raise", "Lower", "Smooth", "Flatten", "Sharpen", "Erosion",
@@ -127,12 +127,12 @@ namespace ve {
 
 	void TerrainEditor::ensureIcon() {
 		if (!m_icon)
-			m_icon = Texture2D::create("VostaEngine/resources/icons/terrain_brush.png");
+			m_icon = Texture2D::create("VostaEditor/resources/icons/terrain_brush.png");
 	}
 
 	void TerrainEditor::ensureMountainIcon() {
 		if (!m_mountainIcon)
-			m_mountainIcon = Texture2D::create("VostaEngine/resources/icons/mountain.png");
+			m_mountainIcon = Texture2D::create("VostaEditor/resources/icons/mountain.png");
 	}
 
 	void TerrainEditor::ensureBrushThumb() {

@@ -6,6 +6,7 @@
 #include <filesystem>
 
 #include "EditorViewController.h"
+#include "PlaySession.h"
 #include "Panels/AiPanel.h"
 #include "Panels/FileBrowser.h"
 #include "Panels/MaterialGraphPanel.h"
@@ -27,7 +28,7 @@ namespace ve {
 
         void onAttach() override;
         void onDetach() override;
-        void onImGuiRender() override;
+        void onUIRender() override;
 
         void renderMenuBar();
 
@@ -60,6 +61,12 @@ namespace ve {
         // Raycast the terrain under the viewport cursor and paint one brush dab.
         void paintTerrain();
         void onUpdate() override;
+
+        // Play-in-Editor transport. startPlay duplicates the scene into a runtime
+        // session and points the viewport at it; stopPlay discards it and restores
+        // the authored view.
+        void startPlay();
+        void stopPlay();
 
     private:
         // One row in the Load dialog: a .veworld file found in the scenes folder.
@@ -95,13 +102,10 @@ namespace ve {
         static glm::mat4 makeBillboard(const glm::vec3& position, const glm::mat4& viewMatrix);
 
         void renderLightBillboards(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, const glm::vec3& cameraPos);
+        void renderCameraBillboards(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, const glm::vec3& cameraPos);
 
     private:
-        Ref<Shader> m_Shader;
-        Ref<Shader> m_TextureShader;
         Ref<Shader> m_pickingShader;
-
-        CameraController m_cameraController = CameraController(-1.6f, 1.6f, -0.9f, 0.9f);
 
         FileBrowser m_fileBrowser;
         // Last AssetLibrary revision the file browser was told about. Anything that
@@ -109,6 +113,7 @@ namespace ve {
         // writes the editor did not make itself.
         uint64_t m_seenAssetRevision = 0;
         EditorViewController m_editorView;
+        SceneView m_sceneView;
         MaterialGraphPanel m_materialGraphPanel;
         NoisePanel m_noisePanel;
         bool m_showNoiseEditor = false;
@@ -139,7 +144,6 @@ namespace ve {
 
         uint32_t m_selectedEntity = UINT32_MAX;
 
-        Ref<Framebuffer> m_framebuffer;
         Ref<Framebuffer> m_pickingFramebuffer;
 
         bool m_needsPicking = false;
@@ -178,19 +182,32 @@ namespace ve {
         bool m_showNewProjectPopup = false;
         bool m_showOpenProjectPopup = false;
         char m_newProjectNameBuffer[256] = "NewProject";
+        // Folder the new project is created in. Seeded with <assetRoot>/Projects
+        // the first time the dialog opens, then editable to any absolute path.
+        char m_newProjectLocationBuffer[512] = "";
+        // Scaffold src/Game.cpp + a standalone .vcxproj/.slnx for the new project.
+        bool m_newProjectWithModule = true;
         // Project folders rescanned each time the Open Project dialog opens.
         std::vector<std::string> m_projectDirs;
         std::string m_openProjectDir;
-
-        Ref<RenderPipeline> m_renderPipeline;
 
         // Light icon billboard
         AssetHandle m_pointLightIcon;
         float m_lightIconSize = 0.5f;
 
+        // Camera icon billboard, so a CameraComponent has a visible origin.
+        AssetHandle m_cameraIcon;
+        float m_cameraIconSize = 0.5f;
+
         // Viewport toolbar toggle icons.
         Ref<Texture2D> m_wireframeIcon;
         Ref<Texture2D> m_groundGridIcon;
+
+        // Play-in-Editor transport icons.
+        Ref<Texture2D> m_playIcon;
+        Ref<Texture2D> m_pauseIcon;
+        Ref<Texture2D> m_stepIcon;
+        Ref<Texture2D> m_stopIcon;
 
         // Terrain material paint brush, driven from the TerrainSystem inspector.
         // While m_showTerrainBrush is on, LMB in the viewport paints instead of
@@ -198,6 +215,13 @@ namespace ve {
         TerrainEditor m_terrainEditor;
         bool m_showTerrainBrush = false;
         bool m_terrainPainting = false;
+
+        // Play-in-Editor session. While live the viewport renders its runtime
+        // duplicate and the editor panels are locked.
+        PlaySession m_playSession;
+        // Viewport camera selection captured on Play and restored on Stop.
+        SceneView::CameraSource m_prePlayCameraSource = SceneView::CameraSource::Editor;
+        Entity m_prePlayCameraEntity;
     };
 
 }

@@ -286,14 +286,14 @@ namespace ve {
 		PipelineConfig c;
 
 		c.shaders = {
-			{ "gbuffer",           "SandBox/assets/shaders/gbuffer.glsl" },
-			{ "terrain_layers",    "SandBox/assets/shaders/terrain_layers.glsl" },
-			{ "volume_cloud_pass", "SandBox/assets/shaders/volume_cloud_pass.glsl" },
-			{ "cloud_taa",         "SandBox/assets/shaders/cloud_taa.glsl" },
-			{ "pbrlighting",       "SandBox/assets/shaders/pbrlighting.glsl" },
-			{ "taa",               "SandBox/assets/shaders/taa.glsl" },
-			{ "postprocess",       "SandBox/assets/shaders/postprocess.glsl" },
-			{ "screen",            "SandBox/assets/shaders/screen.glsl" },
+			{ "gbuffer",           "VostaEngine/resources/shaders/gbuffer.glsl" },
+			{ "terrain_layers",    "VostaEngine/resources/shaders/terrain_layers.glsl" },
+			{ "volume_cloud_pass", "VostaEngine/resources/shaders/volume_cloud_pass.glsl" },
+			{ "cloud_taa",         "VostaEngine/resources/shaders/cloud_taa.glsl" },
+			{ "pbrlighting",       "VostaEngine/resources/shaders/pbrlighting.glsl" },
+			{ "taa",               "VostaEngine/resources/shaders/taa.glsl" },
+			{ "postprocess",       "VostaEngine/resources/shaders/postprocess.glsl" },
+			{ "screen",            "VostaEngine/resources/shaders/screen.glsl" },
 		};
 
 		auto color = [](int slot, TextureInternalFormat fmt) {

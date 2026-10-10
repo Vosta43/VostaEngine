@@ -3,11 +3,28 @@
 #include "Core/Core.h"
 
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <string>
+#include <system_error>
 
 namespace ve {
 	namespace utils {
+
+		// A file's last-write time as a raw tick count, or 0 when it cannot be read
+		// (missing, locked, permission denied). Only equality between two reads of the
+		// SAME file is meaningful: a view records this when it loads an asset and
+		// re-reads it each frame to notice the bytes changing underneath it — from any
+		// writer, in this process or another. That is what lets hot-reload work without
+		// every writer having to announce itself. Header-inline so the engine and the
+		// editor share one definition instead of exporting it across the DLL.
+		inline int64_t fileWriteTicks(const std::string& path) {
+			if (path.empty()) return 0;
+			std::error_code ec;
+			const auto t = std::filesystem::last_write_time(path, ec);
+			return ec ? 0 : static_cast<int64_t>(t.time_since_epoch().count());
+		}
+
 		// Tools to devide engine asset and external asset (.veasset and .png/.pbj/.mp3 etc)
 		inline bool isEngineAsset(const std::string& path) {
 			size_t dotPos = path.rfind('.');

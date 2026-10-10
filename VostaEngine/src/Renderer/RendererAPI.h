@@ -42,8 +42,13 @@ namespace ve {
         // e.g. the R32I picking target), then clear depth.
         virtual void clearInt(int32_t value) = 0;
         virtual void setViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height) = 0;
+        // Scissor rectangle in pixels (origin bottom-left); only applied while scissor test is enabled.
+        virtual void setScissor(int32_t x, int32_t y, int32_t width, int32_t height) = 0;
+        virtual void setScissorTest(bool enabled) = 0;
         // Submit an indexed draw call. The VertexArray must be bound and its index buffer populated before calling.
         virtual void drawIndexed(const Ref<VertexArray>& vertexArray) = 0;
+        // Submit a sub-range: indexCount indices starting at firstIndex (an offset into the index buffer).
+        virtual void drawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount, uint32_t firstIndex = 0) = 0;
         virtual void setDepthTesting(bool enabled) = 0;
         // TODO: Decouple cursor visibility from the rendering API. This belongs to the windowing/input layer.
         virtual void setCursorVisible(bool visible) = 0;

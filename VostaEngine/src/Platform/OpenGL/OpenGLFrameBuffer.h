@@ -21,6 +21,7 @@ namespace ve {
 
         void bind() override;
         void unbind() override;
+        void blitToDefault(uint32_t dstWidth, uint32_t dstHeight) override;
 
         void resize(uint32_t width, uint32_t height) override;
 

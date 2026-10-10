@@ -32,4 +32,12 @@ namespace ve {
 	// overwrite=false reports an error when the file already exists.
 	VE_API std::string writeAssetJson(const std::string& path, const JsonReader& data, bool overwrite);
 
+	// Bake the noise graph at `source` into a square grayscale RGBA texture asset
+	// at `out`. Both paths accept the same forms as read_asset. `size` is the
+	// resolution in pixels (clamped to [8, 4096]); overwrite=false refuses an
+	// existing `out`. Writes through TextureImporter, so the file is identical to
+	// an imported texture.
+	VE_API std::string bakeNoiseToTexture(const std::string& source, const std::string& out,
+	                                      int size, bool overwrite);
+
 }

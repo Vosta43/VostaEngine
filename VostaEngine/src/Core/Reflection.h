@@ -111,11 +111,20 @@ namespace ve {
 			if (ptr) *static_cast<T*>(ptr) = value;
 		}
 
-		static void registerGetter(const std::string& typeName,
+		// Both return true only when the type was absent and this call inserted it.
+		// An existing registration is never clobbered: a module that includes an
+		// engine header must not replace the engine's own reflection (which lives
+		// in the always-loaded engine DLL) with its own copy.
+		static bool registerGetter(const std::string& typeName,
 			std::function<void* (void*, const std::string&)> getter);
 
-		static void registerProperties(const std::string& typeName,
+		static bool registerProperties(const std::string& typeName,
 			std::function<std::vector<ReflectionProperty>& ()> propFunc);
+
+		// Removes a type's getter and properties. Called from VEREGISTER's object
+		// destructor so a module's own types leave the tables before its DLL is
+		// freed -- otherwise the stored lambdas would point into unmapped code.
+		static void unregisterType(const std::string& typeName);
 
 		static std::vector<std::string> getAllRegisteredTypes();
 	};
@@ -129,15 +138,21 @@ namespace ve {
 
 #define VEREGISTER(className) \
     static struct __globalReg_##className { \
+        bool m_owned = false; \
         __globalReg_##className() { \
-            ve::ReflectionSystem::registerGetter(#className, \
+            const bool getter = ve::ReflectionSystem::registerGetter(#className, \
                 [](void* obj, const std::string& name) -> void* { \
                     return className##Reflection::get(obj, name); \
                 }); \
-            ve::ReflectionSystem::registerProperties(#className, \
+            const bool props = ve::ReflectionSystem::registerProperties(#className, \
                 []() -> std::vector<ve::ReflectionProperty>& { \
                     return className##Reflection::getProperties(); \
                 }); \
+            m_owned = getter && props; \
+        } \
+        ~__globalReg_##className() { \
+            if (m_owned) \
+                ve::ReflectionSystem::unregisterType(#className); \
         } \
     } __globalReg_instance_##className;
 

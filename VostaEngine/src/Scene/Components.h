@@ -227,6 +227,47 @@ namespace ve {
 	};
 	VECOMPONENT(SkyBoxComponent, "Skybox", "Rendering")
 
+	// The game camera as scene data. Holds intrinsics only: the pose lives on the
+	// entity's TransformComponent (view = inverse(transform)). Per-view render
+	// state (TAA jitter history) stays on the runtime Camera, not here.
+	VESTRUCT(CameraComponent)
+	struct CameraComponent {
+		VEPROPERTY(CameraComponent, float, fov, "FOV", "type=drag,minValue=1,maxValue=179")
+		float fov = 45.0f;
+
+		VEPROPERTY(CameraComponent, float, nearPlane, "Near Plane", "type=drag,minValue=0.01,maxValue=100")
+		float nearPlane = 0.1f;
+
+		VEPROPERTY(CameraComponent, float, farPlane, "Far Plane", "type=drag,minValue=1,maxValue=100000")
+		float farPlane = 1200.0f;
+
+		VEPROPERTY(CameraComponent, bool, perspective, "Perspective", "type=bool")
+		bool perspective = true;
+
+		// The view renders from the primary camera; extra cameras can coexist.
+		VEPROPERTY(CameraComponent, bool, primary, "Primary", "type=bool")
+		bool primary = true;
+
+		CameraComponent() = default;
+
+		void serialize(JsonWriter& w) const {
+			w.set("fov", fov);
+			w.set("near", nearPlane);
+			w.set("far", farPlane);
+			w.set("perspective", perspective);
+			w.set("primary", primary);
+		}
+
+		void deserialize(const JsonReader& r) {
+			fov = r.getFloat("fov", fov);
+			nearPlane = r.getFloat("near", nearPlane);
+			farPlane = r.getFloat("far", farPlane);
+			perspective = r.getBool("perspective", perspective);
+			primary = r.getBool("primary", primary);
+		}
+	};
+	VECOMPONENT(CameraComponent, "Camera", "Rendering")
+
 	VESTRUCT(SpriteRendererComponent)
 	struct SpriteRendererComponent {
 		

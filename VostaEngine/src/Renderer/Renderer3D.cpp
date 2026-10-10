@@ -18,9 +18,9 @@ namespace ve {
 
     void Renderer3D::init() {
         auto& shaderLib = Application::get().getShaderLibrary();
-        shaderLib.load("SandBox/assets/shaders/3d.glsl");
+        shaderLib.load("VostaEngine/resources/shaders/3d.glsl");
         s_shader = shaderLib.get("3d");
-        shaderLib.load("SandBox/assets/shaders/Picking3D.glsl");
+        shaderLib.load("VostaEngine/resources/shaders/Picking3D.glsl");
         s_pickingShader = shaderLib.get("Picking3D");
 
         initSkybox();
@@ -169,7 +169,7 @@ namespace ve {
 
     void Renderer3D::initSkybox() {
         auto& shaderLib = Application::get().getShaderLibrary();
-        shaderLib.load("SandBox/assets/shaders/Skybox.glsl");
+        shaderLib.load("VostaEngine/resources/shaders/Skybox.glsl");
         s_skyboxShader = shaderLib.get("Skybox");
 
         Ref<VertexBuffer> vbo = VertexBuffer::create(

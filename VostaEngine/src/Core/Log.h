@@ -107,30 +107,30 @@ namespace ve {
         ve::Logger::Get().success(_ss.str()); \
     } while(0)
 
-#define VE_CORE_INFO_PRINT(fmt, ...) \
+#define VE_CORE_INFO_PRINT(...) \
     do { \
-        std::string _msg = ve::Logger::Get().formatString(fmt, __VA_ARGS__); \
+        std::string _msg = ve::Logger::Get().formatString(__VA_ARGS__); \
         ve::Logger::Get().success(_msg); \
         std::cout << "[INFO] " << _msg << std::endl; \
     } while(0)
 
-#define VE_CORE_SUCCESS_PRINT(fmt, ...) \
+#define VE_CORE_SUCCESS_PRINT(...) \
     do { \
-        std::string _msg = ve::Logger::Get().formatString(fmt, __VA_ARGS__); \
+        std::string _msg = ve::Logger::Get().formatString(__VA_ARGS__); \
         ve::Logger::Get().success(_msg); \
         std::cerr << "\033[32m"<<"[SUCCESS] " << _msg <<"\033[0m"<< std::endl; \
     } while(0)
 
-#define VE_CORE_WARN_PRINT(fmt, ...) \
+#define VE_CORE_WARN_PRINT(...) \
     do { \
-        std::string _msg = ve::Logger::Get().formatString(fmt, __VA_ARGS__); \
+        std::string _msg = ve::Logger::Get().formatString(__VA_ARGS__); \
         ve::Logger::Get().warn(_msg); \
         std::cerr << "\033[33m"<<"[WARNING] " << _msg <<"\033[0m"<< std::endl; \
     } while(0)
 
-#define VE_CORE_ERROR_PRINT(fmt, ...) \
+#define VE_CORE_ERROR_PRINT(...) \
     do { \
-        std::string _msg = ve::Logger::Get().formatString(fmt, __VA_ARGS__); \
+        std::string _msg = ve::Logger::Get().formatString(__VA_ARGS__); \
         ve::Logger::Get().error(_msg); \
         std::cerr << "\033[31m"<<"[ERROR] " << _msg <<"\033[0m"<< std::endl; \
     } while(0)

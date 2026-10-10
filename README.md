@@ -1,7 +1,7 @@
 # Vosta Engine
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
-![Version](https://img.shields.io/badge/version-0.2.6-blue.svg)
+![Version](https://img.shields.io/badge/version-0.2.7-blue.svg)
 
 A modern C++20 game engine built around deferred PBR rendering, a data-driven
 render pipeline, node-based material and noise graphs, quad-tree terrain, and a
@@ -69,7 +69,7 @@ editor whose scene can be scripted by AI agents over MCP.
 
 - CMake 3.21+
 - A C++20 compiler (MSVC 2022+, Clang 16+, GCC 13+)
-- OpenGL 4.3+
+- OpenGL 4.6+
 - Windows is the primary target (pre-built GLFW is vendored); Linux and macOS use
   the system GLFW package
 
@@ -88,14 +88,67 @@ The following CMake options are available:
 | Option             | Description                 | Default |
 | ------------------ | --------------------------- | ------- |
 | `VE_BUILD_EDITOR`  | Build the VostaEditor app   | ON      |
+| `VE_BUILD_PLAYER`  | Build the VostaPlayer host  | ON      |
 | `VE_BUILD_SANDBOX` | Build the SandBox demo app  | ON      |
 
 ## Run
 
 ```bash
 ./build/VostaEditor/Release/VostaEditor    # editor
-./build/SandBox/Release/SandBox            # demo / testbed
+./build/VostaPlayer/Release/VostaPlayer    # standalone runtime host
 ```
+
+## Running a project
+
+`VostaPlayer` is the standalone runtime host. It opens a project directory,
+renders that project's default scene, and loads `<project>/Binaries/game.dll` as
+its gameplay module when present:
+
+```bash
+VostaPlayer path/to/MyProject      # defaults to SandBox/ when omitted
+```
+
+The engine must locate its own resources (`VostaEngine/resources/`). It resolves
+the **engine root** from, in order:
+
+1. **`VOSTA_ENGINE_ROOT`** — environment variable pointing at the directory that
+   contains `VostaEngine/resources/`. This is how the dev tree runs: the build
+   output layout is not a shipping layout, so the root cannot be derived from the
+   binary alone. Visual Studio passes it through `LocalDebuggerEnvironment`, so
+   F5 works without any manual setup; a shell launch sets it explicitly.
+2. **The executable's location** — `<exeDir>/..`. This covers a self-contained
+   install (the SDK), where the host binary sits one level below the root.
+
+The working directory is never consulted, so a project can sit anywhere on disk.
+
+## Creating a project
+
+New projects are self-contained: a project folder carries its own copy of the
+engine in `engine/`, so it builds and runs anywhere with no configuration.
+
+```text
+MyGame/
+  MyGame.slnx          solution: the gameplay module only
+  MyGame.vcxproj       builds Binaries/game.dll
+  src/Game.cpp         your gameplay code
+  engine/              a copy of the engine (include/, lib/, bin/, buildsystem/, resources/)
+  content/             project content
+```
+
+To create one:
+
+1. Build the **`VostaEngineSdk`** project in `VostaEngine/VostaEngine.slnx`. It
+   assembles `SDK/` — the engine payload (`include/`, `lib/`, `bin/`,
+   `buildsystem/`, `VostaEngine/resources/`) plus the project template
+   (`templates/GameProject/`). `SDK/` is a build product and is gitignored.
+2. In the editor, create a new project and enable the gameplay-module option.
+   The generator copies the template and materializes the engine payload into
+   `<project>/engine/`.
+3. Open `<project>/<name>.slnx` in Visual Studio and press F5.
+
+Upgrading a project's engine is an explicit re-copy of `SDK/` into its `engine/`
+folder. Nothing updates it automatically, so a project stays on the engine
+version it was created with.
 
 ## Project Structure
 
@@ -106,20 +159,20 @@ VostaEngine/            Core engine library
       Pipeline/         Data-driven pass configuration
       RenderPass/       GBuffer, HDR, TAA, cloud, shadow, present passes
       Shadow/           Cascaded shadow setup
+      Preprocess/       Atmosphere sky and IBL bakers
     Scene/              ECS, prefabs, serialization, quad-tree terrain
     Noise/              Node-based procedural noise
     Core/               Application, logging, resources, project roots
     Platform/           GLFW windowing + OpenGL backend
     Asset/              Asset library, mesh / texture import
-    MCP/                Model Context Protocol tool layer
-    AI/                 LLM client and agent session
+    MCP/                MCP tool layer, LLM client, and agent session
     Gui/                Shared ImGui widgets
-  resources/            Icons, fonts, agent docs
+  resources/            Shaders, pipelines, fonts, built-in meshes, agent docs
   thirdparty/           Vendored dependencies
 VostaEditor/            Editor application (ImGui panels, graph and terrain editors)
-SandBox/                Demo / testbed application
+VostaPlayer/            Standalone runtime host
+SandBox/                Built-in default project
 Projects/               Per-machine project roots (gitignored)
-docs/                   Design notes
 ```
 
 ## License

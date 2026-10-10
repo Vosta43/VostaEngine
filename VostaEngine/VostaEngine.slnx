@@ -7,5 +7,7 @@
   <Project Path="thirdparty/Jolt/Jolt.vcxproj" Id="2a0b7d65-22f6-4a4b-937f-142d57462d89" />
   <Project Path="../SandBox/SandBox.vcxproj" Id="69dfdaf3-9100-42d0-8832-4b3dcac0fa81" />
   <Project Path="../VostaEditor/VostaEditor.vcxproj" Id="0086d3fb-dd2f-452f-ab54-84da9fa66c00" />
+  <Project Path="../VostaPlayer/VostaPlayer.vcxproj" Id="c3d4e5f6-3333-4444-8555-666677778888" />
   <Project Path="VostaEngine.vcxproj" Id="d785d540-5557-434a-9d5b-119948540da9" />
+  <Project Path="buildsystem/VostaEngineSdk.vcxproj" Id="5c2f7a30-9d41-4e6b-8a75-0b3c6d9e1f24" />
 </Solution>

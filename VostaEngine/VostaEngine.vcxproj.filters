@@ -24,7 +24,16 @@
     <ClCompile Include="src\Core\Application.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Core\ComponentRegistry.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Core\GameModuleHost.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Core\AssetConfig.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Core\EnginePaths.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Core\Project.cpp">
@@ -37,6 +46,36 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Gui\Gui.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Core\Widget.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Text\FontAtlas.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Text\FontManager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Widgets\Button.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Widgets\ColoredBox.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Widgets\Stack.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Widgets\TextBlock.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\VellumRenderer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\WidgetTree.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\VellumLayer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\MCP\AgentSession.cpp">
@@ -141,6 +180,9 @@
     <ClCompile Include="thirdparty\stb_image\stb_image.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="thirdparty\stb_truetype\stb_truetype.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="thirdparty\ufbx\ufbx.c">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -172,6 +214,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Scene\Entity.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\SceneClone.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Scene\SceneSerializer.cpp">
@@ -336,6 +381,9 @@
     <ClCompile Include="src\Renderer\SceneViewRenderer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Renderer\SceneView.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Core\JobSystem.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -346,6 +394,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Noise\NoiseGraph.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Noise\NoiseBaker.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Noise\NoisePlan.cpp">
@@ -362,6 +413,12 @@
     <ClInclude Include="src\Core\Application.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Core\GameModule.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core\GameModuleHost.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Core\Core.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -375,6 +432,54 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Gui\Gui.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Core\DrawList.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Core\InputFrame.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Core\Layout.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Core\PaintContext.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Core\Reply.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Core\Widget.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Text\FontAtlas.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Text\FontManager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Text\Utf8.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Widgets\Button.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Widgets\ColoredBox.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Widgets\Stack.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Widgets\TextBlock.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\VellumRenderer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\WidgetTree.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\VellumLayer.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\MCP\AgentSession.h">
@@ -509,6 +614,9 @@
     <ClInclude Include="thirdparty\stb_image\stb_image.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="thirdparty\stb_truetype\stb_truetype.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="thirdparty\ufbx\ufbx.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -545,6 +653,9 @@
     <ClInclude Include="src\Scene\Components.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Scene\SceneClone.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Scene\SceneSerializer.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -564,6 +675,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Core\AssetConfig.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core\EnginePaths.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Core\Project.h">
@@ -752,6 +866,9 @@
     <ClInclude Include="src\Renderer\SceneViewRenderer.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Renderer\SceneView.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Core\JobSystem.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -765,6 +882,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Noise\NoiseGraph.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Noise\NoiseBaker.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Noise\NoiseNodes.h">

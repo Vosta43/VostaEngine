@@ -9,7 +9,7 @@
 #include "Core/Core.h"
 
 namespace ve {
-    class Archive {
+    class VE_API Archive {
     public:
         virtual ~Archive() = default;
 

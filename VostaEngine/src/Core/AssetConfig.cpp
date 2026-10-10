@@ -27,20 +27,30 @@ const std::filesystem::path& getAssetRoot() {
 std::string toAbsolute(const std::string& path) {
     if (path.empty()) return "";
     std::filesystem::path p(path);
-    if (p.is_absolute()) {
+    if (p.is_absolute())
         return p.lexically_normal().string();
-    }
+    // "content/..." is the open project's own content; every other key belongs
+    // to the engine, whose root is fixed at startup.
+    if (hasProjectRoot() && *p.begin() == "content")
+        return (s_projectRoot / p).lexically_normal().string();
     return (s_assetRoot / p).lexically_normal().string();
 }
 
 std::string toRelative(const std::string& path) {
     if (path.empty()) return "";
     std::filesystem::path p(path);
-    if (p.is_relative()) {
-        // Already relative — assume it's asset-root-relative.
+    if (p.is_relative())
         return p.generic_string();
-    }
     p = p.lexically_normal();
+
+    // Project content stays project-root-relative so a project is portable;
+    // engine-owned assets stay asset-root-relative.
+    if (hasProjectRoot()) {
+        auto projRel = p.lexically_relative(s_projectRoot);
+        if (!projRel.empty() && *projRel.begin() == "content")
+            return projRel.generic_string();
+    }
+
     auto rel = p.lexically_relative(s_assetRoot);
     if (!rel.empty() && rel.string().find("..") == 0) {
         // Path is outside the asset root (e.g. a file dialog selection).

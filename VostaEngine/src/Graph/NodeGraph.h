@@ -51,11 +51,12 @@ namespace ve {
 	public:
 		std::string displayName;
 		PinId id;
-		PinType type;
+		PinType type;      // resolved type, recomputed by NodeGraph::propagateTypes
+		PinType baseType;  // type declared at construction; the fallback when unconnected
 		bool isInputPin;
 
 		GraphPin(const std::string& name, PinId pinId, PinType type, bool isInputPin)
-			:displayName(name), id(pinId), type(type), isInputPin(isInputPin) {
+			:displayName(name), id(pinId), type(type), baseType(type), isInputPin(isInputPin) {
 		}
 	};
 
@@ -78,6 +79,20 @@ namespace ve {
 		// whose pin is optional (a param the inline widget also owns) tell "no wire"
 		// apart from a real 0. Defaults to 0, which is what a bare math node wants.
 		virtual float inputDefault(uint32_t /*pinIndex*/) const { return 0.0f; }
+
+		// Expression the code generator substitutes for an unconnected input pin,
+		// or "" to fall back to the pin type's zero value. Lets a node whose input
+		// is optional supply a meaningful default (mesh UVs, the engine clock, ...).
+		virtual std::string inputDefaultExpr(uint32_t /*pinIndex*/) const { return {}; }
+
+		// Whether input pins take their type from whatever is wired into them
+		// (math/vector nodes) instead of keeping the declared type (typed inputs
+		// such as Material Output's Base Color, whose codegen expects a fixed type).
+		virtual bool adaptsInputTypes() const { return false; }
+
+		// Recompute output pin types once input types are resolved. Nodes with a
+		// fixed output type leave this empty.
+		virtual void computeOutputTypes() {}
 
 		virtual void serialize(Archive& ar) const = 0;
 		virtual void deserialize(Archive& ar) = 0;
@@ -168,6 +183,11 @@ namespace ve {
 		}
 
 		std::vector<Ref<GraphNode>> topologicalSort() const;
+
+		// Re-resolve every pin's type from the wiring: adaptive inputs adopt the
+		// type wired into them, then each node derives its output types. Call after
+		// any link change (and after deserialize) so codegen and the editor agree.
+		void propagateTypes();
 
 		void serialize(const NodeRegistry& registry, Archive& ar) const;
 		void deserialize(const NodeRegistry& registry, Archive& ar);

@@ -26,8 +26,20 @@ namespace ve {
         s_RendererAPI->setViewport(x, y, width, height);
     }
 
+    void RenderCommand::setScissor(int32_t x, int32_t y, int32_t width, int32_t height) {
+        s_RendererAPI->setScissor(x, y, width, height);
+    }
+
+    void RenderCommand::setScissorTest(bool enabled) {
+        s_RendererAPI->setScissorTest(enabled);
+    }
+
     void RenderCommand::drawIndexed(const Ref<VertexArray>& vertexArray) {
         s_RendererAPI->drawIndexed(vertexArray);
+    }
+
+    void RenderCommand::drawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount, uint32_t firstIndex) {
+        s_RendererAPI->drawIndexed(vertexArray, indexCount, firstIndex);
     }
 
     void RenderCommand::setDepthTesting(bool enabled) {
