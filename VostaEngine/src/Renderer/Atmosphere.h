@@ -8,6 +8,33 @@
 
 namespace ve {
 
+	// CIE xy Planckian-locus fit (Kim et al.) -> linear sRGB, normalized so the
+	// brightest channel is 1. Gives a blackbody its chromaticity at constant
+	// apparent brightness, so switching color models never changes exposure.
+	inline glm::vec3 blackbodyRGB(float kelvin) {
+		const float T = glm::clamp(kelvin, 1000.0f, 40000.0f);
+		float x;
+		if (T <= 4000.0f)
+			x = -0.2661239e9f / (T*T*T) - 0.2343589e6f / (T*T) + 0.8776956e3f / T + 0.179910f;
+		else
+			x = -3.0258469e9f / (T*T*T) + 2.1070379e6f / (T*T) + 0.2226347e3f / T + 0.240390f;
+
+		float y;
+		if (T <= 2222.0f)      y = -1.1063814f*x*x*x - 1.34811020f*x*x + 2.18555832f*x - 0.20219683f;
+		else if (T <= 4000.0f) y = -0.9549476f*x*x*x - 1.37418593f*x*x + 2.09137015f*x - 0.16748867f;
+		else                   y =  3.0817580f*x*x*x - 5.87338670f*x*x + 3.75112997f*x - 0.37001483f;
+
+		const float X = x / y;
+		const float Z = (1.0f - x - y) / y;
+		glm::vec3 rgb(                         // Y = 1
+			 3.2406f * X - 1.5372f - 0.4986f * Z,
+			-0.9689f * X + 1.8758f + 0.0415f * Z,
+			 0.0557f * X - 0.2040f + 1.0570f * Z);
+		rgb = glm::max(rgb, glm::vec3(0.0f));
+		const float m = glm::max(rgb.r, glm::max(rgb.g, rgb.b));
+		return m > 0.0f ? rgb / m : glm::vec3(1.0f);
+	}
+
 	// Physically-based atmospheric scattering parameters (Rayleigh + Mie).
 	// Sea-level scattering coefficients and scale heights follow standard
 	// Earth-like reference values (Bruneton 2008 / Hillaire 2020).
@@ -18,6 +45,24 @@ namespace ve {
 
 		VEPROPERTY(AtmosphereParams, float, sunIntensity, "Sun Intensity", "type=drag,minValue=0,maxValue=100,speed=0.01")
 		float sunIntensity = 4.5f;
+
+		// Sun emitter color: either an explicit tint or a blackbody temperature.
+		// useTemperature picks the model (UE-style "Use Temperature"); its product
+		// with sunIntensity is the radiance the shaders consume.
+		VEPROPERTY(AtmosphereParams, bool, useTemperature, "Use Temperature", "type=bool")
+		bool useTemperature = false;
+
+		VEPROPERTY(AtmosphereParams, glm::vec3, sunColor, "Sun Color", "type=drag")
+		glm::vec3 sunColor = glm::vec3(1.0f);
+
+		VEPROPERTY(AtmosphereParams, float, sunTemperature, "Sun Temperature", "type=drag,minValue=1000,maxValue=40000,speed=10")
+		float sunTemperature = 5778.0f;
+
+		// The emitter tint for the active model: sunColor verbatim, or a
+		// normalized blackbody chromaticity when useTemperature is set.
+		glm::vec3 resolveSunColor() const {
+			return useTemperature ? blackbodyRGB(sunTemperature) : sunColor;
+		}
 
 		VEPROPERTY(AtmosphereParams, glm::vec3, rayleighScattering, "Rayleigh Scattering", "type=drag")
 		glm::vec3 rayleighScattering = glm::vec3(5.802e-6f, 13.558e-6f, 33.1e-6f);
@@ -52,6 +97,9 @@ namespace ve {
 		void serialize(JsonWriter& w) const {
 			w.set("sunDirection", sunDirection);
 			w.set("sunIntensity", sunIntensity);
+			w.set("useTemperature", useTemperature);
+			w.set("sunColor", sunColor);
+			w.set("sunTemperature", sunTemperature);
 			w.set("rayleighScattering", rayleighScattering);
 			w.set("rayleighScaleHeight", rayleighScaleHeight);
 			w.set("mieScattering", mieScattering);
@@ -67,6 +115,9 @@ namespace ve {
 		void deserialize(const JsonReader& r) {
 			sunDirection = r.getVec3("sunDirection", sunDirection);
 			sunIntensity = r.getFloat("sunIntensity", sunIntensity);
+			useTemperature = r.getBool("useTemperature", useTemperature);
+			sunColor = r.getVec3("sunColor", sunColor);
+			sunTemperature = r.getFloat("sunTemperature", sunTemperature);
 			rayleighScattering = r.getVec3("rayleighScattering", rayleighScattering);
 			rayleighScaleHeight = r.getFloat("rayleighScaleHeight", rayleighScaleHeight);
 			mieScattering = r.getVec3("mieScattering", mieScattering);

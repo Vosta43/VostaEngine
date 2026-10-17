@@ -123,6 +123,10 @@ namespace ve {
         return nullptr;
     }
 
+    bool BakeService::hasAtmosphereLUTs() const {
+        return m_scatteringTexture && m_mieScatteringTexture && m_multipleScatteringTexture;
+    }
+
     const CloudTextures& BakeService::getCloudTextures() {
         if (!m_clouds.noise && !m_pendingCloudNoise.task)
             m_pendingCloudNoise = JobSystem::get().schedule([] {

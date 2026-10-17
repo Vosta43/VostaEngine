@@ -2,6 +2,7 @@
 #include "GameModuleHost.h"
 #include "Application.h"
 #include "Log.h"
+#include "Scene/Scene.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -29,6 +30,22 @@ namespace ve {
 				text.pop_back();
 			return text;
 		}
+
+		// Bridges the scene's tick to the module: gameplay runs from
+		// Scene::onUpdate, so a host that pauses the scene pauses the game.
+		class GameplayTickSystem : public ECSystemBase {
+		public:
+			GameplayTickSystem(GameModule& module, Scene& scene)
+				: m_module(module), m_scene(scene) {}
+
+			void onUpdate(float deltaTime) override {
+				m_module.onUpdate(m_scene, deltaTime);
+			}
+
+		private:
+			GameModule& m_module;
+			Scene&      m_scene;
+		};
 
 	} // namespace
 
@@ -96,6 +113,18 @@ namespace ve {
 		catch (...) {
 			m_lastError = "module threw during onLoad: " + dllPath;
 			VE_CORE_ERROR_PRINT("%s", m_lastError.c_str());
+
+			// Let the module undo whatever onLoad managed to do (e.g. pop a layer
+			// it pushed) before we free its DLL -- otherwise that layer lingers in
+			// the app pointing into unmapped code. Its cleanup may throw too;
+			// swallow that so we still unload.
+			try {
+				module->onUnload(app);
+			}
+			catch (...) {
+				VE_CORE_ERROR_PRINT("%s", "module threw during onUnload after a failed onLoad");
+			}
+
 			destroy(module);
 			::FreeLibrary(handle);
 			return false;
@@ -108,7 +137,65 @@ namespace ve {
 		return true;
 	}
 
+	bool GameModuleHost::start(Scene& scene) {
+		if (!m_module) {
+			m_lastError = "start() called with no module loaded";
+			VE_CORE_ERROR_PRINT("%s", m_lastError.c_str());
+			return false;
+		}
+		if (m_tick) {
+			m_lastError = "a play session is already running";
+			VE_CORE_ERROR_PRINT("%s", m_lastError.c_str());
+			return false;
+		}
+
+		// The tick lives on the scene, so the scene's update drives gameplay.
+		m_tick = CreateRef<GameplayTickSystem>(*m_module, scene);
+		m_scene = &scene;
+		scene.addSystem(m_tick);
+
+		try {
+			m_module->onStart(scene);
+		}
+		catch (...) {
+			m_lastError = "module threw during onStart";
+			VE_CORE_ERROR_PRINT("%s", m_lastError.c_str());
+			scene.removeSystem(m_tick);
+			m_tick.reset();
+			m_scene = nullptr;
+			return false;
+		}
+		return true;
+	}
+
+	void GameModuleHost::stop(Scene& scene) {
+		if (!m_tick)
+			return;
+
+		if (m_module) {
+			try {
+				m_module->onEnd(scene);
+			}
+			catch (...) {
+				VE_CORE_ERROR_PRINT("%s", "module threw during onEnd");
+			}
+		}
+
+		scene.removeSystem(m_tick);
+		m_tick.reset();
+		m_scene = nullptr;
+	}
+
 	void GameModuleHost::unload() {
+		// A session left running (stop() never called): drop the tick before the
+		// module goes away, so nothing dangles into the freed DLL.
+		if (m_tick) {
+			if (m_scene)
+				m_scene->removeSystem(m_tick);
+			m_tick.reset();
+			m_scene = nullptr;
+		}
+
 		if (m_module) {
 			if (m_app) {
 				try {
@@ -144,6 +231,14 @@ namespace ve {
 	}
 
 	void GameModuleHost::unload() {}
+
+	bool GameModuleHost::start(Scene&) {
+		m_lastError = "GameModuleHost is not implemented on this platform yet";
+		VE_CORE_ERROR_PRINT("%s", m_lastError.c_str());
+		return false;
+	}
+
+	void GameModuleHost::stop(Scene&) {}
 
 #endif
 

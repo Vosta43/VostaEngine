@@ -27,12 +27,12 @@ uniform vec3 u_PlanetCenter;
 uniform float u_BlendAlpha;        // current-frame weight 0.07 (1.0 on first frame)
 uniform vec2  u_TexelSize;         // 1/quarter-res, 3x3 neighborhood offset
 
-// u_PlanetRadius / u_CloudInnerRadius / u_CloudOuterRadius are NOT redeclared
-// here: they come from the includes below, and CloudTAAPass sets them.
+// u_PlanetRadius / u_CamAltitude / u_CloudInnerAltitude / u_CloudOuterAltitude are
+// NOT redeclared here: they come from the includes below, and CloudTAAPass sets them.
 
 // Includes are inlined by the engine BEFORE the stage split, so they must sit
 // after #shader fragment to land only here. atmosphere.glsl first — the cloud
-// library reuses its raySphere + u_PlanetRadius.
+// library reuses its rayShell + u_CamAltitude + u_PlanetRadius.
 #include "atmosphere.glsl"
 #include "volume_cloud.glsl"
 
@@ -49,10 +49,11 @@ void main()
     // drops them. Instead recompute the cloud ENTRY distance from the view ray +
     // shell — the same value the cloud pass raymarched under — so the history
     // reprojects with the correct cloud parallax.
-    vec4 ndc      = vec4(uv * 2.0 - 1.0, 1.0, 1.0);
+    // Reverse-Z: the far plane is at z_ndc 0.
+    vec4 ndc      = vec4(uv * 2.0 - 1.0, 0.0, 1.0);
     vec4 farPlane = u_InvViewProj * ndc;
     vec3 rayDir   = normalize(farPlane.xyz / farPlane.w - u_CameraPos);
-    vec2 t        = rayCloudLayer(u_CameraPos - u_PlanetCenter, rayDir);
+    vec2 t        = rayCloudLayer(u_CameraPos - u_PlanetCenter, rayDir, u_CamAltitude);
     if (t.x < 0.0) { o_FragColor = cur; return; }
 
     vec3 worldPos = u_CameraPos + rayDir * t.x;

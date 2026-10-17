@@ -46,6 +46,8 @@ private:
     void drawMaterialProperty(void* ptr, const ReflectionProperty& prop);
     void drawTextureProperty(void* ptr);
     void drawSkyboxTextureProperty(void* ptr);
+    // Generic row for uiType mesh/noise/terrain_rule/hud: label, search combo, clear.
+    void drawAssetHandleProperty(void* ptr, const ReflectionProperty& prop);
 
     // Component-level custom drawers.
     void drawStaticMeshComponent(StaticMeshComponent* comp);
@@ -68,10 +70,6 @@ private:
     OpenMaterialEditorFn m_onOpenMaterialLayerEditor;
     OpenTerrainMapFn m_onOpenTerrainMap;
     TerrainBrushFn m_onDrawTerrainBrush;
-    glm::vec3 m_editPosition = glm::vec3(0.0f);
-    glm::vec3 m_editRotation = glm::vec3(0.0f);
-    glm::vec3 m_editScale = glm::vec3(1.0f);
-    char m_nameBuffer[256] = "";
 
     // A tile edit spawns or destroys an entity, which reallocates the component
     // storage that this frame's component pointers were taken from. The request is

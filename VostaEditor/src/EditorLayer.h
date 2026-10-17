@@ -1,27 +1,34 @@
 #pragma once
 #include <VostaEngine.h>
-#include <Core/Project.h>
 
 #include <cstdint>
 #include <filesystem>
+#include <string>
 
+#include "EditorCameraStore.h"
 #include "EditorViewController.h"
 #include "PlaySession.h"
-#include "Panels/AiPanel.h"
-#include "Panels/FileBrowser.h"
-#include "Panels/MaterialGraphPanel.h"
-#include "Panels/NoisePanel.h"
-#include "Panels/TerrainMapPanel.h"
-#include "Panels/TexturePreviewPanel.h"
-#include "SubEditors/MaterialLayerEditor.h"
-#include "SubEditors/LayeredMaterialEditor.h"
-#include "SubEditors/TerrainEditor.h"
+#include "SceneDocument.h"
 
-// TODO :Remove it
+#include "Panels/AiPanel.h"
+#include "Panels/AssetEditorHost.h"
+#include "Panels/EditorDialogs.h"
+#include "Panels/FileBrowser.h"
+#include "Panels/TerrainMapPanel.h"
+#include "SubEditors/TerrainEditor.h"
+#include "Viewport/ViewportOverlays.h"
+#include "Viewport/ViewportToolbar.h"
+
 #include <glm.hpp>
 
 namespace ve {
 
+    // The editor's orchestrator: it owns the dockspace, the viewport window and
+    // the shared state (selection, viewport cursor, brush flags, play session)
+    // that the editor's modules read and write by reference, and it decides the
+    // ORDER of operations that cross modules -- the camera sidecar around a scene
+    // switch, terrain data before scene serialization, the play-session guards.
+    // The work itself lives in the modules it hosts.
     class EditorLayer : public Layer {
     public:
         EditorLayer();
@@ -29,38 +36,31 @@ namespace ve {
         void onAttach() override;
         void onDetach() override;
         void onUIRender() override;
+        void onUpdate() override;
 
-        void renderMenuBar();
-
-        // Returns false when nothing was written (no file name yet, or the write
-        // failed).
+        // Save the open scene under the current save name. Returns false when
+        // nothing was written (no file name yet, or the write failed).
         bool saveScene();
-        void loadScene();
+        // Load the .veworld named `name` from the project's scenes folder.
+        void loadScene(const std::string& name);
 
         // Current document, for the editor-side adapter (EditorMcpTools) to bind
         // its scene provider and report the saved path. Ordinary accessors -- no
         // protocol vocabulary.
         Ref<Scene> currentScene();
         const std::filesystem::path& currentScenePath() const;
+
         // Double-click entry point from the file browser: dispatches on the
-        // file's kind (a .veworld loads as a scene, a material .veasset opens
-        // the node editor).
+        // file's kind (a .veworld loads as a scene, a .veasset opens the matching
+        // asset editor).
         void openFile(const std::string& path);
 
         void bootstrapProject();
         void applyProject(const std::string& projectDir);
 
         void onEntitySelected(uint32_t entityID);
-        void openMaterialEditor(AssetHandle handle);
-        void openMaterialLayerEditor(AssetHandle handle);
-        // Opens the standalone layer-stack editor on a LayeredMaterial asset.
-        void openLayeredMaterialEditor(AssetHandle handle);
-        // Opens the texture viewer on a texture .veasset path.
-        void openTexturePreview(const std::string& path);
-        void performPicking();
         // Raycast the terrain under the viewport cursor and paint one brush dab.
         void paintTerrain();
-        void onUpdate() override;
 
         // Play-in-Editor transport. startPlay duplicates the scene into a runtime
         // session and points the viewport at it; stopPlay discards it and restores
@@ -69,68 +69,41 @@ namespace ve {
         void stopPlay();
 
     private:
-        // One row in the Load dialog: a .veworld file found in the scenes folder.
-        struct SceneFile {
-            std::string name;
-            uintmax_t size = 0;
-        };
-
-        void refreshSceneFileList();
-        void refreshProjectList();
+        // Draws the File / Window menu bar, into the current window.
+        void renderMenuBar();
 
         // Loads a scene from an absolute path and rebinds the editor to it.
         bool openScene(const std::filesystem::path& absolutePath);
 
-        // "<sceneStem>_terrain.veasset" next to the scene, the one file a terrain's
-        // painted weights are written to.
-        static std::string terrainDataPathFor(const std::filesystem::path& scenePath);
-        // Write the painted weights and point the system's handle at the file.
-        void writeTerrainDataFor(const std::filesystem::path& scenePath);
-        // Mark the terrain-data file dirty for the File Browser's Save (N) button.
-        void syncTerrainDataDirty();
-
-        // Editor viewport camera, persisted as a "<scene>.camera.json" sidecar
-        // next to the scene file so reopening a scene resumes where the user left
-        // off. Session state, not document state -- deliberately not written into
-        // the .veworld.
-        void restoreCameraFor(const std::filesystem::path& scenePath);
-        // Writes the current viewport camera under m_currentSceneName. Returns
-        // true if anything was written. force skips the "unchanged" short-circuit
-        // (needed on Save As, where the name changed but the camera did not).
-        bool saveCurrentCamera(bool force = false);
-
-        static glm::mat4 makeBillboard(const glm::vec3& position, const glm::mat4& viewMatrix);
-
-        void renderLightBillboards(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, const glm::vec3& cameraPos);
-        void renderCameraBillboards(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, const glm::vec3& cameraPos);
+        // Points the editor view at `scene` and wires its asset / inspector
+        // callbacks to this layer's modules, then hands the scene to the viewport.
+        void bindEditorView(Ref<Scene> scene);
 
     private:
-        Ref<Shader> m_pickingShader;
-
         FileBrowser m_fileBrowser;
         // Last AssetLibrary revision the file browser was told about. Anything that
         // writes an asset bumps the library's counter, so comparing it here catches
         // writes the editor did not make itself.
         uint64_t m_seenAssetRevision = 0;
+
         EditorViewController m_editorView;
         SceneView m_sceneView;
-        MaterialGraphPanel m_materialGraphPanel;
-        NoisePanel m_noisePanel;
-        bool m_showNoiseEditor = false;
 
-        Ref<SingleMaterial> m_openMaterial = nullptr;
-        AssetHandle m_openMaterialOriginalHandle;
-        bool m_showMaterialEditor = false;
-        bool m_needsMaterialRecompile = false;
+        // Hosts the .veasset editors (material graph, layer stack, material layer,
+        // noise graph, texture viewer).
+        AssetEditorHost m_assetEditors;
+        // The editor's modal dialogs (Save / Load scene, New / Open project,
+        // Package). Drives its work back through callbacks this layer sets.
+        EditorDialogs m_dialogs;
 
-        MaterialLayerEditor m_materialLayerEditor;
-        bool m_showMaterialLayerEditor = false;
+        ViewportToolbar m_toolbar;
+        ViewportOverlays m_overlays;
 
-        LayeredMaterialEditor m_layeredMaterialEditor;
-        bool m_showLayeredMaterialEditor = false;
-
-        TexturePreviewPanel m_texturePreview;
-        bool m_showTexturePreview = false;
+        // Scene + project identity and terrain-data persistence, plus the editor
+        // camera sidecar. Neither decides the ORDER of camera saves around a scene
+        // switch -- this layer does.
+        SceneDocument m_document;
+        EditorCameraStore m_cameraStore;
 
         // Chat + tool console. Owns the AgentSession, so its shutdown() is the
         // one thing that must run before the layer goes away.
@@ -144,70 +117,9 @@ namespace ve {
 
         uint32_t m_selectedEntity = UINT32_MAX;
 
-        Ref<Framebuffer> m_pickingFramebuffer;
-
-        bool m_needsPicking = false;
-        glm::vec2 m_pickPos;
-
+        // Viewport-relative cursor, in the space the overlays use for picking and
+        // the terrain brush ring.
         glm::vec2 m_mouseViewportPos = { 0.0f, 0.0f };
-
-        bool m_showSavePopup = false;
-        bool m_showLoadPopup = false;
-        // Scene the editor is currently working on. Set on save/load, restored
-        // from the project's Saved/last_scene.txt at startup, and used to
-        // prefill both dialogs.
-        std::string m_currentSceneName = "";
-        // Absolute path of the scene that is actually open, empty when no scene
-        // is bound. The camera sidecar is derived from this, so a scene the
-        // editor has not loaded can never have its saved view overwritten.
-        std::filesystem::path m_currentScenePath;
-        std::string m_saveFileName = "scene.veworld";
-        std::string m_loadFileName = "";
-        char m_saveFileNameBuffer[256] = "scene.veworld";
-        char m_loadFileNameBuffer[256] = "";
-
-        // Rescanned each time the Load dialog opens.
-        std::vector<SceneFile> m_sceneFiles;
-
-        // Last camera state written to disk, so saveCurrentCamera() can skip
-        // no-op writes and onUpdate can throttle the idle save.
-        glm::vec3 m_savedCamPos{ 0.0f };
-        float m_savedCamYaw = 0.0f;
-        float m_savedCamPitch = 0.0f;
-        double m_lastCameraSaveTime = 0.0;
-
-        // Currently open project (folder under <root>/Projects, or the built-in
-        // SandBox). Switched through the File menu.
-        ProjectInfo m_project;
-        bool m_showNewProjectPopup = false;
-        bool m_showOpenProjectPopup = false;
-        char m_newProjectNameBuffer[256] = "NewProject";
-        // Folder the new project is created in. Seeded with <assetRoot>/Projects
-        // the first time the dialog opens, then editable to any absolute path.
-        char m_newProjectLocationBuffer[512] = "";
-        // Scaffold src/Game.cpp + a standalone .vcxproj/.slnx for the new project.
-        bool m_newProjectWithModule = true;
-        // Project folders rescanned each time the Open Project dialog opens.
-        std::vector<std::string> m_projectDirs;
-        std::string m_openProjectDir;
-
-        // Light icon billboard
-        AssetHandle m_pointLightIcon;
-        float m_lightIconSize = 0.5f;
-
-        // Camera icon billboard, so a CameraComponent has a visible origin.
-        AssetHandle m_cameraIcon;
-        float m_cameraIconSize = 0.5f;
-
-        // Viewport toolbar toggle icons.
-        Ref<Texture2D> m_wireframeIcon;
-        Ref<Texture2D> m_groundGridIcon;
-
-        // Play-in-Editor transport icons.
-        Ref<Texture2D> m_playIcon;
-        Ref<Texture2D> m_pauseIcon;
-        Ref<Texture2D> m_stepIcon;
-        Ref<Texture2D> m_stopIcon;
 
         // Terrain material paint brush, driven from the TerrainSystem inspector.
         // While m_showTerrainBrush is on, LMB in the viewport paints instead of

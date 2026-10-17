@@ -9,7 +9,7 @@ is self-contained -- move it anywhere and it still builds and runs.
 {{PROJECT_NAME}}.slnx      Solution: the game module only
 {{PROJECT_NAME}}.vcxproj   Gameplay module -> Binaries/game.dll
 src/Game.cpp               Your gameplay code (start here)
-engine/                    The engine: include/, lib/, bin/, buildsystem/, resources/
+engine/                    The engine: include/, lib/, bin/, buildsystem/, resources/, docs/
 content/                   Your project content (scenes, imported assets)
 Binaries/                  Build output (game.dll); created on build
 ```
@@ -20,17 +20,21 @@ Binaries/                  Build output (game.dll); created on build
 2. Press F5.
 
 That builds `Binaries/game.dll` and launches `engine/bin/VostaPlayer.exe` on this
-folder. The console prints `[{{PROJECT_NAME}}] gameplay layer attached` and
-`onPlay, entities=...` once the scene is up.
+folder.
 
 ## Where to write game code
 
-Everything lives in `src/Game.cpp`:
+Everything lives in `src/Game.cpp` -- one class, `Game`:
 
-- `GameLayer::onAttach` -- runs once, when the module is loaded.
-- `GameModule::onLoad` -- register components/systems and push gameplay layers.
-- `GameModule::onPlay` -- runs when a play session starts, with a throwaway
-  runtime `Scene` you may mutate freely.
+- `onStart` -- runs once when a play session begins, with a throwaway runtime
+  `Scene` you may mutate freely. Build your world here.
+- `onUpdate` -- runs every frame while the session is live.
+- `onEnd` -- runs once when the session stops.
+- `onLoad` / `onUnload` -- optional module-wide setup (e.g. registering component
+  types). Leave them out unless you need them.
+
+`onUpdate` is driven by the runtime scene's own tick, so a host that pauses the
+scene (the editor's Play session) pauses the game with it.
 
 Add more `.cpp` files next to `src/Game.cpp` and list them in the `.vcxproj`
 under the existing `ClCompile` item.

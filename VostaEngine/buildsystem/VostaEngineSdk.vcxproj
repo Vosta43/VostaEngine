@@ -95,6 +95,7 @@
       <SdkResources Include="$(VostaEngineDir)resources\**\*.*" />
       <SdkBuildsystem Include="$(VostaEngineDir)buildsystem\Vosta.GameModule.props" />
       <SdkTemplates Include="$(VostaEngineDir)buildsystem\templates\**\*.*" />
+      <SdkDocs Include="$(VostaEngineDir)docs\**\*.*" />
     </ItemGroup>
 
     <!-- Fail before a single file is written. A half-copied SDK/ on disk is worse
@@ -120,6 +121,10 @@
     <Copy SourceFiles="@(SdkBuildsystem)" DestinationFolder="$(VostaSdkDir)buildsystem" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(SdkTemplates)"
           DestinationFiles="@(SdkTemplates->'$(VostaSdkDir)templates\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+
+    <Copy SourceFiles="@(SdkDocs)"
+          DestinationFiles="@(SdkDocs->'$(VostaSdkDir)docs\%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
 
     <Copy SourceFiles="$(VostaBuildOut)VostaEngine.lib" DestinationFolder="$(VostaSdkDir)lib" SkipUnchangedFiles="true" />

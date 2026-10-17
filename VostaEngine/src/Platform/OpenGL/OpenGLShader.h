@@ -1,7 +1,7 @@
 #pragma once
 #include "Renderer/Shader.h"
 #include "Core/Core.h"
-#include "Renderer/Light.h"
+#include "Renderer/GpuLightData.h"
 #include "Renderer/StorageBuffer.h"
 
 namespace ve {
@@ -27,8 +27,10 @@ namespace ve {
 		void setMat4(const std::string& name, const glm::mat4& value) override;
 		void setInt(const std::string& name, int value) override;
 		void setTexture(const std::string& name, const Ref<Texture2D>& texture, uint32_t slot) override;
+		void setTextureArray(const std::string& name, const Ref<Texture2DArray>& texture, uint32_t slot) override;
 		void setTextureCube(const std::string& name, const Ref<TextureCubeMap>& texture, uint32_t slot) override;
 		void setTexture3D(const std::string& name, const Ref<Texture3D>& texture, uint32_t slot) override;
+		void setImage(const std::string& name, const Ref<Texture>& texture, uint32_t unit, ImageAccess access) override;
 
 		void uploadUniformFloat(const std::string& name, float values);
 		void uploadUniformFloat2(const std::string& name, const glm::vec2& values);

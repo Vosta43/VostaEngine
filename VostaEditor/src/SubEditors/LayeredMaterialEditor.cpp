@@ -131,11 +131,19 @@ namespace ve {
 
 		ImGui::Separator();
 
-		// u_HeightScale maps world Y into the 0..1 bands the layer rules use, so it
-		// must equal the terrain's own Height Scale or the height rules drift.
+		// Height reference kept on the material, but the terrain bake now divides by
+		// the Terrain System's own Height Scale, so this value no longer drives it.
 		edited |= ImGui::DragFloat("Material Height Scale", &m_material->heightScale, 0.1f, 0.1f, 10000.0f);
 		edited |= ImGui::DragFloat("Macro Strength", &m_material->macroStrength, 0.01f, 0.0f, 1.0f);
 		edited |= ImGui::DragFloat("Macro Scale", &m_material->macroScale, 1.0f, 1.0f, 10000.0f);
+
+		// A/B switch against the direct layer stack. Needs a terrain in the scene:
+		// without one nothing bakes, and the flag falls back to evaluating layers.
+		edited |= ImGui::Checkbox("Sample RVT", &m_material->sampleRVT);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Shade from the scene terrain's baked virtual texture instead of\n"
+			                  "evaluating the layer stack per pixel. Falls back to layers\n"
+			                  "when the scene has no terrain to bake from.");
 
 		if (edited)
 			markDirty();

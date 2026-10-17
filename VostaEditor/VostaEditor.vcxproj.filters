@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Viewport">
+      <UniqueIdentifier>{A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\VostaEditor.cpp">
@@ -57,6 +60,12 @@
     <ClCompile Include="src\Panels\NoisePanel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Panels\GeometryGraphPanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Panels\TerrainRulePanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Panels\TerrainMapPanel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -78,6 +87,12 @@
     <ClCompile Include="src\Graph\NoiseEditorSchema.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Graph\GeometryEditorSchema.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graph\TerrainRuleEditorSchema.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\SubEditors\MaterialLayerEditor.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -86,6 +101,24 @@
     </ClCompile>
     <ClCompile Include="src\SubEditors\TerrainEditor.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\EditorCameraStore.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SceneDocument.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Panels\AssetEditorHost.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Panels\EditorDialogs.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Viewport\ViewportOverlays.cpp">
+      <Filter>Viewport</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Viewport\ViewportToolbar.cpp">
+      <Filter>Viewport</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -116,6 +149,12 @@
     <ClInclude Include="src\Panels\NoisePanel.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Panels\GeometryGraphPanel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Panels\TerrainRulePanel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Panels\TerrainMapPanel.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -140,6 +179,12 @@
     <ClInclude Include="src\Graph\NoiseEditorSchema.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Graph\GeometryEditorSchema.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graph\TerrainRuleEditorSchema.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\SubEditors\MaterialLayerEditor.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -151,6 +196,27 @@
     </ClInclude>
     <ClInclude Include="src\AssetSaveRegistry.h">
       <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\EditorCameraStore.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\EditorPaths.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SceneDocument.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Panels\AssetEditorHost.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Panels\EditorDialogs.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Viewport\ViewportOverlays.h">
+      <Filter>Viewport</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Viewport\ViewportToolbar.h">
+      <Filter>Viewport</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

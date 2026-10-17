@@ -17,6 +17,9 @@ namespace ve::vellum {
         explicit Button(const glm::vec2& size,
                         const glm::vec4& color = glm::vec4(0.23f, 0.25f, 0.29f, 1.0f));
 
+        // Resizes the button and drops any cached layout up the tree.
+        void setSize(const glm::vec2& size);
+
         void setColor(const glm::vec4& color)        { m_color = color; }
         void setHoverColor(const glm::vec4& color)   { m_hoverColor = color; }
         void setPressedColor(const glm::vec4& color) { m_pressedColor = color; }

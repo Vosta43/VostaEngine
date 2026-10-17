@@ -19,6 +19,9 @@ namespace ve::vellum {
 		                   const std::string& text,
 		                   const glm::vec4& color = glm::vec4(1.0f));
 
+		// Swaps the borrowed atlas (the font is chosen by pixel size at build time).
+		void setFont(FontAtlas* font);
+
 		void setText(const std::string& text);
 		const std::string& text() const { return m_text; }
 		void setColor(const glm::vec4& color) { m_color = color; }

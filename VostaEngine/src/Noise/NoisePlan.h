@@ -35,6 +35,10 @@ namespace ve {
 		bool valid()     const { return m_outputSlot >= 0; }
 
 		float evaluate(NoisePlanScratch& scratch, float x, float y) const;
+		// Same walk, sampling each node in 3D. Kept alongside the 2D overload rather
+		// than sharing one loop because a leaf's native 2D field differs from its 3D
+		// field, so the two are genuinely distinct sampling modes.
+		float evaluate(NoisePlanScratch& scratch, float x, float y, float z) const;
 
 	private:
 		friend NoisePlan buildNoisePlan(const NoiseGraph&);

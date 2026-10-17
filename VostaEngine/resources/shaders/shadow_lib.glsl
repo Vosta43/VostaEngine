@@ -83,7 +83,9 @@ float sampleCascadeShadow(int cascade, vec3 worldPos, vec3 normal) {
     float m = kShadowSoftUV + 0.001;
     if (uv.x <= m || uv.x >= 1.0 - m || uv.y <= m || uv.y >= 1.0 - m) return 1.0;
 
-    float depth = ndc.z * 0.5 + 0.5;
+    // Reverse-Z / 0..1 clip space: the comparison value is the NDC z, tested with
+    // GL_GEQUAL against the map (near = 1), so a nearer fragment reads as lit.
+    float depth = ndc.z;
     // Outside the light near/far box there is no comparison value; treat as lit.
     if (depth <= 0.0 || depth >= 1.0) return 1.0;
 

@@ -195,13 +195,15 @@ namespace ve {
         glm::mat4 skyView = glm::mat4(glm::mat3(view));
         glm::mat4 vp = projection * skyView;
 
-        RenderCommand::setDepthFunc(RendererAPI::DepthFunc::LEQUAL);
+        // The skybox writes the far plane, which reverse-Z puts at 0.0 — equal to a
+        // cleared buffer, so it needs the equal test where geometry needs GREATER.
+        RenderCommand::setDepthFunc(RendererAPI::DepthFunc::GEQUAL);
         s_skyboxShader->bind();
         s_skyboxShader->setMat4("u_ViewProjection", vp);
         s_skyboxTexture->bind(0);
         s_skyboxVAO->bind();
         RenderCommand::drawArrays(36);
-        RenderCommand::setDepthFunc(RendererAPI::DepthFunc::LESS);
+        RenderCommand::setDepthFunc(RendererAPI::DepthFunc::GREATER);
     }
 
     void Renderer3D::setSkyboxTexture(Ref<TextureCubeMap> texture) {

@@ -9,7 +9,7 @@ class Scene;
 
 // Bird's-eye 2D map of the terrain grid: one square per tile coordinate, filled
 // when a tile entity exists there. Whole regions can be laid out or cleared at
-// once through Terrain::addTiles/removeTiles, which is far quicker than the
+// once through TerrainSubsystem::addTiles/removeTiles, which is far quicker than the
 // per-tile neighbour buttons in the inspector.
 class TerrainMapPanel {
 public:

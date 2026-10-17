@@ -22,12 +22,14 @@ in vec2 v_TexCoord;
 uniform sampler2D u_AlbedoMap;
 uniform sampler2D u_NormalMap;
 uniform sampler2D u_MaterialMap;
+uniform sampler2D u_EmissiveMap;
 uniform sampler2D u_DepthMap;
 uniform samplerCube u_SkyboxMap;
 uniform samplerCube u_IrradianceMap;
 uniform samplerCube u_PrefilteredEnvMap;
 uniform sampler2D   u_BRDFLUT;
 uniform sampler2D   u_CloudTex;   // half-res cloud coverage pass output
+uniform sampler2D   u_VolumetricTex;  // half-res sun in-scatter (god-rays)
 
 // ---------------------------------------------------------------------------
 // Camera
@@ -95,22 +97,28 @@ float distributionGGX(vec3 N, vec3 H, float roughness)
     return a2 / (PI * denom * denom);
 }
 
-// Schlick-Beckmann geometry shadowing
-float geometrySchlickGGX(float NdotV, float roughness)
+// Height-correlated Smith GGX visibility (Filament). The two masking terms
+// share the correlation between the view and light slopes, and the
+// 1/(4*NdotV*NdotL) denominator of the Cook-Torrance specular term is folded
+// in — do not divide by it again at the call site.
+float visibilitySmithGGXCorrelated(float NdotV, float NdotL, float roughness)
 {
-    float r = roughness + 1.0;
-    float k = (r * r) / 8.0;
-    return NdotV / (NdotV * (1.0 - k) + k);
+    float a  = roughness * roughness;
+    float a2 = a * a;
+    float ggxV = NdotL * sqrt(NdotV * NdotV * (1.0 - a2) + a2);
+    float ggxL = NdotV * sqrt(NdotL * NdotL * (1.0 - a2) + a2);
+    return 0.5 / max(ggxV + ggxL, 1e-5);
 }
 
-// Smith geometry function
-float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+// Burley (Disney) diffuse: captures the retroreflection and rough-surface
+// falloff that Lambert misses. Weighted by kD at the call site for energy
+// conservation.
+vec3 diffuseBurley(vec3 albedo, float NdotV, float NdotL, float LoH, float roughness)
 {
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotL = max(dot(N, L), 0.0);
-    float ggx2  = geometrySchlickGGX(NdotV, roughness);
-    float ggx1  = geometrySchlickGGX(NdotL, roughness);
-    return ggx1 * ggx2;
+    float f90 = 0.5 + 2.0 * roughness * LoH * LoH;
+    float lightScatter = 1.0 + (f90 - 1.0) * pow(1.0 - NdotL, 5.0);
+    float viewScatter  = 1.0 + (f90 - 1.0) * pow(1.0 - NdotV, 5.0);
+    return albedo * (lightScatter * viewScatter / PI);
 }
 
 // ---------------------------------------------------------------------------
@@ -128,10 +136,11 @@ float calculateAttenuation(float distance, float range, float linear, float quad
 // ---------------------------------------------------------------------------
 vec3 reconstructWorldPosition(vec2 texCoord, float depth, mat4 invViewProj)
 {
+    // Reverse-Z / 0..1 clip space: the stored depth IS the NDC z, no remap.
     vec4 ndc;
     ndc.x = texCoord.x * 2.0 - 1.0;
     ndc.y = texCoord.y * 2.0 - 1.0;
-    ndc.z = depth * 2.0 - 1.0;
+    ndc.z = depth;
     ndc.w = 1.0;
 
     vec4 world = invViewProj * ndc;
@@ -147,7 +156,8 @@ void main()
 
     // Outward view ray (far-plane unproject) — same reconstruction the half-res
     // CloudPass uses, so the cloud texture and this occlusion test stay aligned.
-    vec4 ndc      = vec4(v_TexCoord * 2.0 - 1.0, 1.0, 1.0);
+    // Reverse-Z puts the far plane at 0.
+    vec4 ndc      = vec4(v_TexCoord * 2.0 - 1.0, 0.0, 1.0);
     vec4 farPlane = u_InvViewProj * ndc;
     vec3 rayDir   = normalize(farPlane.xyz / farPlane.w - u_CameraPos);
 
@@ -155,7 +165,7 @@ void main()
     vec3 finalColor;
 
     // Background pixels (no geometry) — render the atmospheric sky
-    if (depth >= 1.0)
+    if (depth <= 0.0)
     {
         vec3 atmosphere = computeAtmosphereLUT(u_CameraPos - u_PlanetCenter, rayDir);
         float sunDot    = dot(rayDir, u_SunDirection);
@@ -169,6 +179,7 @@ void main()
         vec3 albedo    = texture(u_AlbedoMap,   v_TexCoord).rgb;
         vec3 normal    = texture(u_NormalMap,   v_TexCoord).rgb * 2.0 - 1.0;
         vec3 material  = texture(u_MaterialMap, v_TexCoord).rgb;
+        vec3 emissive  = texture(u_EmissiveMap, v_TexCoord).rgb;
         float metallic  = material.r;
         float roughness = material.g;
         float ao        = material.b;
@@ -213,15 +224,15 @@ void main()
 
             vec3  F = fresnelSchlick(max(dot(halfDir, viewDir), 0.0), F0);
             float D = distributionGGX(normal, halfDir, roughness);
-            float G = geometrySmith(normal, viewDir, lightDir, roughness);
-
-            float denominator = 4.0 * NdotV * NdotL + 0.0001;
-            vec3 specular     = D * G * F / denominator;
+            float Vis = visibilitySmithGGXCorrelated(NdotV, NdotL, roughness);
+            vec3 specular = D * Vis * F;
 
             // Energy conservation: diffuse + specular <= 1
             vec3 kD = (1.0 - F) * (1.0 - metallic);
+            float LoH = max(dot(lightDir, halfDir), 0.0);
+            vec3 diffuse = kD * diffuseBurley(albedo, NdotV, NdotL, LoH, roughness);
 
-            Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+            Lo += (diffuse + specular) * radiance * NdotL;
         }
 
         // Atmospheric sun as a directional light. The radiance is the physical
@@ -235,15 +246,17 @@ void main()
         float NdotVSun  = max(dot(normal, viewDir), 0.0);
         vec3 Fsun    = fresnelSchlick(max(dot(sunHalfDir, viewDir), 0.0), F0);
         float Dsun   = distributionGGX(normal, sunHalfDir, roughness);
-        float Gsun   = geometrySmith(normal, viewDir, sunHalfDir, roughness);
-        vec3 specSun = Dsun * Gsun * Fsun / (4.0 * NdotVSun * NdotSun + 0.0001);
+        float VisSun = visibilitySmithGGXCorrelated(NdotVSun, NdotSun, roughness);
+        vec3 specSun = Dsun * VisSun * Fsun;
         vec3 kDSun   = (1.0 - Fsun) * (1.0 - metallic);
+        float LoHSun = max(dot(sunDir, sunHalfDir), 0.0);
+        vec3 diffSun = kDSun * diffuseBurley(albedo, NdotVSun, NdotSun, LoHSun, roughness);
         vec3 sunRadiance = u_SunIntensity * sunTransmittance(worldPos - u_PlanetCenter, sunDir);
         // Shadows occlude the direct sun only; sky/IBL light is unoccluded.
         float shadow = 1.0;
         if (u_ShadowCascadeCount > 0)
             shadow = shadowFactor(worldPos, normal, viewDepth);
-        Lo += (kDSun * albedo / PI + specSun) * sunRadiance * NdotSun * shadow;
+        Lo += (diffSun + specSun) * sunRadiance * NdotSun * shadow;
 
         // Specular IBL — split-sum approximation. The prefiltered cubemap is
         // baked once from the static skybox, so its sky region goes stale once
@@ -266,7 +279,7 @@ void main()
         float skyAmount   = skyRefl.a;
         vec3 specularIBL = mix(prefilteredColor, reflectedSky, skyAmount) * (F0 * envBRDF.x + envBRDF.y) * ao;
 
-        vec3 color = diffuseIBL + specularIBL + Lo;
+        vec3 color = diffuseIBL + specularIBL + Lo + emissive;
 
         // Clamp HDR highlights, tone mapping will happen in post-process
         finalColor = clamp(color, 0.0, 100.0);
@@ -276,14 +289,19 @@ void main()
     // Occlusion: if a surface is closer than the cloud layer entry along the
     // outward ray, the cloud is behind the geometry -> fully transparent.
     vec4 cloud = texture(u_CloudTex, v_TexCoord);
-    if (depth < 1.0 && cloud.a < 1.0)
+    if (depth > 0.0 && cloud.a < 1.0)
     {
-        vec2 tLayer = rayCloudLayer(u_CameraPos - u_PlanetCenter, rayDir);
+        vec2 tLayer = rayCloudLayer(u_CameraPos - u_PlanetCenter, rayDir, u_CamAltitude);
         float sceneDist = length(worldPos - u_CameraPos);
         if (sceneDist < tLayer.x)
             cloud = vec4(0.0, 0.0, 0.0, 1.0);
     }
     finalColor = cloud.rgb + cloud.a * finalColor;
+
+    // Add the sun god-ray in-scatter (half-res, temporally accumulated). Additive:
+    // the medium emits toward the camera independent of what is behind it. The
+    // pass writes black when there is nothing to march, so this is a no-op then.
+    finalColor += texture(u_VolumetricTex, v_TexCoord).rgb;
 
     // Exposure AFTER the cloud blend, applied to the whole frame. The geometry
     // branch now carries the same atmospheric sun as the sky, so both must live

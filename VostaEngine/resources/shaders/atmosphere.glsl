@@ -1,7 +1,7 @@
 
 
 uniform vec3 u_SunDirection;
-uniform float u_SunIntensity;
+uniform vec3 u_SunIntensity;   // sun radiance RGB: intensity × the color model
 uniform vec3  u_RayleighScattering;
 uniform float u_RayleighScaleHeight;
 uniform vec3  u_MieScattering;
@@ -9,6 +9,11 @@ uniform float u_MieScaleHeight;
 uniform float u_MiePhaseG;
 uniform float u_PlanetRadius;
 uniform float u_AtmosphereHeight;
+// Camera altitude above sea level in metres, reduced in double on the CPU (see
+// cameraAltitude). Sphere intersections never take their radial terms from
+// u_CameraPos - u_PlanetCenter: at planetary scale that vector's float32 ULP is
+// ~0.3 m, and a near-tangent hit amplifies the error without bound.
+uniform float u_CamAltitude;
 uniform float u_Exposure;
 uniform sampler2D u_TransmittanceLUT;
 
@@ -16,14 +21,29 @@ const float ATMOSPHERE_PI = 3.14159265359;
 
 const float kLengthUnit = 1000.0;          // meters per km — LUT baked/queried in km
 const float kSunAngularRadius = 0.004675;  // radians, physical sun angular radius
+// The physical disc reads as a ~10 px dot, so the rendered disc is drawn this
+// many times larger. Art scale only: the transmittance horizon fade keeps the
+// physical radius.
+const float kSunDiscScale = 3.0;
 
-vec2 raySphere(vec3 origin, vec3 dir, float radius) {
-    float b = dot(origin, dir);
-    float c = dot(origin, origin) - radius * radius;
-    float h = b * b - c;
-    if (h < 0.0) return vec2(1.0, -1.0);
-    h = sqrt(h);
-    return vec2(-b - h, -b + h);
+// Ray vs. the sphere at `shellAltitude` metres above sea level, for a ray that
+// starts at `originAltitude` metres above sea level. Both come in as metre-scale
+// numbers because the radii do not survive the trip: r^2 - |o|^2 written out as
+// two O(R^2) terms cancels catastrophically (4.06e13 has a 4.2e6 ULP), leaving
+// the constant term wrong by ~0.3 m, which a near-tangent hit divides into an
+// arbitrarily large error in t. Factoring it into (altO - altS)(2R + altO + altS)
+// keeps every O(R) factor in a relative-precision role only.
+vec2 rayShell(vec3 origin, vec3 dir, float originAltitude, float shellAltitude) {
+    float b    = dot(origin, dir);     // O(R) but only ever needed to relative precision
+    float c    = (originAltitude - shellAltitude) * (2.0 * u_PlanetRadius + originAltitude + shellAltitude);
+    float disc = b * b - c;
+    if (disc < 0.0) return vec2(1.0, -1.0);
+    float sq = sqrt(disc);
+    // Formed through the conjugate: q never subtracts two same-magnitude terms,
+    // and the other root follows from Vieta (q * t1 = c) instead of cancellation.
+    float q  = -(b + (b >= 0.0 ? sq : -sq));
+    float t1 = (abs(q) > 1e-3) ? c / q : q;
+    return vec2(min(q, t1), max(q, t1));
 }
 
 float rayleighPhase(float mu) {
@@ -228,8 +248,26 @@ vec3 computeAtmosphereLUT(vec3 origin, vec3 dir) {
     return sky;
 }
 
+// Physical sun disc: angular radius kSunAngularRadius, with linear limb
+// darkening (the disc is brighter at centre than at the limb). mu is the cosine
+// of the angle from the disc centre. The edge is anti-aliased over one pixel by
+// widening the cos threshold with fwidth, so the disc neither shimmers when it
+// is sub-pixel nor turns into a hard circle when it is large.
 float sunDisk(float mu){
-    return smoothstep(0.9995, 0.99995, mu);
+    float R    = kSunAngularRadius * kSunDiscScale;
+    float cosR = cos(R);
+    float aa   = max(fwidth(mu), 1e-6) * 0.5;   // one pixel, in cos space
+    float disc = smoothstep(cosR - aa, cosR + aa, mu);
+    if (disc <= 0.0) return 0.0;
+
+    // sin(alpha)/sin(R) is sin(beta): beta is the angle between the solar surface
+    // normal and the view ray, alpha the angle from the disc centre.
+    float alpha = acos(clamp(mu, -1.0, 1.0));
+    float s     = clamp(sin(alpha) / sin(R), 0.0, 1.0);
+    float muSun = sqrt(max(1.0 - s * s, 0.0));
+
+    const float kLimbU = 0.6;   // linear limb-darkening coefficient, visible band
+    return disc * (1.0 - kLimbU * (1.0 - muSun));
 }
 
 // Sky radiance reflected along dir — the analytic atmosphere + sun disk evaluated
@@ -245,10 +283,10 @@ vec4 reflectedSkyRadiance(vec3 planetCenteredOrigin, vec3 dir, float roughness) 
         sky = computeAtmosphereLUT(planetCenteredOrigin, dir)
             + sunColor * sunDisk(dot(dir, u_SunDirection));
         // Reflection ray toward the planet -> ground/geometry (keep the cubemap);
-        // toward open space -> sky (analytic atmosphere). raySphere returns (1,-1)
+        // toward open space -> sky (analytic atmosphere). rayShell returns (1,-1)
         // on a miss (far < near), so a hit in front of the camera needs
         // far >= near && near > 0.
-        vec2 planetHit = raySphere(planetCenteredOrigin, dir, u_PlanetRadius);
+        vec2 planetHit = rayShell(planetCenteredOrigin, dir, u_CamAltitude, 0.0);
         bool hitsGround = (planetHit.y >= planetHit.x) && (planetHit.x > 0.0);
         amount = smoothstep(0.0, 10000.0, hitsGround ? planetHit.x : 1.0e9);
         amount *= 1.0 - smoothstep(0.1, 0.3, roughness);

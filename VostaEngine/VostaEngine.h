@@ -36,6 +36,11 @@
 #include "src/Scene/SceneSerializer.h"
 #include "src/Scene/PrefabRegistry.h"
 
+#include "src/Terrain/RuleGraph.h"
+#include "src/Terrain/RuleNodes.h"
+#include "src/Terrain/RulePlan.h"
+#include "src/Terrain/RuleGraphResource.h"
+
 #include "src/MCP/ToolRegistry.h"
 #include "src/MCP/ToolDispatchQueue.h"
 #include "src/MCP/CommandRegistry.h"
@@ -58,6 +63,11 @@
 #include "src/Gui/Vellum/Text/FontAtlas.h"
 #include "src/Gui/Vellum/Text/FontManager.h"
 #include "src/Gui/Vellum/Text/Utf8.h"
+
+#include "src/Gui/Hud/HudWidgetRegistry.h"
+#include "src/Gui/Hud/HudAsset.h"
+#include "src/Gui/Hud/HudInstance.h"
+#include "src/Gui/Hud/HudSystem.h"
 #include "src/Renderer/Renderer.h"
 #include "src/Renderer/Renderer2D.h"
 #include "src/Renderer/Renderer3D.h"
@@ -67,6 +77,7 @@
 #include "src/Renderer/VertexArray.h"
 #include "src/Renderer/FrameBuffer.h"
 #include "src/Renderer/RenderPipeline.h"
+#include "src/Renderer/RuntimeVirtualTexture.h"
 #include "src/Renderer/SceneRenderer.h"
 #include "src/Renderer/SceneViewRenderer.h"
 #include "src/Renderer/SceneView.h"

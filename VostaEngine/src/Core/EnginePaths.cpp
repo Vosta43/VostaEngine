@@ -66,7 +66,16 @@ std::filesystem::path resolveEngineRoot() {
 
     const std::filesystem::path exePath = executablePath();
     if (!exePath.empty()) {
-        const std::filesystem::path candidate = exePath.parent_path().parent_path();
+        const std::filesystem::path exeDir = exePath.parent_path();
+
+        // A packaged build keeps the player at the root, beside the resource
+        // tree; an SDK or dev install keeps the binary in bin/, one level down.
+        if (isEngineRoot(exeDir)) {
+            VE_CORE_SUCCESS_PRINT("Engine root from executable directory: %s", exeDir.string().c_str());
+            return exeDir;
+        }
+
+        const std::filesystem::path candidate = exeDir.parent_path();
         if (isEngineRoot(candidate)) {
             VE_CORE_SUCCESS_PRINT("Engine root from executable location: %s", candidate.string().c_str());
             return candidate;

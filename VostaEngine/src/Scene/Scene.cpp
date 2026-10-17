@@ -82,8 +82,8 @@ namespace ve {
 		m_projMatrix = proj;
 	}
 
-	void Scene::setCameraPosition(const glm::vec3& pos)
-	{	
+	void Scene::setCameraPosition(const ve::Vec3& pos)
+	{
 		m_cameraPosition = pos;
 	}
 
@@ -95,7 +95,7 @@ namespace ve {
 			auto& transform = m_entityRegistry.get<TransformComponent>(entity);
 			auto& sprite = m_entityRegistry.get<SpriteRendererComponent>(entity);
 
-			glm::mat4 tf = transform.transform;
+			glm::mat4 tf = transform.matrix();
 			glm::vec2 size = sprite.size;
 			uint32_t entityID = (uint32_t)entity; 
 
@@ -107,7 +107,7 @@ namespace ve {
 			auto& transform = m_entityRegistry.get<TransformComponent>(et);
 			auto& meshComp = m_entityRegistry.get<StaticMeshComponent>(et);
 			uint32_t entityID = (uint32_t)et;
-			Renderer3D::drawPickingMesh(transform.transform, meshComp.staticMeshHandle, entityID);
+			Renderer3D::drawPickingMesh(transform.matrix(), meshComp.staticMeshHandle, entityID);
 		}
 
 		auto terrainGroup = m_entityRegistry.group<TransformComponent, TerrainComponent>();
@@ -116,7 +116,7 @@ namespace ve {
 			auto& terrainComp = m_entityRegistry.get<TerrainComponent>(et);
 			if (terrainComp.generatedMeshHandle.isValid()) {
 				uint32_t entityID = (uint32_t)et;
-				Renderer3D::drawPickingMesh(transform.transform, terrainComp.generatedMeshHandle, entityID);
+				Renderer3D::drawPickingMesh(transform.matrix(), terrainComp.generatedMeshHandle, entityID);
 			}
 		}
 

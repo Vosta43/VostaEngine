@@ -1,6 +1,9 @@
 #include "vepch.h"
 #include "PassBinding.h"
 #include "Core/Log.h"
+#include "Core/ResourceManager.h"
+#include "Renderer/RuntimeVirtualTexture.h"
+#include "Renderer/Texture.h"
 
 namespace ve {
 
@@ -93,6 +96,44 @@ namespace ve {
 				case UniformKind::Vec3:  sh->setFloat3(u.uniform, glm::vec3(u.v[0], u.v[1], u.v[2])); break;
 				case UniformKind::Vec4:  sh->setFloat4(u.uniform, glm::vec4(u.v[0], u.v[1], u.v[2], u.v[3])); break;
 			}
+		}
+	}
+
+	void applyMaterialBindings(const Ref<Shader>& shader, const MaterialBindingSet& bindings) {
+		if (!shader) return;
+
+		for (const auto& t : bindings.textures) {
+			if (t.target == TextureTarget::Texture2DArray) {
+				auto tex = ResourceManager::get<Texture2DArray>(t.textureHandle);
+				if (tex) shader->setTextureArray(t.uniformName, tex, t.unit);
+			}
+			else {
+				auto tex = ResourceManager::get<Texture2D>(t.textureHandle);
+				if (tex) shader->setTexture(t.uniformName, tex, t.unit);
+			}
+		}
+		for (const auto& b : bindings.ints)   shader->setInt(b.name, b.value);
+		for (const auto& b : bindings.floats) shader->setFloat(b.name, b.value);
+		for (const auto& b : bindings.vec2s)  shader->setFloat2(b.name, b.value);
+		for (const auto& b : bindings.vec3s)  shader->setFloat3(b.name, b.value);
+	}
+
+	void bindRuntimeVirtualTexture(const Ref<Shader>& shader, const RuntimeVirtualTexture& rvt) {
+		if (!shader) return;
+
+		shader->setFloat2("u_RVTWorldMin", rvt.worldMin());
+		shader->setFloat2("u_RVTWorldSize", rvt.worldSize());
+		shader->setInt("u_PagesX", rvt.pagesX());
+		shader->setInt("u_PagesY", rvt.pagesY());
+		shader->setInt("u_MipCount", rvt.mipCount());
+		shader->setInt("u_RVTPageSize", rvt.pageSizeTexels());
+		shader->setInt("u_RVTBorder", rvt.borderTexels());
+
+		shader->setTexture("u_PageTable", rvt.pageTable(), RuntimeVirtualTexture::kPageTableUnit);
+		for (int i = 0; i < 4; ++i) {
+			if (auto arr = rvt.physical(i))
+				shader->setTextureArray("u_Physical" + std::to_string(i), arr,
+				                        RuntimeVirtualTexture::kPhysicalUnit + (uint32_t)i);
 		}
 	}
 

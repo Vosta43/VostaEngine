@@ -8,7 +8,7 @@
 namespace ve {
 
 	namespace {
-		constexpr int32_t kTerrainDataFormatVersion = 1;
+		constexpr int32_t kTerrainDataFormatVersion = 2;
 
 		bool tileHasData(const TerrainDataTile& t) {
 			return std::any_of(t.weightData.begin(), t.weightData.end(),
@@ -31,7 +31,7 @@ namespace ve {
 
 	bool TerrainDataResource::anyPainted() const {
 		for (const auto& kv : tiles)
-			if (!kv.second.weightData.empty() && tileHasData(kv.second))
+			if (!kv.second.bTransient && !kv.second.weightData.empty() && tileHasData(kv.second))
 				return true;
 		return false;
 	}
@@ -44,10 +44,12 @@ namespace ve {
 		}
 
 		// Only tiles that actually carry paint are emitted, so an unpainted
-		// terrain writes a header-only file rather than a full grid of zeros.
+		// terrain writes a header-only file rather than a full grid of zeros. A
+		// tile that came from streaming is dropped whatever it carries: it exists
+		// because a camera asked for it, and the streamer rebuilds it on demand.
 		std::vector<std::pair<int64_t, const TerrainDataTile*>> kept;
 		for (const auto& kv : tiles)
-			if (!kv.second.weightData.empty() && tileHasData(kv.second))
+			if (!kv.second.bTransient && !kv.second.weightData.empty() && tileHasData(kv.second))
 				kept.emplace_back(kv.first, &kv.second);
 
 		ar << std::string("terrain_data");
@@ -60,6 +62,7 @@ namespace ve {
 			ar << static_cast<int32_t>(static_cast<int32_t>(key >> 32));
 			ar << static_cast<int32_t>(static_cast<uint32_t>(key & 0xffffffffu));
 			ar << static_cast<int32_t>(t.weightRes);
+			ar << static_cast<int32_t>(t.layerCount);
 			ar << static_cast<int32_t>(t.weightData.size());
 			if (!t.weightData.empty())
 				ar.writeBytes(t.weightData.data(), t.weightData.size());
@@ -89,11 +92,12 @@ namespace ve {
 		int32_t count = 0;
 		ar >> count;
 		for (int32_t i = 0; i < count; ++i) {
-			int32_t cx = 0, cz = 0, weightRes = 0, bytes = 0;
-			ar >> cx >> cz >> weightRes >> bytes;
+			int32_t cx = 0, cz = 0, weightRes = 0, layerCount = 0, bytes = 0;
+			ar >> cx >> cz >> weightRes >> layerCount >> bytes;
 
 			TerrainDataTile t;
 			t.weightRes = weightRes;
+			t.layerCount = layerCount;
 			if (bytes > 0) {
 				t.weightData.resize(static_cast<size_t>(bytes));
 				ar.readBytes(t.weightData.data(), static_cast<size_t>(bytes));

@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <cctype>
 
 namespace ve {
 
@@ -43,6 +44,41 @@ namespace ve {
 			}
 			return dest.string();
 		}
+
+		// Heuristic color-space guess from the file name: color maps (albedo,
+		// diffuse, emissive) are sRGB-encoded and need GPU decode to linear; data
+		// maps (normal, roughness, metal/ao/height) hold raw values and must stay
+		// linear or lighting breaks. Token-matched so "ao" does not match "chaos".
+		// Not authoritative — a misnamed source bakes wrong. See
+		// ImportManager::setInferColorSpaceFromName to turn it off.
+		bool isColorTextureName(const std::string& stem) {
+			std::string s;
+			s.reserve(stem.size());
+			for (char c : stem)
+				s.push_back((char)std::tolower((unsigned char)c));
+
+			static const char* kDataSubstr[] = {
+				"normal", "rough", "metal", "height", "displac", "bump",
+				"gloss", "occlusion", "opacity", "curvature", "thickness",
+				"specular", "orm"
+			};
+			for (const char* k : kDataSubstr)
+				if (s.find(k) != std::string::npos) return false;
+
+			static const char* kDataToken[] = { "ao", "nrm", "spec", "mask", "disp" };
+			for (size_t i = 0; i < s.size();) {
+				if (!std::isalnum((unsigned char)s[i])) { ++i; continue; }
+				size_t j = i;
+				while (j < s.size() && std::isalnum((unsigned char)s[j])) ++j;
+				const std::string tok = s.substr(i, j - i);
+				for (const char* k : kDataToken)
+					if (tok == k) return false;
+				i = j;
+			}
+			return true;
+		}
+
+		bool g_inferColorSpaceFromName = true;
 
 		// "mtllib" targets referenced by an OBJ, as bare filenames.
 		std::vector<std::string> objMtlRefs(const std::filesystem::path& objPath) {
@@ -108,6 +144,14 @@ namespace ve {
 			}
 		}
 
+	}
+
+	void ImportManager::setInferColorSpaceFromName(bool enabled) {
+		g_inferColorSpaceFromName = enabled;
+	}
+
+	bool ImportManager::inferColorSpaceFromName() {
+		return g_inferColorSpaceFromName;
 	}
 
 	void ImportManager::import(const std::string& sourcePath, const std::string& destDir) {
@@ -194,6 +238,12 @@ namespace ve {
 			}
 
 			const std::filesystem::path localPath(local);
+			// LDR color maps get tagged sRGB so the GPU decodes to linear on
+			// sample; float (HDR) and data maps keep their format. srgbVariantOf
+			// is a no-op for anything that is not RGB/RGBA.
+			if (g_inferColorSpaceFromName && isColorTextureName(localPath.stem().string()))
+				resource->format = srgbVariantOf(resource->format);
+
 			const std::string assetPath = bakedAssetPathFor(dest, localPath.stem().string(), "texture");
 			TextureImporter::serialize(*resource, assetPath);
 			ResourceManager::store<Texture2D>(assetPath);

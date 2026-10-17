@@ -10,7 +10,11 @@ namespace ve {
     enum class TextureInternalFormat : uint8_t {
         RGBA8,
         RGBA16F,
-        R32I
+        R32I,
+        // Single-channel 16-bit unsigned integer. The RVT page table: each texel
+        // holds a tile-cache array-layer index, which needs exact integers over the
+        // full range, not float precision.
+        R16UI
     };
 
     enum class TextureDataFormat : uint8_t {
@@ -21,7 +25,8 @@ namespace ve {
     enum class TextureDataType : uint8_t {
         UNSIGNED_BYTE,
         FLOAT,
-        INT
+        INT,
+        UNSIGNED_SHORT
     };
 
     enum class TextureFilter : uint8_t {
@@ -42,7 +47,10 @@ namespace ve {
         uint32_t width;
         uint32_t height;
         std::vector<FramebufferAttachmentSpec> colorAttachments;
-        bool hasDepthStencil = true;
+        // Float32 depth, not D24S8: reverse-Z relies on the exponent's log
+        // distribution matching depth's, which only a floating-point format has.
+        // Nothing in the engine uses stencil, so the attachment is depth-only.
+        bool hasDepth = true;
         // Put the depth attachment in compare mode so it can be sampled as a
         // sampler2DShadow (hardware depth test on each tap). Used by shadow maps.
         bool depthCompare = false;
@@ -77,6 +85,13 @@ namespace ve {
         // Replaces whatever texture is currently bound at that attachment index.
         virtual void attachCubemapFace(uint32_t attachmentIndex, uint32_t face,
             const Ref<TextureCubeMap>& cubemap, uint32_t mipLevel = 0) = 0;
+
+        // Attach one layer (slice) of a 2D texture array to a color attachment slot.
+        // The RVT bake pass renders each page into a layer of the tile cache, so the
+        // attachment is re-pointed at a new layer per page rather than at a whole
+        // texture.
+        virtual void attachColorTextureLayer(uint32_t attachmentIndex, uint32_t layer,
+            const Ref<Texture2DArray>& array, uint32_t mipLevel = 0) = 0;
 
         virtual uint32_t getWidth() const = 0;
         virtual uint32_t getHeight() const = 0;

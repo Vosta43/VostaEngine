@@ -15,6 +15,7 @@ class SceneViewRenderer;
 class RenderPipeline;
 class Framebuffer;
 class Event;
+struct GlobeStats;
 
 // How a view is spun up. Host-relative asset paths live here so the engine
 // never hardcodes a project's directory layout.
@@ -51,9 +52,9 @@ public:
     // from the host layer's onAttach(), where the GL context is already live.
     void onAttach();
 
-    // Host policy gate: when false the camera ignores new input and is released.
+    // Host policy gate for *starting* input: when false the camera ignores a new
+    // look-drag or zoom, but a drag already in flight is never cut short.
     void setInputEnabled(bool enabled);
-    bool isInputEnabled() const { return m_inputEnabled; }
 
     // Host-defined target size; recreates the offscreen target when it changes.
     void setSize(uint32_t width, uint32_t height);
@@ -101,6 +102,14 @@ public:
 
     void setWireframe(bool wireframe);
     void setGroundGrid(bool groundGrid);
+    void setTAAEnabled(bool enabled);
+    // Runtime virtual texture debug view (0 = off; see
+    // RuntimeVirtualTexture::DebugView).
+    void setRVTDebugView(int view);
+    // Prototype planet body (fixed-LOD cube-sphere); needs an atmosphere.
+    void setShowGlobe(bool show);
+    // Last frame's globe LOD readout.
+    GlobeStats getGlobeStats() const;
 
 private:
     void handleScroll(Event& e);
@@ -119,7 +128,7 @@ private:
     Ref<Framebuffer>       m_framebuffer;
     CameraController       m_cameraController;
     Camera                 m_sceneCamera;        // rendered while Scene-driven
-    Entity                 m_sceneCameraEntity;  // invalid = use the primary
+    Entity                 m_sceneCameraEntity;
     SceneViewConfig        m_config;
     CameraSource           m_cameraSource = CameraSource::Editor;
     uint32_t               m_width  = 0;

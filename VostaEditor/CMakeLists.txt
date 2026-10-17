@@ -4,11 +4,36 @@ set(EDITOR_SOURCES
     src/VostaEditor.cpp
     src/EditorLayer.cpp
     src/EditorViewController.cpp
+    src/EditorCameraStore.cpp
+    src/EditorMcpTools.cpp
+    src/SceneDocument.cpp
     src/PlaySession.cpp
+
+    src/Graph/GeometryEditorSchema.cpp
+    src/Graph/MaterialEditorSchema.cpp
+    src/Graph/NodeGraphPanel.cpp
+    src/Graph/NoiseEditorSchema.cpp
+    src/Graph/TerrainRuleEditorSchema.cpp
+
+    src/Panels/AiPanel.cpp
+    src/Panels/AssetEditorHost.cpp
+    src/Panels/EditorDialogs.cpp
     src/Panels/FileBrowser.cpp
-    src/Panels/SceneOutlinerPanel.cpp
-    src/Panels/PropertyPanel.cpp
+    src/Panels/GeometryGraphPanel.cpp
     src/Panels/MaterialGraphPanel.cpp
+    src/Panels/NoisePanel.cpp
+    src/Panels/PropertyPanel.cpp
+    src/Panels/SceneOutlinerPanel.cpp
+    src/Panels/TerrainMapPanel.cpp
+    src/Panels/TerrainRulePanel.cpp
+    src/Panels/TexturePreviewPanel.cpp
+
+    src/SubEditors/LayeredMaterialEditor.cpp
+    src/SubEditors/MaterialLayerEditor.cpp
+    src/SubEditors/TerrainEditor.cpp
+
+    src/Viewport/ViewportOverlays.cpp
+    src/Viewport/ViewportToolbar.cpp
 
     # Vendored editor-only third-party (compiled into editor, not engine)
     ${VOSTA_ROOT}/thirdparty/IMGUIZMO/ImGuizmo.cpp

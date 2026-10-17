@@ -11,7 +11,10 @@ namespace ve {
 //   1. VOSTA_ENGINE_ROOT -- explicit configuration. The launcher states the
 //                           root; required in the dev tree, whose build output
 //                           layout is not a shipping layout.
-//   2. <exeDir>/..        -- a self-contained install (the SDK), where the host
+//   2. <exeDir>           -- a packaged build: the player sits at the root,
+//                           beside VostaEngine/resources, so the game launches
+//                           by double-click.
+//   3. <exeDir>/..        -- a self-contained install (the SDK), where the host
 //                           binary sits one level below the root.
 //
 // The working directory is never consulted. Returns an empty path, after

@@ -4,33 +4,9 @@
 #include <vector>
 #include <array>
 
+#include "Asset/TextureFormat.h"
+
 namespace ve {
-
-	enum TextureFormat {
-		NONE = 0,
-		RGB = 1,
-		RGBA = 2,
-		R8 = 3,
-		RG16F = 4,
-		RGB16F = 5,
-		RGBA16F = 6,
-		R16F = 7
-	};
-
-	// Number of logical channels a texture format carries. Single source of truth
-	// for format metadata; consumers must query this instead of re-deriving it.
-	inline int getChannelCount(TextureFormat format) {
-		switch (format) {
-			case TextureFormat::R8:
-			case TextureFormat::R16F:    return 1;
-			case TextureFormat::RG16F:   return 2;
-			case TextureFormat::RGB:
-			case TextureFormat::RGB16F:  return 3;
-			case TextureFormat::RGBA:
-			case TextureFormat::RGBA16F: return 4;
-			default:                     return 3;
-		}
-	}
 
 	struct TextureResource {
 

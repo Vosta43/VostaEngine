@@ -44,6 +44,9 @@ namespace ve {
 
         isCompiled = true;
         compileError.clear();
+        // The generated code changed; consumers that inline this graph (the layered
+        // terrain shader) key on the revision to know they must rebuild.
+        bumpRevision();
         return true;
     }
 
@@ -101,6 +104,16 @@ namespace ve {
             out.floats.push_back({"u_AO", ao});
             out.ints.push_back({"u_UseAOMap", 0});
         }
+
+        // Emissive: the map wins over the flat color (same policy as the other
+        // channels), so the color is always sent as the texture-less fallback.
+        if (emissiveMapHandle.isValid()) {
+            out.textures.push_back({"u_EmissiveMap", emissiveMapHandle, 5});
+            out.ints.push_back({"u_UseEmissiveMap", 1});
+        } else {
+            out.ints.push_back({"u_UseEmissiveMap", 0});
+        }
+        out.vec3s.push_back({"u_EmissiveColor", emissiveColor});
 
         // Graph-compiled sampler nodes fill the units above the fixed PBR set.
         uint32_t unit = kFixedTextureUnits;
@@ -176,6 +189,9 @@ namespace ve {
         customShader = nullptr; // OpenGL object, must recompile.
 
         graph.deserialize(getMaterialNodeRegistry(), ar);
+
+        // The body changed on disk; anything built from this material must rebuild.
+        bumpRevision();
 
         // A saved-as-compiled material rebuilds its GL shader (and the graph
         // texture bindings that go with it) now that the graph is loaded.

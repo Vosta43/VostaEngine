@@ -81,9 +81,6 @@ namespace ve {
 
     void SceneView::setInputEnabled(bool enabled) {
         m_inputEnabled = enabled;
-        // Releasing input also releases the gripper flag so re-entering the view
-        // does not resume from a stale cursor delta.
-        if (!enabled) m_cameraController.setActive(false);
     }
 
     void SceneView::setSize(uint32_t width, uint32_t height) {
@@ -136,7 +133,7 @@ namespace ve {
         const CameraComponent& cam = m_scene->getComponent<CameraComponent>(entity);
         const TransformComponent& tf = m_scene->getComponent<TransformComponent>(entity);
 
-        camera.setWorldTransform(tf.transform);
+        camera.setWorldTransform(tf.matrix());
         camera.setProjectionType(cam.perspective);
         camera.setPerspectiveFov(cam.fov);
         camera.setNearPlane(cam.nearPlane);
@@ -164,8 +161,23 @@ namespace ve {
         if (m_viewRenderer) m_viewRenderer->setGroundGrid(groundGrid);
     }
 
+    void SceneView::setTAAEnabled(bool enabled) {
+        if (m_viewRenderer) m_viewRenderer->setTAAEnabled(enabled);
+    }
+
+    void SceneView::setRVTDebugView(int view) {
+        if (m_viewRenderer) m_viewRenderer->setRVTDebugView(view);
+    }
+
+    void SceneView::setShowGlobe(bool show) {
+        if (m_viewRenderer) m_viewRenderer->setShowGlobe(show);
+    }
+
+    GlobeStats SceneView::getGlobeStats() const {
+        return m_viewRenderer ? m_viewRenderer->getGlobeStats() : GlobeStats{};
+    }
+
     void SceneView::handleScroll(Event& e) {
-        // Fly-cam input only while the free camera is the view source.
         if (!m_inputEnabled || isSceneDriven()) return;
         m_cameraController.onEvent(e);
     }

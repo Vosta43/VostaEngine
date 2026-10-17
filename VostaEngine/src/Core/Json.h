@@ -5,6 +5,7 @@
 #include <string>
 
 #include <glm.hpp>
+#include <gtc/quaternion.hpp>
 
 #include "Core/Core.h"
 
@@ -41,6 +42,9 @@ namespace ve {
 		void set(const char* key, const glm::vec3& v);
 		void set(const char* key, const glm::vec4& v);
 		void set(const char* key, const glm::mat4& v);
+		// Written as doubles so an authoritative world position round-trips exactly.
+		void set(const char* key, const glm::dvec3& v);
+		void set(const char* key, const glm::quat& q);
 
 		// Embed an already-serialised JSON value at `key`. For opaque blobs built
 		// outside this writer (a tool's JSON-Schema string). Invalid text becomes {}
@@ -77,6 +81,13 @@ namespace ve {
 		glm::vec3   getVec3(const char* key, const glm::vec3& def = glm::vec3(0.0f)) const;
 		glm::vec4   getVec4(const char* key, const glm::vec4& def = glm::vec4(0.0f)) const;
 		glm::mat4   getMat4(const char* key, const glm::mat4& def = glm::mat4(1.0f)) const;
+		glm::dvec3  getVec3d(const char* key, const glm::dvec3& def = glm::dvec3(0.0)) const;
+		glm::quat   getQuat(const char* key, const glm::quat& def = glm::quat(1.0f, 0.0f, 0.0f, 0.0f)) const;
+
+		// The subtree at `key` re-serialised to JSON text, or `def` when absent.
+		// Lets a caller carry an opaque sub-object (a widget's properties) around
+		// as text without knowing its shape.
+		std::string rawJson(const char* key, const std::string& def = std::string()) const;
 
 		size_t arraySize(const char* key) const;
 		JsonReader child(const char* key) const;

@@ -11,6 +11,11 @@ namespace ve::vellum {
 		, m_text(text)
 		, m_color(color) {}
 
+	void TextBlock::setFont(FontAtlas* font) {
+		m_font = font;
+		invalidateDesiredSize();
+	}
+
 	void TextBlock::setText(const std::string& text) {
 		m_text = text;
 		invalidateDesiredSize();

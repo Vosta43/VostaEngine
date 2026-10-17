@@ -62,4 +62,16 @@ namespace ve {
 		return m_outputSlot >= 0 ? scratch.values[m_outputSlot] : 0.0f;
 	}
 
+	float NoisePlan::evaluate(NoisePlanScratch& scratch, float x, float y, float z) const {
+		scratch.values.resize(m_slots.size());
+		for (size_t s = 0; s < m_slots.size(); ++s) {
+			const NoisePlanSlot& slot = m_slots[s];
+			scratch.inputs.clear();
+			for (const NoisePlanInput& in : slot.inputs)
+				scratch.inputs.push_back(in.slot >= 0 ? scratch.values[in.slot] : in.literal);
+			scratch.values[s] = slot.node->evaluate3(scratch.inputs, x, y, z);
+		}
+		return m_outputSlot >= 0 ? scratch.values[m_outputSlot] : 0.0f;
+	}
+
 }

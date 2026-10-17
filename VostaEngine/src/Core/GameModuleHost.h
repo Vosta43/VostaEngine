@@ -8,6 +8,8 @@
 namespace ve {
 
 	class Application;
+	class Scene;
+	class ECSystemBase;
 
 	// Loads one game-module DLL and drives its GameModule lifecycle. One module
 	// per host. Windows-only for now (LoadLibraryEx). Every failure path logs and
@@ -28,7 +30,17 @@ namespace ve {
 		// No-op when nothing is loaded.
 		void unload();
 
+		// Begins a play session on scene: registers the module's per-frame tick so
+		// the scene's own update drives it, then calls GameModule::onStart. The
+		// scene must outlive the matching stop().
+		bool start(Scene& scene);
+
+		// Ends the session: calls GameModule::onEnd and unregisters the tick.
+		// No-op when no session is running.
+		void stop(Scene& scene);
+
 		bool isLoaded() const { return m_module != nullptr; }
+		bool isPlaying() const { return m_tick != nullptr; }
 		GameModule* module() const { return m_module; }
 		const std::string& lastError() const { return m_lastError; }
 
@@ -37,6 +49,8 @@ namespace ve {
 		GameModule* m_module = nullptr;
 		Application* m_app = nullptr;
 		VeDestroyGameModuleFn m_destroyFn = nullptr;
+		Ref<ECSystemBase> m_tick;            // session-scoped, lives on m_scene
+		Scene* m_scene = nullptr;
 		std::string m_lastError;
 	};
 

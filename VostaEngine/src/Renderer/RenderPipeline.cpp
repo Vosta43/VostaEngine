@@ -8,10 +8,13 @@
 #include "Renderer/RenderPass/ShadowPass.h"
 #include "Renderer/RenderPass/CloudPass.h"
 #include "Renderer/RenderPass/CloudTAAPass.h"
+#include "Renderer/RenderPass/VolumetricLightPass.h"
 #include "Renderer/RenderPass/HDRBufferPass.h"
 #include "Renderer/RenderPass/TAAPass.h"
 #include "Renderer/RenderPass/PostBufferPass.h"
 #include "Renderer/RenderPass/PresentPass.h"
+#include "Renderer/RenderPass/RVTBakePass.h"
+#include "Renderer/RenderPass/RVTDebugPass.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -26,10 +29,13 @@ namespace ve {
             if (type == "shadow")   return CreateRef<ShadowPass>();
             if (type == "cloud")    return CreateRef<CloudPass>();
             if (type == "cloudtaa") return CreateRef<CloudTAAPass>();
+            if (type == "volumetric") return CreateRef<VolumetricLightPass>();
             if (type == "hdr")      return CreateRef<HDRBufferPass>();
             if (type == "taa")      return CreateRef<TAAPass>();
             if (type == "post")     return CreateRef<PostBufferPass>();
             if (type == "present")  return CreateRef<PresentPass>();
+            if (type == "rvtbake")  return CreateRef<RVTBakePass>();
+            if (type == "rvtdbg")   return CreateRef<RVTDebugPass>();
             VE_CORE_WARN_PRINT("RenderPipeline: unknown pass type '%s'", type.c_str());
             return nullptr;
         }
@@ -76,7 +82,7 @@ namespace ve {
         const float scale = m_settings.resourceScale(def.name);
         spec.width  = fboDim(def.width,  def.widthScale  * scale, m_width);
         spec.height = fboDim(def.height, def.heightScale * scale, m_height);
-        spec.hasDepthStencil = def.hasDepthStencil;
+        spec.hasDepth = def.hasDepth;
         spec.depthCompare = def.depthCompare;
 
         spec.colorAttachments.resize(def.attachments.size());
@@ -100,7 +106,7 @@ namespace ve {
             if (def.name.empty()) continue;
             // A depth-only framebuffer (a shadow map) is valid; only skip when it
             // has neither colour nor depth to attach.
-            if (def.attachments.empty() && !def.hasDepthStencil) {
+            if (def.attachments.empty() && !def.hasDepth) {
                 VE_CORE_WARN_PRINT("RenderPipeline: framebuffer '%s' has no attachments", def.name.c_str());
                 continue;
             }
@@ -151,6 +157,10 @@ namespace ve {
         if (name == "hasClouds")     return ctx.cloudNoiseTexture != nullptr;
         if (name == "hasSkybox")     return ctx.skyboxTexture != nullptr;
         if (name == "wireframe")     return ctx.wireframe;
+        if (name == "taa")           return ctx.taaEnabled;
+        // The RVT debug overlay only has something to draw once a terrain-backed
+        // virtual texture exists and the view is switched on.
+        if (name == "rvtDebug")      return ctx.rvt != nullptr && ctx.rvtDebugView != 0;
         VE_CORE_WARN_PRINT("RenderPipeline: unknown condition provider '%s' (treated as false)", name.c_str());
         return false;
     }

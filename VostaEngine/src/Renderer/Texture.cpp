@@ -46,6 +46,10 @@ namespace ve {
         return CreateRef<OpenGLTexture2D>(width, height, format);
     }
 
+    Ref<Texture2D> Texture2D::create(uint32_t width, uint32_t height, TextureFormat format, uint32_t mipLevels) {
+        return CreateRef<OpenGLTexture2D>(width, height, format, mipLevels);
+    }
+
 
     Ref<TextureCubeMap> TextureCubeMap::create(const std::string& path) {
         std::string resolvedPath = toAbsolute(path);
@@ -66,6 +70,12 @@ namespace ve {
 
     Ref<TextureCubeMap> TextureCubeMap::create(uint32_t faceSize, uint32_t mipLevels) {
         return CreateRef<OpenGLTextureCube>(faceSize, mipLevels);
+    }
+
+    Ref<Texture2DArray> Texture2DArray::create(uint32_t width, uint32_t height, uint32_t layers,
+        TextureFormat format, const void* data) {
+        // TODO: switch the graphicAPI. But it is not an important job yet
+        return CreateRef<OpenGLTexture2DArray>(width, height, layers, format, data);
     }
 
     Ref<Texture3D> Texture3D::create(uint32_t width, uint32_t height, uint32_t depth, const float* data) {

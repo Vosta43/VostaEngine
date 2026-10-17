@@ -135,7 +135,7 @@ namespace ve {
 // registry entry exists when the initializer is attached.
 //
 //   VECOMPONENTINIT(TerrainComponent, {
-//       ve::Terrain::ensureBuilt(reg.get<TerrainComponent>(e), e.m_id);
+//       reg.get<TerrainComponent>(e).bDirty = true;
 //   })
 #define VECOMPONENTINIT(className, ...) \
 	static struct __compInit_##className { \

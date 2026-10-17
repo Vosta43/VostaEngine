@@ -73,13 +73,18 @@ uniform sampler2D u_AOMap;
 uniform float u_AO;
 uniform int u_UseAOMap;         // 1 = use texture, 0 = use uniform value
 
+// Emissive
+uniform sampler2D u_EmissiveMap;
+uniform vec3 u_EmissiveColor;
+uniform int u_UseEmissiveMap;   // 1 = modulate map by color, 0 = color only
+
 // ============================================================================
 // GBuffer outputs (Multiple Render Targets)
 // ============================================================================
 layout(location = 0) out vec4 o_Albedo;      // RT0: Diffuse color (RGB)
 layout(location = 1) out vec4 o_Normal;      // RT1: World space normal (RGB)
 layout(location = 2) out vec4 o_Material;    // RT2: Metallic (R), Roughness (G), AO (B)
-layout(location = 3) out vec4 o_Emissive;    // RT3: Emissive color (RGB) - reserved for future use
+layout(location = 3) out vec4 o_Emissive;    // RT3: Emissive (RGB), HDR (RGBA16F)
 
 // ============================================================================
 // Helper functions
@@ -180,8 +185,13 @@ void main()
     // R channel = Metallic, G channel = Roughness, B channel = AO
     o_Material = vec4(metallic, roughness, ao, 1.0);
     
-    // RT3: Emissive (reserved for future use, currently black)
-    o_Emissive = vec4(0.0, 0.0, 0.0, 1.0);
+    // RT3: Emissive. Map wins over the flat color, matching the albedo/roughness
+    // channels. The color fallback can carry values above 1 for HDR glow.
+    vec3 emissive = u_EmissiveColor;
+    if (u_UseEmissiveMap == 1) {
+        emissive = texture(u_EmissiveMap, v_TexCoord).rgb;
+    }
+    o_Emissive = vec4(emissive, 1.0);
     
     // Depth is automatically written by OpenGL to the depth attachment
 }

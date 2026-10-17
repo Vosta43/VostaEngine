@@ -25,6 +25,10 @@ namespace ve {
 
 		Ref<Shader> getShader() override { return base ? base->getShader() : nullptr; }
 
+		// The RVT path is the base's decision, not the view's: an instance that
+		// carried its own would consume a texture it is also responsible for baking.
+		Ref<Shader> getRVTShader() override { return base ? base->getRVTShader() : nullptr; }
+
 		// Runs the base first (it clears the set and declares every uniform it
 		// needs, defaults included), then applies this instance's overrides.
 		void fillBindings(MaterialBindingSet& out) const override;
@@ -36,6 +40,7 @@ namespace ve {
 		void deserialize(Archive&) override {}
 
 		void setTexture(const std::string& name, AssetHandle texture, uint32_t unit);
+		void setTextureArray(const std::string& name, AssetHandle texture, uint32_t unit);
 		void setInt(const std::string& name, int value);
 		void setFloat(const std::string& name, float value);
 		void setVec2(const std::string& name, const glm::vec2& value);

@@ -4,6 +4,7 @@
 #include "Renderer/Renderer3D.h"
 #include "Renderer/RenderCommand.h"
 #include "Renderer/FrameBuffer.h"
+#include "Renderer/Projection.h"
 #include "Renderer/VertexArray.h"
 #include "Renderer/Buffer.h"
 #include "Core/Application.h"
@@ -50,12 +51,12 @@ Ref<TextureCubeMap> IBLBaker::bakeIrradianceMap(
     }
 
     // ---- Create temporary FBO through the engine abstraction ----
-    // Framebuffer::create(w, h) creates an RGBA8 color attachment + depth/stencil.
+    // Framebuffer::create(w, h) creates an RGBA8 color attachment + float32 depth.
     // The color attachment will be replaced by each cubemap face during the loop.
     Ref<Framebuffer> tempFBO = Framebuffer::create(faceSize, faceSize);
 
     // ---- Capture projection (90-degree FOV for exact cube-face coverage) ----
-    glm::mat4 captureProj = glm::perspective(
+    glm::mat4 captureProj = makePerspective(
         glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
 
     // ---- Bind FBO, shader, and input texture ----
@@ -119,7 +120,7 @@ Ref<TextureCubeMap> IBLBaker::bakePrefilteredEnvMap(
         return nullptr;
     }
 
-    glm::mat4 captureProj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+    glm::mat4 captureProj = makePerspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
 
     for (uint32_t mip = 0; mip < maxMipLevels; ++mip) {
         uint32_t faceSize = baseFaceSize >> mip;

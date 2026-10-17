@@ -10,6 +10,7 @@
 #include "Asset/TextureImporter.h"
 #include "Asset/StaticMeshImporter.h"
 #include "Noise/NoiseGraphResource.h"
+#include "Terrain/RuleGraphResource.h"
 
 #include "imgui.h"
 
@@ -21,6 +22,7 @@
 #include <gtc/matrix_inverse.hpp>
 #include <gtc/type_ptr.hpp>
 #include <gtx/matrix_decompose.hpp>
+#include <gtx/quaternion.hpp>
 
 namespace ve {
 
@@ -42,16 +44,17 @@ void PropertyPanel::onGuiRender(uint32_t& selectedEntity)
     // Applied before anything takes a component pointer, so the spawn/destroy
     // below cannot pull the storage out from under this frame's draws.
     if (m_sceneContext && m_pendingTileOp != PendingTileOp::None) {
+        TerrainSubsystem terrain(*m_sceneContext);
         switch (m_pendingTileOp) {
             case PendingTileOp::Add:
-                selectedEntity = Terrain::addTile(*m_sceneContext, m_pendingTileCoord);
+                selectedEntity = terrain.addTile(m_pendingTileCoord);
                 break;
             case PendingTileOp::Remove:
-                Terrain::removeTile(*m_sceneContext, m_pendingTileCoord);
+                terrain.removeTile(m_pendingTileCoord);
                 selectedEntity = UINT32_MAX;
                 break;
             case PendingTileOp::EnsureSystem:
-                selectedEntity = Terrain::ensureSystem(*m_sceneContext);
+                selectedEntity = terrain.ensureSystem();
                 break;
             default:
                 break;
@@ -188,6 +191,12 @@ void PropertyPanel::drawProperty(const std::string& typeName, void* compPtr, con
     }
     else if (prop.uiType == "skyboxtexture") {
         drawSkyboxTextureProperty(ptr);
+    }
+    // Asset-handle kinds with no bespoke preview: one generic row each, so a
+    // component that declares one of these is editable without a custom drawer.
+    else if (prop.uiType == "mesh" || prop.uiType == "noise" ||
+             prop.uiType == "terrain_rule" || prop.uiType == "hud") {
+        drawAssetHandleProperty(ptr, prop);
     } else {
         ImGui::Text("%s", prop.name.c_str());
     }
@@ -206,54 +215,55 @@ void PropertyPanel::drawDragProperty(const std::string& typeName, void* ptr, con
         : (prop.maxValue > prop.minValue) ? (prop.maxValue - prop.minValue) * 0.01f : 0.1f;
     const char* fmt = prop.format.empty() ? "%.3f" : prop.format.c_str();
 
-    if (prop.name == "transform") {
-        // Special: glm::mat4 -> expose position as XYZ drag.
+    // Generic mat4 drawer: decompose into TRS so any matrix property is editable,
+    // not only the one that happens to be named "transform".
+    if (prop.typeName == "glm::mat4") {
         glm::mat4& mat = *static_cast<glm::mat4*>(ptr);
-        glm::vec3 position = glm::vec3(mat[3]);
 
-        ImGui::Text("Position");
+        glm::vec3 scale, translation, skew;
+        glm::vec4 perspective;
+        glm::quat rotation;
+        glm::decompose(mat, scale, rotation, translation, skew, perspective);
+        glm::vec3 eulerDegrees = glm::degrees(glm::eulerAngles(rotation));
+
         bool changed = false;
+        changed |= ImGui::DragFloat3("Position", glm::value_ptr(translation), speed, prop.minValue, prop.maxValue);
+        changed |= ImGui::DragFloat3("Rotation", glm::value_ptr(eulerDegrees), 0.5f);
+        changed |= ImGui::DragFloat3("Scale", glm::value_ptr(scale), 0.01f);
 
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
-        changed |= ImGui::DragFloat("X", &position.x, speed, prop.minValue, prop.maxValue);
-        ImGui::PopStyleColor();
-
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 1.0f, 0.3f, 1.0f));
-        changed |= ImGui::DragFloat("Y", &position.y, speed, prop.minValue, prop.maxValue);
-        ImGui::PopStyleColor();
-
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 0.3f, 1.0f, 1.0f));
-        changed |= ImGui::DragFloat("Z", &position.z, speed, prop.minValue, prop.maxValue);
-        ImGui::PopStyleColor();
-
+        // Recompose only on an actual edit: an untouched matrix must not travel
+        // through decompose/recompose, which would drift anything carrying shear
+        // or a negative scale.
         if (changed) {
-            mat[3] = glm::vec4(position, 1.0f);
+            mat = glm::translate(glm::mat4(1.0f), translation)
+                * glm::mat4_cast(glm::quat(glm::radians(eulerDegrees)))
+                * glm::scale(glm::mat4(1.0f), scale);
         }
         return;
     }
 
-    if (prop.name == "color") {
-        // Special: light color as RGB drag.
-        glm::vec3 color = *static_cast<glm::vec3*>(ptr);
+    // Authoritative world position: double in a large-world build, but ImGui
+    // drags are float32. Edit a mirror and fold the (small, precise) delta back
+    // in, rather than writing the mirror, which would quantize a planet-scale
+    // position to the float grid on every frame the row is visible.
+    if (prop.typeName == "ve::Vec3") {
+        ve::Vec3& pos = *static_cast<ve::Vec3*>(ptr);
+        const glm::vec3 mirror = glm::vec3(pos);
+        glm::vec3 edited = mirror;
+        if (ImGui::DragFloat3(prop.name.c_str(), glm::value_ptr(edited), speed,
+                prop.minValue, prop.maxValue, fmt))
+            pos += ve::Vec3(edited - mirror);
+        return;
+    }
 
-        ImGui::Text("Light color");
-        bool changed = false;
-
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
-        changed |= ImGui::DragFloat("R", &color.x, speed, prop.minValue, prop.maxValue);
-        ImGui::PopStyleColor();
-
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 1.0f, 0.3f, 1.0f));
-        changed |= ImGui::DragFloat("G", &color.y, speed, prop.minValue, prop.maxValue);
-        ImGui::PopStyleColor();
-
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 0.3f, 1.0f, 1.0f));
-        changed |= ImGui::DragFloat("B", &color.z, speed, prop.minValue, prop.maxValue);
-        ImGui::PopStyleColor();
-
-        if (changed) {
-            *static_cast<glm::vec3*>(ptr) = color;
-        }
+    // Rotation, presented as Euler degrees. Recompose only on an edit so an
+    // untouched quaternion is not pushed through eulerAngles/degrees each frame,
+    // which would re-quantize it.
+    if (prop.typeName == "glm::quat") {
+        glm::quat& q = *static_cast<glm::quat*>(ptr);
+        glm::vec3 eulerDegrees = glm::degrees(glm::eulerAngles(q));
+        if (ImGui::DragFloat3(prop.name.c_str(), glm::value_ptr(eulerDegrees), 0.5f))
+            q = glm::quat(glm::radians(eulerDegrees));
         return;
     }
 
@@ -286,9 +296,22 @@ void PropertyPanel::drawDragProperty(const std::string& typeName, void* ptr, con
         return;
     }
 
-    // Generic float drag — writes directly to ptr in-place.
-    float* val = static_cast<float*>(ptr);
-    ImGui::DragFloat(prop.name.c_str(), val, speed, prop.minValue, prop.maxValue, fmt);
+    // Integer vec2 (e.g. a grid coordinate).
+    if (prop.typeName == "glm::ivec2") {
+        glm::ivec2& val = *static_cast<glm::ivec2*>(ptr);
+        ImGui::DragInt2(prop.name.c_str(), glm::value_ptr(val), std::max(1.0f, speed),
+            (int)prop.minValue, (int)prop.maxValue);
+        return;
+    }
+
+    if (prop.typeName == "float") {
+        ImGui::DragFloat(prop.name.c_str(), static_cast<float*>(ptr), speed, prop.minValue, prop.maxValue, fmt);
+        return;
+    }
+
+    // Unknown scalar type: display read-only rather than reinterpret the storage
+    // as a float, which silently corrupts any type that is not 4 bytes wide.
+    ImGui::TextDisabled("%s (unsupported type: %s)", prop.name.c_str(), prop.typeName.c_str());
 }
 
 void PropertyPanel::drawInputProperty(void* ptr, const ReflectionProperty& prop)
@@ -425,6 +448,43 @@ void PropertyPanel::drawSkyboxTextureProperty(void* ptr)
 
 
     ImGui::EndGroup();
+}
+
+// Generic row for the asset kinds that have no bespoke widget: label, search
+// combo, clear. The uiType picks the resource table the combo lists.
+void PropertyPanel::drawAssetHandleProperty(void* ptr, const ReflectionProperty& prop)
+{
+    AssetHandle* handle = static_cast<AssetHandle*>(ptr);
+
+    ImGui::PushID(prop.name.c_str());
+    ImGui::Text("%s", prop.name.c_str());
+
+    if (prop.uiType == "mesh") {
+        AssetBrowser::ResourceCombo<StaticMesh>("##combo", *handle,
+            [](AssetHandle h, float size) {
+                auto thumb = ThumbnailRenderer::getStaticMeshThumbnail(h);
+                if (thumb && thumb->getRendererID() != 0) {
+                    ImTextureID texID = (ImTextureID)(uintptr_t)thumb->getRendererID();
+                    ImGui::Image(texID, ImVec2(size, size), ImVec2(0, 1), ImVec2(1, 0));
+                } else {
+                    ImGui::Button("?", ImVec2(size, size));
+                }
+            }, 32.0f);
+    } else if (prop.uiType == "noise") {
+        AssetBrowser::ResourceCombo<NoiseGraphResource>("##combo", *handle,
+            [](AssetHandle, float size) { ImGui::Button("?", ImVec2(size, size)); }, 24.0f);
+    } else if (prop.uiType == "terrain_rule") {
+        AssetBrowser::ResourceCombo<TerrainRuleGraphResource>("##combo", *handle,
+            [](AssetHandle, float size) { ImGui::Button("?", ImVec2(size, size)); }, 24.0f);
+    } else if (prop.uiType == "hud") {
+        AssetBrowser::ResourceCombo<HudAsset>("##combo", *handle,
+            [](AssetHandle, float size) { ImGui::Button("?", ImVec2(size, size)); }, 24.0f);
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Clear"))
+        *handle = AssetHandle();
+    ImGui::PopID();
 }
 
 // -----------------------------------------------------------------------
@@ -666,6 +726,21 @@ void PropertyPanel::drawTerrainSystemComponent(TerrainSystemComponent* comp)
         comp->materialHandle = AssetHandle();
     ImGui::Separator();
 
+    // --- Material rule graph: bakes the layers' weights from terrain attributes ---
+    // Terrain PCG, so it lives here rather than on the material. Clearing it returns
+    // the material to its per-layer slope/height/noise rules.
+    ImGui::Text("Material Rule Graph");
+    AssetBrowser::ResourceCombo<TerrainRuleGraphResource>("##sys_rulegraph_combo", comp->ruleGraphHandle,
+        [](AssetHandle, float size) {
+            ImGui::Button("?", ImVec2(size, size));
+        }, 24.0f);
+    ImGui::SameLine();
+    if (ImGui::Button("Clear##sys_rulegraph"))
+        comp->ruleGraphHandle = AssetHandle();
+    if (comp->ruleGraphHandle.isValid())
+        ImGui::TextDisabled("Layers 1..3 take their weights from the graph.");
+    ImGui::Separator();
+
     // The layer stack is authored in the material's own editor window, not here:
     // this inspector only selects the material and reports its state.
     auto layered = std::dynamic_pointer_cast<LayeredMaterial>(
@@ -722,6 +797,31 @@ void PropertyPanel::drawTerrainSystemComponent(TerrainSystemComponent* comp)
     ImGui::DragFloat("Detail", &comp->lodDetail, 0.5f, 1.0f, 128.0f);
     ImGui::DragFloat("Render Distance", &comp->renderDistance, 100.0f, 100.0f, 100000.0f);
 
+    // --- Distance streaming ---
+    // The streamer keeps the tiles near the rendering camera alive and drops the
+    // rest, so the tile set follows the view rather than the scene.
+    ImGui::Separator();
+    ImGui::Text("Streaming");
+    ImGui::Checkbox("Distance Streaming", &comp->bDistanceStreaming);
+    ImGui::BeginDisabled(!comp->bDistanceStreaming);
+    ImGui::DragInt("Stream Radius", &comp->streamRadiusTiles, 0.2f, 0, 32);
+    ImGui::DragInt("Stream Unload Pad", &comp->streamUnloadPadTiles, 0.2f, 0, 8);
+    ImGui::DragInt("Stream Build Budget", &comp->streamBuildBudget, 0.2f, 1, 16);
+    ImGui::EndDisabled();
+
+    if (comp->bDistanceStreaming && !comp->noiseGraphHandle.isValid()) {
+        ImGui::TextDisabled("Needs a Noise Graph: a streamed tile carries no height map of its own.");
+    }
+    else if (comp->bDistanceStreaming) {
+        // Per-texel: 44 B of vertex (position+uv+normal+tangent) plus ~32 B of
+        // index -- the same estimate the tile builder's memory note uses.
+        const int res = std::clamp(comp->noiseResolution, 16, 4096);
+        const int side = 2 * comp->streamRadiusTiles + 1;
+        const double tiles = (double)side * side;
+        const double mb = tiles * (double)res * res * 76.0 / (1024.0 * 1024.0);
+        ImGui::TextDisabled("%d x %d = %d tiles, ~%.0f MB of mesh", side, side, (int)tiles, mb);
+    }
+
     ImGui::TextDisabled("These settings apply to every terrain tile in the scene.");
 }
 
@@ -737,7 +837,7 @@ void PropertyPanel::drawTerrainComponent(uint32_t& entityId, TerrainComponent* c
     // A tile has nothing to bake from without the scene's shared parameters, and
     // stays hidden until one exists. Creating the entity reallocates component
     // storage, so defer it a frame rather than building it under this pointer.
-    TerrainSystemComponent* sys = m_sceneContext ? Terrain::findSystem(*m_sceneContext) : nullptr;
+    TerrainSystemComponent* sys = m_sceneContext ? TerrainSubsystem(*m_sceneContext).system() : nullptr;
     if (!sys) {
         ImGui::TextDisabled("No Terrain System in this scene.");
         ImGui::TextDisabled("Terrain tiles stay hidden until one exists.");
@@ -778,7 +878,7 @@ void PropertyPanel::drawTerrainComponent(uint32_t& entityId, TerrainComponent* c
         comp->bDirty = true;
         // Fall back to the next source: system noise graph, else the flat surface.
         if (m_sceneContext)
-            Terrain::ensureBuilt(*m_sceneContext, entityId);
+            TerrainTile(*m_sceneContext, entityId).ensureBuilt();
     }
     ImGui::EndGroup();
 
@@ -803,7 +903,7 @@ void PropertyPanel::drawTerrainComponent(uint32_t& entityId, TerrainComponent* c
         // Route through ensureBuilt so the noise > heightmap > flat priority is the
         // single decision point; mark dirty to force the rebuild.
         comp->bDirty = true;
-        Terrain::ensureBuilt(*m_sceneContext, entityId);
+        TerrainTile(*m_sceneContext, entityId).ensureBuilt();
     }
     if (!canGenerate) {
         ImGui::EndDisabled();
@@ -841,10 +941,11 @@ void PropertyPanel::applyTerrainSource(uint32_t entityId, TerrainComponent* comp
     // coordinate with the transform and bake again: a noise tile that moved
     // re-samples from its new origin instead of staying on the old one.
     comp->bDirty = true;
-    Terrain::ensureBuilt(*m_sceneContext, entityId);
+    TerrainTile tile(*m_sceneContext, entityId);
+    tile.ensureBuilt();
 
-    Terrain::snapToGrid(*m_sceneContext, entityId);
-    Terrain::ensureBuilt(*m_sceneContext, entityId);
+    tile.snapToGrid();
+    tile.ensureBuilt();
 }
 
 void PropertyPanel::drawTerrainTiles(uint32_t& entityId, TerrainComponent* comp)
@@ -853,11 +954,11 @@ void PropertyPanel::drawTerrainTiles(uint32_t& entityId, TerrainComponent* comp)
     ImGui::Text("Terrain Tiles");
 
     Scene& scene = *m_sceneContext;
-    TerrainSystemComponent* sys = Terrain::findSystem(scene);
+    TerrainSystemComponent* sys = TerrainSubsystem(scene).system();
     if (!sys)
         return;
 
-    const float tileSize = Terrain::tileWorldSize(*comp, *sys);
+    const float tileSize = TerrainTile::tileWorldSize(*comp, *sys);
     ImGui::TextDisabled("Tile World Size  %.2f m", tileSize);
     if (tileSize <= 0.0f) {
         ImGui::TextDisabled("Assign a height map or noise graph to place this tile on the grid.");
@@ -867,20 +968,22 @@ void PropertyPanel::drawTerrainTiles(uint32_t& entityId, TerrainComponent* comp)
     int coord[2] = { comp->tileCoord.x, comp->tileCoord.y };
     ImGui::SetNextItemWidth(150.0f);
     if (ImGui::DragInt2("##tileCoord", coord, 0.5f))
-        Terrain::setTileCoord(scene, entityId, glm::ivec2(coord[0], coord[1]));
+        TerrainTile(scene, entityId).setCoord(glm::ivec2(coord[0], coord[1]));
     ImGui::SameLine();
     ImGui::TextUnformatted("Coord");
 
     // A slot is whatever occupies the grid cell one step away, since neighbours
     // are looked up by coordinate rather than stored. Filled slots jump there,
     // empty ones create a tile that shares this scene's terrain system settings.
-    const Terrain::TileDir kDirs[4] = { Terrain::TileDir::Left, Terrain::TileDir::Right,
-                                        Terrain::TileDir::Up, Terrain::TileDir::Down };
+    const TerrainSubsystem::TileDir kDirs[4] = {
+        TerrainSubsystem::TileDir::Left, TerrainSubsystem::TileDir::Right,
+        TerrainSubsystem::TileDir::Up, TerrainSubsystem::TileDir::Down };
     const char* kDirNames[4] = { "Left", "Right", "Up", "Down" };
 
+    TerrainSubsystem terrain(scene);
     for (int i = 0; i < 4; ++i) {
-        const glm::ivec2 target = comp->tileCoord + Terrain::tileStep(kDirs[i]);
-        const uint32_t neighbour = Terrain::findTile(scene, target);
+        const glm::ivec2 target = comp->tileCoord + TerrainSubsystem::tileStep(kDirs[i]);
+        const uint32_t neighbour = terrain.findTile(target);
 
         ImGui::PushID(i);
         ImGui::TextUnformatted(kDirNames[i]);
@@ -891,7 +994,7 @@ void PropertyPanel::drawTerrainTiles(uint32_t& entityId, TerrainComponent* comp)
                 entityId = neighbour;
             if (ImGui::IsItemHovered()) {
                 const float neighbourSize =
-                    Terrain::tileWorldSize(scene.getComponent<TerrainComponent>(neighbour), *sys);
+                    TerrainTile::tileWorldSize(scene.getComponent<TerrainComponent>(neighbour), *sys);
                 if (neighbourSize != tileSize)
                     ImGui::SetTooltip("Tile at (%d, %d)\nTile size differs: %.2f m, so the grid "
                         "will not line up", target.x, target.y, neighbourSize);
@@ -915,7 +1018,7 @@ void PropertyPanel::drawTerrainTiles(uint32_t& entityId, TerrainComponent* comp)
     }
     ImGui::SameLine();
     if (ImGui::Button("Snap to Grid"))
-        Terrain::snapToGrid(scene, entityId);
+        TerrainTile(scene, entityId).snapToGrid();
 }
 
 } // namespace ve

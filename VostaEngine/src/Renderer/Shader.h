@@ -2,13 +2,20 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "Core/Core.h"
+#include "Renderer/GpuLightData.h"
 #include "Renderer/Texture.h"
-#include "Renderer/Light.h"
 
 #include <glm.hpp>
 
 namespace ve {
+
+	class Texture2D;
+	class Texture2DArray;
+	class TextureCubeMap;
+	class Texture3D;
+
 	class VE_API Shader {
 	public:
 		virtual ~Shader();
@@ -23,8 +30,12 @@ namespace ve {
 		virtual void setMat4(const std::string& name, const glm::mat4& value) {};
 		virtual void setInt(const std::string& name, int value) {};
 		virtual void setTexture(const std::string& name, const Ref<Texture2D>& texture, uint32_t slot) {};
+		virtual void setTextureArray(const std::string& name, const Ref<Texture2DArray>& texture, uint32_t slot) {};
 		virtual void setTextureCube(const std::string& name, const Ref<TextureCubeMap>& texture, uint32_t slot) {};
 		virtual void setTexture3D(const std::string& name, const Ref<Texture3D>& texture, uint32_t slot) {};
+		// Binds `texture` to image `unit` and points the uimage* uniform `name` at
+		// it, so the shader can imageLoad / imageStore it.
+		virtual void setImage(const std::string& name, const Ref<Texture>& texture, uint32_t unit, ImageAccess access) {};
 		static Ref<Shader> create(const std::string& name,const std::string& vertexSrc, const std::string& fragmentSrc);
 		static Ref<Shader> create(const std::string& filePath);
 

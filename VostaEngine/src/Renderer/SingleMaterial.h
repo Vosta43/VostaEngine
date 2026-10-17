@@ -53,9 +53,9 @@ namespace ve {
 		bool hasNormalMap() const   { return normalMapHandle.isValid(); }
 		bool hasEmissiveMap() const { return emissiveMapHandle.isValid(); }
 
-		// albedo / normal / metallic / roughness / AO occupy units 0..4; graph
-		// sampler nodes are assigned the units above them.
-		static constexpr uint32_t kFixedTextureUnits = 5;
+		// albedo / normal / metallic / roughness / AO / emissive occupy units
+		// 0..5; graph sampler nodes are assigned the units above them.
+		static constexpr uint32_t kFixedTextureUnits = 6;
 
 		Ref<Shader> getShader() override;
 		void fillBindings(MaterialBindingSet& out) const override;

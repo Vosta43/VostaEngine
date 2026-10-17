@@ -46,9 +46,7 @@ namespace ve {
         if (!ctx.hasAtmosphere || !ctx.cloudNoiseTexture) { passthrough(); return; }
         const AtmosphereParams& a = ctx.atmosphere;
         const CloudParams& c = ctx.clouds;
-        float inner = a.planetRadius + c.bottomAltitude;
-        float outer = a.planetRadius + c.topAltitude;
-        if (outer <= inner) { passthrough(); return; }
+        if (c.topAltitude <= c.bottomAltitude) { passthrough(); return; }
 
         Ref<Framebuffer> readBuffer = historyRead(ctx.frameIndex);
         Ref<Framebuffer> writeBuffer = historyWrite(ctx.frameIndex);
@@ -75,11 +73,12 @@ namespace ve {
 
         m_shader->setMat4("u_InvViewProj", glm::inverse(ctx.projMatrix * ctx.viewMatrix));
         m_shader->setMat4("u_PrevViewProj", ctx.prevViewProjMatrix);
-        m_shader->setFloat3("u_CameraPos", ctx.cameraPosition);
-        m_shader->setFloat3("u_PlanetCenter", ctx.planetCenter);
+        m_shader->setFloat3("u_CameraPos", toRenderSpaceChart(ctx.cameraPosition, ctx));
+        m_shader->setFloat3("u_PlanetCenter", toRenderSpace(ctx.planetCenter, ctx.renderOrigin));
         m_shader->setFloat("u_PlanetRadius", a.planetRadius);
-        m_shader->setFloat("u_CloudInnerRadius", inner);
-        m_shader->setFloat("u_CloudOuterRadius", outer);
+        m_shader->setFloat("u_CamAltitude", cameraAltitude(ctx));
+        m_shader->setFloat("u_CloudInnerAltitude", c.bottomAltitude);
+        m_shader->setFloat("u_CloudOuterAltitude", c.topAltitude);
 
         // First frame / after resize: history is empty or stale — write the
         // current frame as-is so we don't blend against garbage.

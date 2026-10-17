@@ -5,6 +5,7 @@
 #include "Renderer/Renderer3D.h"
 #include "Renderer/RenderCommand.h"
 #include "Renderer/FrameBuffer.h"
+#include "Renderer/Projection.h"
 #include "Renderer/VertexArray.h"
 #include "Core/Application.h"
 #include "Core/Log.h"
@@ -58,14 +59,14 @@ Ref<TextureCubeMap> AtmosphereSkyBaker::bakeSkyCubemap(
         return nullptr;
     }
 
-    glm::mat4 captureProj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+    glm::mat4 captureProj = makePerspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
 
     tempFBO->bind();
     shader->bind();
 
     shader->setFloat3("u_PlanetRelOrigin", planetRelOrigin);
     shader->setFloat3("u_SunDirection", glm::normalize(params.sunDirection));
-    shader->setFloat("u_SunIntensity", params.sunIntensity);
+    shader->setFloat3("u_SunIntensity", params.sunIntensity * params.resolveSunColor());
     shader->setFloat("u_MiePhaseG", params.miePhaseG);
     shader->setFloat("u_PlanetRadius", params.planetRadius);
     shader->setFloat("u_AtmosphereHeight", params.atmosphereHeight);

@@ -20,10 +20,14 @@ layout(location = 2) out mat3 v_TBN;
 
 uniform mat4 u_Model;
 uniform mat4 u_ViewProj;
+// Render space is the camera origin: gl_Position stays small (render space), but
+// the WorldPosition the graph reads is authoritative world, so put the origin
+// back on the varying only.
+uniform vec3 u_WorldOrigin;
 
 void main() {
     vec4 worldPos = u_Model * vec4(a_Position, 1.0);
-    v_WorldPos = worldPos.xyz;
+    v_WorldPos = worldPos.xyz + u_WorldOrigin;
     v_TexCoord = a_TexCoord;
 
     vec3 T = normalize(mat3(u_Model) * a_Tangent);
@@ -162,6 +166,94 @@ uniform float u_Time;
 
 
 	}
+	bool ShaderGenerator::compileSurface(const MaterialGraph& graph,
+	                                     const std::string& samplerPrefix,
+	                                     std::string& outSamplerDecls,
+	                                     std::string& outBody,
+	                                     SurfaceOutputs& out) {
+
+		MaterialOutputNode* outputNode = nullptr;
+		for (const auto& node : graph.nodes) {
+			if (auto* o = dynamic_cast<MaterialOutputNode*>(node.get())) {
+				outputNode = o;
+				break;
+			}
+		}
+		if (!outputNode)
+			return false;
+
+		auto sorted = graph.topologicalSort();
+		if (sorted.empty())
+			return false;
+
+		// Each call compiles into its own GLSL function, so the statements' locals are
+		// scoped and the temp counter can restart at zero. Only the sampler uniforms,
+		// which are file-scope, need the caller-supplied per-layer prefix.
+		ShaderGenContext ctx;
+		std::unordered_map<uint32_t, std::vector<std::string>> varCache;
+
+		// Name the sampler uniforms up front so every generated statement reads the
+		// right one. The node owns its samplerName and is shared with the material
+		// editor and with any other layer referencing the same graph, so the originals
+		// are restored once the body is emitted.
+		std::vector<std::pair<TextureSamplerNode*, std::string>> restore;
+		int texSlot = 0;
+		for (auto& node : sorted) {
+			if (auto* tex = dynamic_cast<TextureSamplerNode*>(node.get())) {
+				restore.push_back({tex, tex->samplerName});
+				tex->samplerName = samplerPrefix + std::to_string(texSlot);
+				ctx.samplers << tex->generateSamplerDeclaration(texSlot);
+				if (tex->textureHandle.isValid())
+					out.samplers.push_back({tex->samplerName, tex->textureHandle});
+				texSlot++;
+			}
+		}
+
+		for (auto& node : sorted) {
+			if (node.get() == outputNode) continue;
+			generateNodeCode(node, graph, ctx, varCache);
+		}
+
+		for (size_t i = 0; i < out.exprs.size(); ++i) {
+			const GraphLink* found = nullptr;
+			for (auto& link : graph.links) {
+				if (link.endPin.id == outputNode->id && link.endPin.pinIndex == i) {
+					found = &link;
+					break;
+				}
+			}
+
+			if (found) {
+				auto& srcVars = varCache[found->startPin.id];
+				std::string varName = srcVars[found->startPin.pinIndex];
+
+				GraphNode* srcNode = graph.findNode(found->startPin.id);
+				if (srcNode) {
+					uint32_t realOutIdx = found->startPin.pinIndex - (uint32_t)srcNode->m_inputPins.size();
+					if (realOutIdx < srcNode->m_outputPins.size()) {
+						PinType srcType = srcNode->m_outputPins[realOutIdx].type;
+						PinType dstType = outputNode->m_inputPins[i].type;
+						varName = convertType(varName, srcType, dstType);
+					}
+				}
+				out.exprs[i] = varName;
+			}
+			else {
+				// Unconnected: bake the shared default in rather than emit a sentinel,
+				// so the caller can splice the expression with no special casing.
+				out.exprs[i] = kMaterialOutputDefaults[i];
+			}
+		}
+
+		outSamplerDecls = ctx.samplers.str();
+		outBody = ctx.mainFunction.str();
+
+		for (auto& entry : restore)
+			entry.first->samplerName = entry.second;
+
+		return true;
+	}
+
 	void ShaderGenerator::generateNodeCode(Ref<GraphNode> node, const MaterialGraph& graph, ShaderGenContext& ctx, std::unordered_map<uint32_t, std::vector<std::string>>& varCache){
 
 		std::vector<std::string> inputVars;

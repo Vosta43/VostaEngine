@@ -10,7 +10,15 @@ namespace ve {
 
     void OpenGLRendererAPI::init(){
         glEnable(GL_BLEND);
-        
+
+        // Reverse-Z. glClipControl must be the first of these: it retargets the
+        // whole context to a 0..1 clip depth, which every projection in
+        // Renderer/Projection.h is built for, and every depth read in a shader
+        // assumes. The depth buffer then clears to the far plane (0) and the
+        // nearer surface wins with GREATER.
+        glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+        glClearDepth(0.0);
+        glDepthFunc(GL_GREATER);
     }
     void OpenGLRendererAPI::setClearColor(const glm::vec4& color) {
         glClearColor(color.r, color.g, color.b, color.a);
@@ -22,8 +30,8 @@ namespace ve {
 
     void OpenGLRendererAPI::clearInt(int32_t value) {
         // glClearColor is unspecified for integer color buffers; the spec-correct
-        // path is glClearBufferiv. Depth is a separate (fixed-point) attachment,
-        // so clear it with the ordinary glClear.
+        // path is glClearBufferiv. Depth is a separate attachment, so clear it
+        // with the ordinary glClear.
         glClearBufferiv(GL_COLOR, 0, &value);
         glClear(GL_DEPTH_BUFFER_BIT);
     }
@@ -83,11 +91,11 @@ namespace ve {
 
     void OpenGLRendererAPI::setDepthFunc(DepthFunc func) {
         switch (func) {
-        case DepthFunc::LESS:
-            glDepthFunc(GL_LESS);
+        case DepthFunc::GREATER:
+            glDepthFunc(GL_GREATER);
             break;
-        case DepthFunc::LEQUAL:
-            glDepthFunc(GL_LEQUAL);
+        case DepthFunc::GEQUAL:
+            glDepthFunc(GL_GEQUAL);
             break;
         }
     }

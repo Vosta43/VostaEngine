@@ -1,10 +1,11 @@
 #include "vepch.h"
 #include "ShadowCascadeCalculator.h"
+#include "Renderer/Projection.h"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <gtc/matrix_transform.hpp>   // glm::lookAt, glm::ortho
+#include <gtc/matrix_transform.hpp>   // glm::lookAt
 
 namespace ve {
 
@@ -22,14 +23,20 @@ namespace ve {
 		ShadowCascades r;
 
 		// Camera projection parameters (glm column-major: entry [col][row]).
-		float nearP      = projection[3][2] / (projection[2][2] - 1.0f);
+		float nearP      = perspectiveNear(projection);
 		float tanHalfFov = 1.0f / projection[1][1];
 		float aspect     = projection[1][1] / projection[0][0];
 
 		// Light basis: rays travel along +sunDir; the shadow camera looks along -sunDir.
+		// Built straight from sunDir, never from lookAt(camPos + sunDir, camPos, up):
+		// that eye/centre difference is a unit vector added to a world position, so it
+		// rounds to ULP(camPos) and re-quantises the whole basis as the camera
+		// translates -- the shadow map then steps by a texel per frame at ~7 km.
 		glm::vec3 up(0.0f, 1.0f, 0.0f);
-		glm::vec3 refEye = camPos + sunDir;
-		glm::mat3 lightAxes = glm::transpose(glm::mat3(glm::lookAt(refEye, camPos, up)));
+		glm::vec3 lightF = -glm::normalize(sunDir);
+		glm::vec3 lightS = glm::normalize(glm::cross(lightF, up));
+		glm::vec3 lightU = glm::cross(lightS, lightF);
+		glm::mat3 lightAxes = glm::mat3(lightS, lightU, -lightF);
 		glm::vec3 R = lightAxes[0];             // light-space X (world)
 		glm::vec3 U = lightAxes[1];             // light-space Y (world)
 		glm::vec3 S = glm::normalize(sunDir);   // light-space Z, positive toward sun
@@ -107,7 +114,7 @@ namespace ve {
 			glm::vec3 look = lateral + S * (zMin - 8.0f);
 			float farD = (zMax + backReach) - (zMin - 8.0f);
 			glm::mat4 sunView = glm::lookAt(eye, look, up);
-			glm::mat4 sunProj = glm::ortho(-half, half, -half, half, 1.0f, farD);
+			glm::mat4 sunProj = makeOrtho(-half, half, -half, half, 1.0f, farD);
 			r.lightVP[c] = sunProj * sunView;
 
 			nearSlice = farSlice;

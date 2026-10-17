@@ -37,6 +37,14 @@ namespace ve {
 		}
 	}
 
+	// Fallback expression for each MaterialOutput input when its pin is left
+	// unconnected, in pin order: BaseColor, Metallic, Roughness, AO, Normal,
+	// Emissive. Shared by MaterialOutputNode codegen and the layered-shader
+	// builder, which resolves the same pins once per terrain layer.
+	inline constexpr const char* kMaterialOutputDefaults[] = {
+		"vec3(1.0)", "0.0", "0.5", "1.0", "vec3(0.5, 0.5, 1.0)", "vec3(0.0)"
+	};
+
 	// Serialization type tags — one per concrete MaterialNode subclass.
 	enum class MaterialNodeTag : uint8_t {
 		ConstantFloat     = 0,
@@ -67,6 +75,7 @@ namespace ve {
 		Saturate          = 25,
 		ComponentMask     = 26,
 		Append            = 27,
+		AppendMany        = 28,
 	};
 
 	// Material node: a GraphNode that additionally knows how to emit GLSL.

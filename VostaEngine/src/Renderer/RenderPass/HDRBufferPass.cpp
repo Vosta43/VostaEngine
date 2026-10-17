@@ -49,13 +49,16 @@ namespace ve {
 		m_shader->bind();
 		glm::mat4 invVP = glm::inverse(ctx.projMatrix * ctx.viewMatrix);
 		m_shader->setMat4("u_InvViewProj", invVP);
-		m_shader->setFloat3("u_CameraPos", ctx.cameraPosition);
+		// The GBuffer wrote render-space positions, so camera and planet centre go
+		// in render-space too. Their difference (the planet-relative camera vector
+		// the atmosphere uses) is unchanged by the shared origin.
+		m_shader->setFloat3("u_CameraPos", toRenderSpaceChart(ctx.cameraPosition, ctx));
 
 		if (ctx.hasAtmosphere) {
 			const AtmosphereParams& a = ctx.atmosphere;
-			m_shader->setFloat3("u_PlanetCenter", ctx.planetCenter);
+			m_shader->setFloat3("u_PlanetCenter", toRenderSpace(ctx.planetCenter, ctx.renderOrigin));
 			m_shader->setFloat3("u_SunDirection", glm::normalize(a.sunDirection));
-			m_shader->setFloat("u_SunIntensity", a.sunIntensity);
+			m_shader->setFloat3("u_SunIntensity", a.sunIntensity * a.resolveSunColor());
 			m_shader->setFloat3("u_RayleighScattering", a.rayleighScattering);
 			m_shader->setFloat("u_RayleighScaleHeight", a.rayleighScaleHeight);
 			m_shader->setFloat3("u_MieScattering", a.mieScattering);
@@ -64,12 +67,15 @@ namespace ve {
 			m_shader->setFloat("u_PlanetRadius", a.planetRadius);
 			m_shader->setFloat("u_AtmosphereHeight", a.atmosphereHeight);
 			m_shader->setFloat("u_Exposure", a.exposure);
+			m_shader->setFloat("u_CamAltitude", cameraAltitude(ctx));
 
 			const CloudParams& c = ctx.clouds;
 			// Cloud layer bounds stay here — the occlusion test in this shader
-			// (rayCloudLayer) and the glossy-sky reflection march both need them.
-			m_shader->setFloat("u_CloudInnerRadius", a.planetRadius + c.bottomAltitude);
-			m_shader->setFloat("u_CloudOuterRadius", a.planetRadius + c.topAltitude);
+			// (rayCloudLayer) uses them. They are altitudes, never radii: the
+			// radius difference is what the test needs and it does not survive
+			// float32 at planetary scale.
+			m_shader->setFloat("u_CloudInnerAltitude", c.bottomAltitude);
+			m_shader->setFloat("u_CloudOuterAltitude", c.topAltitude);
 
 			if (ctx.transmittanceTexture) {
 				m_shader->setTexture("u_TransmittanceLUT", ctx.transmittanceTexture, 9);
@@ -105,7 +111,8 @@ namespace ve {
 
 			for (auto& cmd : ctx.drawLightCommands) {
 				GpuLightData g;
-				g.position = cmd.position;
+				// Shaded against render-space fragment positions.
+				g.position = toRenderSpaceChart(cmd.position, ctx);
 				g.range = cmd.light.range;
 				g.color = cmd.light.color;
 				g.intensity = cmd.light.intensity;

@@ -36,10 +36,13 @@ namespace ve {
 		m_shader->setMat4("u_ShadowVP", ctx.shadowLightVP[m_cascade]);
 
 		for (const auto& cmd : ctx.drawMeshCommands) {
-			auto mesh = ResourceManager::get<StaticMesh>(cmd.meshHandle);
+			auto mesh = cmd.transientMesh;
+			if (!mesh) mesh = ResourceManager::get<StaticMesh>(cmd.meshHandle);
 			if (!mesh) continue;
 
-			m_shader->setMat4("u_Model", cmd.transform);
+			// The cascade matrices were fit from the render-space view, so casters
+			// must go in render-space too.
+			m_shader->setMat4("u_Model", renderModelMatrix(cmd, ctx));
 			mesh->bind();
 			mesh->draw(cmd.startIndex, cmd.indexCount);
 			mesh->unbind();

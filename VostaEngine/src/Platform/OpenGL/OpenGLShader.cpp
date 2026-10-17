@@ -1,6 +1,8 @@
 #include "vepch.h"
 #include "OpenGLShader.h"
+#include "Core/AssetConfig.h"
 #include "Core/Log.h"
+#include "Renderer/Texture.h"
 #include <glad/glad.h>
 #include <memory>
 #include <filesystem>
@@ -183,6 +185,13 @@ namespace ve {
         setInt(name, slot);
     }
 
+    void OpenGLShader::setTextureArray(const std::string& name, const Ref<Texture2DArray>& texture, uint32_t slot)
+    {
+        if (!texture) return;
+        texture->bind(slot);
+        setInt(name, slot);
+    }
+
     void OpenGLShader::setTextureCube(const std::string& name, const Ref<TextureCubeMap>& texture, uint32_t slot)
     {
         if(!texture) return;
@@ -195,6 +204,13 @@ namespace ve {
         if (!texture) return;
         texture->bind(slot);
         setInt(name, slot);
+    }
+
+    void OpenGLShader::setImage(const std::string& name, const Ref<Texture>& texture, uint32_t unit, ImageAccess access)
+    {
+        if (!texture) return;
+        texture->bindImage(unit, access);
+        setInt(name, unit);
     }
 
     void OpenGLShader::uploadUniformFloat(const std::string& name, float values)

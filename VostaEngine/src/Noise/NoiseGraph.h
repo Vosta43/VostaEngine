@@ -7,7 +7,7 @@
 
 namespace ve {
 
-	// A noise node additionally knows how to produce a scalar at a world (x, y).
+	// A noise node additionally knows how to produce a scalar at a world position.
 	// Concrete kinds live in NoiseNodes.h; this base is what the editor schema and
 	// the evaluator dynamic_cast against. Mirrors MaterialNode's role for materials.
 	class VE_API NoiseNode : public GraphNode {
@@ -15,6 +15,14 @@ namespace ve {
 		// inputs holds the evaluated value of each input pin in pin order, and 0 for
 		// an unconnected pin, so a node never has to walk the graph itself.
 		virtual float evaluate(const std::vector<float>& inputs, float x, float y) const { return 0.0f; }
+
+		// 3D sampling entry, so the same graph can drive a volumetric consumer (a
+		// geometry displacement) while terrain and the 2D preview keep using the flat
+		// evaluate above. Only the coordinate leaves read the position, so every math
+		// node just inherits this forward.
+		virtual float evaluate3(const std::vector<float>& inputs, float x, float y, float z) const {
+			return evaluate(inputs, x, y);
+		}
 	};
 
 	// Serialization tags — one per concrete NoiseNode subclass.

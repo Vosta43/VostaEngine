@@ -5,12 +5,12 @@
 #include "Renderer/Buffer.h"
 #include "Renderer/RenderCommand.h"
 #include "Renderer/RendererAPI.h"
+#include "Renderer/Projection.h"
 #include "Renderer/Shader.h"
 #include "Renderer/Texture.h"
 #include "Renderer/VertexArray.h"
 
 #include <algorithm>
-#include <gtc/matrix_transform.hpp>   // glm::ortho
 
 namespace ve::vellum {
 
@@ -113,7 +113,7 @@ void main() {
         m_shader->bind();
         // ortho(0, w, h, 0) puts the origin at the top-left with y growing downwards,
         // so a widget's screen-space rect maps straight through without a y-flip.
-        m_shader->setMat4("u_Projection", glm::ortho(0.0f, surfaceSize.x, surfaceSize.y, 0.0f, -1.0f, 1.0f));
+        m_shader->setMat4("u_Projection", makeOrtho(0.0f, surfaceSize.x, surfaceSize.y, 0.0f, -1.0f, 1.0f));
 
         // The caller may have left a sub-rect viewport behind (editor viewports, render
         // targets); Vellum owns the whole surface it painted against.

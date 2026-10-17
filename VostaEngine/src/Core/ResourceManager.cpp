@@ -6,8 +6,11 @@
 #include "Renderer/Material.h"
 #include "Asset/StaticMeshResource.h"
 #include "Noise/NoiseGraphResource.h"
+#include "Geometry/GeometryGraphResource.h"
+#include "Terrain/RuleGraphResource.h"
 #include "Renderer/MaterialLayerAsset.h"
 #include "Scene/Terrain/TerrainDataResource.h"
+#include "Gui/Hud/HudAsset.h"
 
 
 namespace ve {
@@ -22,35 +25,47 @@ namespace ve {
     // unit, so the linker can find it when other .cpp files call
     // ResourceManager::store<T>().
 	template VE_API ResourceStorage<Texture2D>& ResourceManager::storage<Texture2D>();
+    template VE_API ResourceStorage<Texture2DArray>& ResourceManager::storage<Texture2DArray>();
     template VE_API ResourceStorage<TextureCubeMap>& ResourceManager::storage<TextureCubeMap>();
     template VE_API ResourceStorage<StaticMesh>& ResourceManager::storage<StaticMesh>();
     template VE_API ResourceStorage<Material>& ResourceManager::storage<Material>();
     template VE_API ResourceStorage<StaticMeshResource>& ResourceManager::storage<StaticMeshResource>();
     template VE_API ResourceStorage<NoiseGraphResource>& ResourceManager::storage<NoiseGraphResource>();
+    template VE_API ResourceStorage<GeometryGraphResource>& ResourceManager::storage<GeometryGraphResource>();
+    template VE_API ResourceStorage<TerrainRuleGraphResource>& ResourceManager::storage<TerrainRuleGraphResource>();
     template VE_API ResourceStorage<MaterialLayerAsset>& ResourceManager::storage<MaterialLayerAsset>();
     template VE_API ResourceStorage<TerrainDataResource>& ResourceManager::storage<TerrainDataResource>();
+    template VE_API ResourceStorage<HudAsset>& ResourceManager::storage<HudAsset>();
 
     template class  VE_API ResourceStorage<Texture2D>;
+    template class  VE_API ResourceStorage<Texture2DArray>;
     template class  VE_API ResourceStorage<TextureCubeMap>;
     template class  VE_API ResourceStorage<StaticMesh>;
     template class VE_API ResourceStorage<Material>;
     template class VE_API ResourceStorage<StaticMeshResource>;
     template class VE_API ResourceStorage<NoiseGraphResource>;
+    template class VE_API ResourceStorage<GeometryGraphResource>;
+    template class VE_API ResourceStorage<TerrainRuleGraphResource>;
     template class VE_API ResourceStorage<MaterialLayerAsset>;
     template class VE_API ResourceStorage<TerrainDataResource>;
+    template class VE_API ResourceStorage<HudAsset>;
 
     void ResourceManager::renamePrefixAll(const std::string& oldPath, const std::string& newPath) {
         // Keep this list in step with the explicit instantiations above.
         const std::string oldRel = toRelative(oldPath);
         const std::string newRel = toRelative(newPath);
         storage<Texture2D>().renamePrefix(oldRel, newRel);
+        storage<Texture2DArray>().renamePrefix(oldRel, newRel);
         storage<TextureCubeMap>().renamePrefix(oldRel, newRel);
         storage<StaticMesh>().renamePrefix(oldRel, newRel);
         storage<Material>().renamePrefix(oldRel, newRel);
         storage<StaticMeshResource>().renamePrefix(oldRel, newRel);
         storage<NoiseGraphResource>().renamePrefix(oldRel, newRel);
+        storage<GeometryGraphResource>().renamePrefix(oldRel, newRel);
+        storage<TerrainRuleGraphResource>().renamePrefix(oldRel, newRel);
         storage<MaterialLayerAsset>().renamePrefix(oldRel, newRel);
         storage<TerrainDataResource>().renamePrefix(oldRel, newRel);
+        storage<HudAsset>().renamePrefix(oldRel, newRel);
     }
 
 }

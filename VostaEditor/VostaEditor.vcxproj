@@ -80,6 +80,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
@@ -96,6 +97,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
@@ -110,6 +112,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;IMGUI_API=__declspec(dllimport);IMGUI_IMPL_API=__declspec(dllimport);%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
       <AdditionalIncludeDirectories>$(VostaRepoRoot)VostaEditor\src;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)thirdparty\imgui-node-editor;$(VostaEngineDir)src;$(VostaEngineDir)</AdditionalIncludeDirectories>
@@ -129,6 +132,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;IMGUI_API=__declspec(dllimport);IMGUI_IMPL_API=__declspec(dllimport);%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
       <AdditionalIncludeDirectories>$(VostaRepoRoot)VostaEditor\src;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)thirdparty\imgui-node-editor;$(VostaEngineDir)src;$(VostaEngineDir)</AdditionalIncludeDirectories>
@@ -147,24 +151,34 @@
     <ClCompile Include="..\VostaEngine\thirdparty\imgui-node-editor\imgui_canvas.cpp" />
     <ClCompile Include="..\VostaEngine\thirdparty\imgui-node-editor\imgui_node_editor.cpp" />
     <ClCompile Include="..\VostaEngine\thirdparty\imgui-node-editor\imgui_node_editor_api.cpp" />
+    <ClCompile Include="src\EditorCameraStore.cpp" />
     <ClCompile Include="src\EditorLayer.cpp" />
     <ClCompile Include="src\EditorMcpTools.cpp" />
     <ClCompile Include="src\EditorViewController.cpp" />
     <ClCompile Include="src\PlaySession.cpp" />
+    <ClCompile Include="src\SceneDocument.cpp" />
     <ClCompile Include="src\Graph\NodeGraphPanel.cpp" />
     <ClCompile Include="src\Graph\MaterialEditorSchema.cpp" />
     <ClCompile Include="src\Graph\NoiseEditorSchema.cpp" />
+    <ClCompile Include="src\Graph\GeometryEditorSchema.cpp" />
+    <ClCompile Include="src\Graph\TerrainRuleEditorSchema.cpp" />
     <ClCompile Include="src\Panels\AiPanel.cpp" />
+    <ClCompile Include="src\Panels\AssetEditorHost.cpp" />
+    <ClCompile Include="src\Panels\EditorDialogs.cpp" />
     <ClCompile Include="src\Panels\FileBrowser.cpp" />
     <ClCompile Include="src\Panels\SceneOutlinerPanel.cpp" />
     <ClCompile Include="src\Panels\PropertyPanel.cpp" />
     <ClCompile Include="src\Panels\MaterialGraphPanel.cpp" />
     <ClCompile Include="src\Panels\NoisePanel.cpp" />
+    <ClCompile Include="src\Panels\GeometryGraphPanel.cpp" />
+    <ClCompile Include="src\Panels\TerrainRulePanel.cpp" />
     <ClCompile Include="src\Panels\TerrainMapPanel.cpp" />
     <ClCompile Include="src\Panels\TexturePreviewPanel.cpp" />
     <ClCompile Include="src\SubEditors\MaterialLayerEditor.cpp" />
     <ClCompile Include="src\SubEditors\LayeredMaterialEditor.cpp" />
     <ClCompile Include="src\SubEditors\TerrainEditor.cpp" />
+    <ClCompile Include="src\Viewport\ViewportOverlays.cpp" />
+    <ClCompile Include="src\Viewport\ViewportToolbar.cpp" />
     <ClCompile Include="src\VostaEditor.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -174,26 +188,37 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\AssetSaveRegistry.h" />
+    <ClInclude Include="src\EditorCameraStore.h" />
     <ClInclude Include="src\EditorLayer.h" />
     <ClInclude Include="src\EditorMcpTools.h" />
+    <ClInclude Include="src\EditorPaths.h" />
     <ClInclude Include="src\EditorViewController.h" />
     <ClInclude Include="src\PlaySession.h" />
+    <ClInclude Include="src\SceneDocument.h" />
     <ClInclude Include="src\Graph\NodeGraphPanel.h" />
     <ClInclude Include="src\Graph\NodeGraphEditorSchema.h" />
     <ClInclude Include="src\Graph\MaterialEditorSchema.h" />
     <ClInclude Include="src\Graph\NoiseEditorSchema.h" />
+    <ClInclude Include="src\Graph\GeometryEditorSchema.h" />
+    <ClInclude Include="src\Graph\TerrainRuleEditorSchema.h" />
     <ClInclude Include="src\Panels\AiPanel.h" />
+    <ClInclude Include="src\Panels\AssetEditorHost.h" />
+    <ClInclude Include="src\Panels\EditorDialogs.h" />
     <ClInclude Include="src\Panels\FileBrowser.h" />
     <ClInclude Include="src\Panels\SceneOutlinerPanel.h" />
     <ClInclude Include="src\Panels\PropertyPanel.h" />
     <ClInclude Include="src\Panels\MaterialGraphPanel.h" />
     <ClInclude Include="src\Panels\NoisePanel.h" />
+    <ClInclude Include="src\Panels\GeometryGraphPanel.h" />
+    <ClInclude Include="src\Panels\TerrainRulePanel.h" />
     <ClInclude Include="src\Panels\TerrainMapPanel.h" />
     <ClInclude Include="src\Panels\TexturePreviewPanel.h" />
     <ClInclude Include="src\Panels\AssetBrowserWidget.h" />
     <ClInclude Include="src\SubEditors\MaterialLayerEditor.h" />
     <ClInclude Include="src\SubEditors\LayeredMaterialEditor.h" />
     <ClInclude Include="src\SubEditors\TerrainEditor.h" />
+    <ClInclude Include="src\Viewport\ViewportOverlays.h" />
+    <ClInclude Include="src\Viewport\ViewportToolbar.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />

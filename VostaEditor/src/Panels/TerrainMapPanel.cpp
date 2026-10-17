@@ -207,13 +207,13 @@ void TerrainMapPanel::onGuiRender(Scene& scene, bool* openFlag) {
         std::snprintf(generateLabel, sizeof(generateLabel), "Generate %d tile%s",
             emptyN, plural(emptyN));
         if (ImGui::MenuItem(generateLabel, nullptr, false, emptyN > 0))
-            Terrain::addTiles(scene, m_popupMin, m_popupMax);
+            TerrainSubsystem(scene).addTiles(m_popupMin, m_popupMax);
 
         char deleteLabel[64];
         std::snprintf(deleteLabel, sizeof(deleteLabel), "Delete %d tile%s",
             filledN, plural(filledN));
         if (ImGui::MenuItem(deleteLabel, nullptr, false, filledN > 0))
-            Terrain::removeTiles(scene, m_popupMin, m_popupMax);
+            TerrainSubsystem(scene).removeTiles(m_popupMin, m_popupMax);
 
         ImGui::Separator();
         if (ImGui::MenuItem("Clear Selection", nullptr, false, m_hasSelection))

@@ -32,6 +32,9 @@ namespace ve {
         void attachCubemapFace(uint32_t attachmentIndex, uint32_t face,
             const Ref<TextureCubeMap>& cubemap, uint32_t mipLevel = 0) override;
 
+        void attachColorTextureLayer(uint32_t attachmentIndex, uint32_t layer,
+            const Ref<Texture2DArray>& array, uint32_t mipLevel = 0) override;
+
         uint32_t getColorAttachmentRendererID() const override {
             return m_colorData.empty() ? 0 : m_colorData[0].textureID;
         }
@@ -56,6 +59,11 @@ namespace ve {
         std::vector<ColorAttachmentData> m_colorData;
         std::unordered_map<uint32_t, Ref<Texture2D>> m_attachedTextures;
         Ref<Texture2D> m_depthTexture;
+
+        // Highest attachment index attached via attachColorTextureLayer; drives the
+        // draw-buffer range for a layer-backed target (the RVT bake FBO).
+        uint32_t m_attachedLayerMax = 0;
+        bool     m_hasLayerAttachment = false;
     };
 
 }

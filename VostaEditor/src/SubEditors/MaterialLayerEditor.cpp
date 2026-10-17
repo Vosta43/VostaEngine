@@ -9,7 +9,9 @@
 #include "Core/AssetConfig.h"
 #include "Core/ResourceManager.h"
 #include "Panels/AssetBrowserWidget.h"
+#include "Renderer/Material.h"
 #include "Renderer/Texture.h"
+#include "Renderer/ThumbnailRenderer.h"
 
 namespace ve {
 
@@ -20,6 +22,16 @@ namespace ve {
 			auto tex = ResourceManager::get<Texture2D>(h);
 			if (tex && tex->getRendererID() != 0) {
 				ImGui::Image((ImTextureID)(uintptr_t)tex->getRendererID(), ImVec2(size, size));
+			} else {
+				ImGui::Button("?", ImVec2(size, size));
+			}
+		}
+
+		// Thumbnail for the material combo row: the material's baked sphere preview.
+		void drawMaterialPreview(AssetHandle h, float size) {
+			auto thumbnail = ThumbnailRenderer::getMaterialThumbnail(h);
+			if (thumbnail && thumbnail->getRendererID() != 0) {
+				ImGui::Image((ImTextureID)(uintptr_t)thumbnail->getRendererID(), ImVec2(size, size));
 			} else {
 				ImGui::Button("?", ImVec2(size, size));
 			}
@@ -64,12 +76,10 @@ namespace ve {
 			edited = true;
 		}
 
-		edited |= AssetBrowser::ResourceCombo<Texture2D>("Albedo", layer.albedoMap, drawTexturePreview, 24.0f);
-		edited |= AssetBrowser::ResourceCombo<Texture2D>("Normal", layer.normalMap, drawTexturePreview, 24.0f);
-		edited |= AssetBrowser::ResourceCombo<Texture2D>("Roughness", layer.roughnessMap, drawTexturePreview, 24.0f);
+		edited |= AssetBrowser::ResourceCombo<Material>("Material", layer.material, drawMaterialPreview, 24.0f);
 		edited |= AssetBrowser::ResourceCombo<Texture2D>("Height", layer.heightMap, drawTexturePreview, 24.0f);
-		ImGui::TextDisabled("Roughness / Height are optional (default 1.0).");
-		ImGui::TextDisabled("The engine packs albedo+height and normal+roughness.");
+		ImGui::TextDisabled("Albedo / Normal / Roughness come from the material.");
+		ImGui::TextDisabled("Height is optional (default 1.0) and drives Height Blend.");
 		edited |= ImGui::DragFloat("Tiling", &layer.tiling, 0.1f, 0.1f, 1000.0f);
 
 		const char* blendNames[] = { "Weight Blend", "Alpha Blend", "Height Blend" };

@@ -4,6 +4,8 @@
 #include "Layout.h"
 #include "Reply.h"
 
+#include <string>
+
 namespace ve::vellum {
 
 // Defined alongside the paint backend. Widgets only emit commands into it.
@@ -40,6 +42,11 @@ public:
 
 	void addChild(const Ref<Widget>& child);
 
+	// Author name. Unique within one authored tree; runtime code binds events to
+	// widgets through it, so it is the tree's stable lookup key.
+	void setName(const std::string& name) { m_name = name; }
+	const std::string& name() const { return m_name; }
+
 	Widget* parent() const { return m_parent; }
 	const std::vector<Ref<Widget>>& children() const { return m_children; }
 	Rect bounds() const { return m_rect; }
@@ -65,6 +72,7 @@ protected:
 	// Drops the cached size on this widget and every ancestor.
 	void invalidateDesiredSize();
 
+	std::string              m_name;              // authored lookup key
 	Widget*                  m_parent = nullptr;  // non-owning: children own, parent only observes
 	std::vector<Ref<Widget>> m_children;          // owning
 	Rect                     m_rect{};            // absolute screen space, set by arrange()

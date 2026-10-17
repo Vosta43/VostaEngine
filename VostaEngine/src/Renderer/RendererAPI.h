@@ -21,9 +21,11 @@ namespace ve {
             DirectX = 3,
             Metal = 4
         };
+        // Reverse-Z: the depth buffer holds 1 at the near plane and 0 at the far
+        // plane, so "nearer wins" is GREATER.
         enum class DepthFunc {
-            LESS,
-            LEQUAL
+            GREATER,
+            GEQUAL
         };
         enum class BlendFunc {
             Zero,

@@ -2,6 +2,7 @@
 #include "ThumbnailRenderer.h"
 #include "Core/ResourceManager.h"
 #include "Renderer/Preprocess/BakeService.h"
+#include "Renderer/Projection.h"
 #include "Asset/BuiltinReousrces.h"
 
 #include <glm.hpp>
@@ -13,40 +14,35 @@ namespace ve {
     std::unordered_map<uint32_t, ThumbnailRenderer::CachedThumbnail> ThumbnailRenderer::s_cache;
     std::unordered_map<uint32_t, ThumbnailRenderer::CachedThumbnail> ThumbnailRenderer::s_meshCache;
 
-    namespace {
+    // Without hasAtmosphere the HDR pass never writes u_Exposure (or the sun
+    // direction), so the PBR shader's "finalColor *= u_Exposure" collapses to
+    // black and normalize(0) feeds NaN into the sky term. BakeService is a
+    // singleton, so previews get real IBL and LUTs with no scene.
+    void ThumbnailRenderer::applyPreviewLighting(RenderContext& ctx)
+    {
+        auto& bake = BakeService::get();
 
-        // Give a thumbnail context the same lighting inputs the scene view uses.
-        // Without hasAtmosphere the HDR pass never writes u_Exposure (or the sun
-        // direction), so the PBR shader's "finalColor *= u_Exposure" collapses to
-        // black and normalize(0) feeds NaN into the sky term. BakeService is a
-        // singleton, so previews get real IBL and LUTs with no scene.
-        void setupThumbnailLighting(RenderContext& ctx)
-        {
-            auto& bake = BakeService::get();
+        ctx.hasAtmosphere = true;
+        ctx.atmosphere = AtmosphereParams{};
+        // Anchor the ground plane at y = 0 (planet centre a radius below), so
+        // the camera sits at a real altitude above the surface. With the
+        // centre at the origin the camera is effectively at the planet core:
+        // every ray is "inside the planet", the below-horizon ground paths
+        // collapse to zero length, and the sun transmittance degenerates.
+        ctx.planetCenter = glm::vec3(0.0f, -ctx.atmosphere.planetRadius, 0.0f);
+        // Anchoring also un-halved the direct sun (the degenerate scale used
+        // to squeeze sunTransmittance to ~0.5), so the eye-tuned preview runs
+        // hot. Pull the overall exposure down to match the old look.
+        ctx.atmosphere.exposure = 0.8f;
 
-            ctx.hasAtmosphere = true;
-            ctx.atmosphere = AtmosphereParams{};
-            // Anchor the ground plane at y = 0 (planet centre a radius below), so
-            // the camera sits at a real altitude above the surface. With the
-            // centre at the origin the camera is effectively at the planet core:
-            // every ray is "inside the planet", the below-horizon ground paths
-            // collapse to zero length, and the sun transmittance degenerates.
-            ctx.planetCenter = glm::vec3(0.0f, -ctx.atmosphere.planetRadius, 0.0f);
-            // Anchoring also un-halved the direct sun (the degenerate scale used
-            // to squeeze sunTransmittance to ~0.5), so the eye-tuned preview runs
-            // hot. Pull the overall exposure down to match the old look.
-            ctx.atmosphere.exposure = 0.8f;
+        ctx.brdfLUT = bake.getBRDFLUT();
+        ctx.irradianceMap = bake.getIrradianceMap();
+        ctx.prefilteredEnvMap = bake.getPrefilteredEnvMap();
 
-            ctx.brdfLUT = bake.getBRDFLUT();
-            ctx.irradianceMap = bake.getIrradianceMap();
-            ctx.prefilteredEnvMap = bake.getPrefilteredEnvMap();
-
-            ctx.transmittanceTexture = bake.getTransmittanceLUT(ctx.atmosphere);
-            ctx.scatteringTexture = bake.getScatteringLUT(ctx.atmosphere);
-            ctx.mieScatteringTexture = bake.getMieScatteringLUT(ctx.atmosphere);
-            ctx.multipleScatteringTexture = bake.getMultipleScatteringLUT(ctx.atmosphere);
-        }
-
+        ctx.transmittanceTexture = bake.getTransmittanceLUT(ctx.atmosphere);
+        ctx.scatteringTexture = bake.getScatteringLUT(ctx.atmosphere);
+        ctx.mieScatteringTexture = bake.getMieScatteringLUT(ctx.atmosphere);
+        ctx.multipleScatteringTexture = bake.getMultipleScatteringLUT(ctx.atmosphere);
     }
 
     Ref<Texture2D> ThumbnailRenderer::getMaterialThumbnail(AssetHandle materialHandle)
@@ -68,8 +64,8 @@ namespace ve {
 
         RenderContext ctx;
         ctx.cameraPosition = glm::vec3(-2.0f, 1.2f, 2.0f);
-        ctx.viewMatrix = glm::lookAt(ctx.cameraPosition, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        ctx.projMatrix = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 10.0f);
+        ctx.viewMatrix = glm::lookAt(glm::vec3(ctx.cameraPosition), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ctx.projMatrix = makePerspective(glm::radians(45.0f), 1.0f, 0.1f, 10.0f);
 
         ctx.viewPortX = 0;
         ctx.viewPortY = 0;
@@ -93,7 +89,7 @@ namespace ve {
         dlcmd.position = glm::vec3(0.0f, 1.2f, 5.5f);
         ctx.drawLightCommands.push_back(dlcmd);
 
-        setupThumbnailLighting(ctx);
+        applyPreviewLighting(ctx);
 
         // The pipeline's present pass renders into a fresh output FBO, discarding
         // sky pixels so the preview sits on a transparent background.
@@ -143,7 +139,7 @@ namespace ve {
         RenderContext ctx;
         ctx.cameraPosition = camPos;
         ctx.viewMatrix = glm::lookAt(camPos, center, glm::vec3(0.0f, 1.0f, 0.0f));
-        ctx.projMatrix = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, distance * 3.0f);
+        ctx.projMatrix = makePerspective(glm::radians(45.0f), 1.0f, 0.1f, distance * 3.0f);
 
         ctx.viewPortX = 0;
         ctx.viewPortY = 0;
@@ -180,7 +176,7 @@ namespace ve {
         dlcmd.position = glm::vec3(0.0f, 1.2f, 5.5f);
         ctx.drawLightCommands.push_back(dlcmd);
 
-        setupThumbnailLighting(ctx);
+        applyPreviewLighting(ctx);
 
         // The pipeline's present pass renders into a fresh output FBO, discarding
         // sky pixels so the preview sits on a transparent background.

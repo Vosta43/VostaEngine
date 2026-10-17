@@ -79,6 +79,14 @@ namespace ve {
 		(*m_impl->stack.back())[key] = std::move(arr);
 	}
 
+	void JsonWriter::set(const char* key, const glm::dvec3& v) {
+		(*m_impl->stack.back())[key] = nlohmann::json::array({ v.x, v.y, v.z });
+	}
+
+	void JsonWriter::set(const char* key, const glm::quat& q) {
+		(*m_impl->stack.back())[key] = nlohmann::json::array({ q.x, q.y, q.z, q.w });
+	}
+
 	void JsonWriter::setRaw(const char* key, const std::string& rawJson) {
 		// Non-throwing parse: a malformed blob degrades to an empty object, which
 		// callers (e.g. an OpenAI tool schema) can still accept.
@@ -151,6 +159,21 @@ namespace ve {
 				if (!e.is_number())
 					return false;
 				out[i] = e.get<float>();
+			}
+			return true;
+		}
+
+		// Same contract as readFloats, but reads through double so an authoritative
+		// world position keeps its full precision.
+		template<size_t N>
+		bool readDoubles(const nlohmann::json* v, double(&out)[N]) {
+			if (!v || !v->is_array() || v->size() != N)
+				return false;
+			for (size_t i = 0; i < N; ++i) {
+				const nlohmann::json& e = (*v)[i];
+				if (!e.is_number())
+					return false;
+				out[i] = e.get<double>();
 			}
 			return true;
 		}
@@ -269,6 +292,27 @@ namespace ve {
 		if (!readFloats(findMember(m_impl ? m_impl->node : nullptr, key), v))
 			return def;
 		return glm::make_mat4(v);
+	}
+
+	glm::dvec3 JsonReader::getVec3d(const char* key, const glm::dvec3& def) const {
+		double v[3];
+		if (!readDoubles(findMember(m_impl ? m_impl->node : nullptr, key), v))
+			return def;
+		return glm::dvec3(v[0], v[1], v[2]);
+	}
+
+	glm::quat JsonReader::getQuat(const char* key, const glm::quat& def) const {
+		double v[4];
+		if (!readDoubles(findMember(m_impl ? m_impl->node : nullptr, key), v))
+			return def;
+		return glm::quat((float)v[3], (float)v[0], (float)v[1], (float)v[2]); // stored x,y,z,w
+	}
+
+	std::string JsonReader::rawJson(const char* key, const std::string& def) const {
+		const nlohmann::json* v = findMember(m_impl ? m_impl->node : nullptr, key);
+		if (!v)
+			return def;
+		return v->dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 	}
 
 	size_t JsonReader::arraySize(const char* key) const {

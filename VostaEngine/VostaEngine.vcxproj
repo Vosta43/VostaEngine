@@ -76,6 +76,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;VE_BUILD_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -91,6 +92,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;VE_BUILD_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -104,6 +106,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;VE_BUILD_DLL;IMGUI_IMPL_OPENGL_LOADER_GLAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -126,6 +129,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;VE_BUILD_DLL;IMGUI_IMPL_OPENGL_LOADER_GLAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -154,6 +158,8 @@
     <ClCompile Include="src\Core\EnginePaths.cpp" />
     <ClCompile Include="src\Core\Deltatime.cpp" />
     <ClCompile Include="src\Core\Project.cpp" />
+    <ClCompile Include="src\Build\Packager.cpp" />
+    <ClCompile Include="src\Platform\Windows\ProcessWindows.cpp" />
     <ClCompile Include="src\Core\Events\EventDispatcher.h">
       <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -187,6 +193,10 @@
     <ClCompile Include="src\Gui\Vellum\VellumRenderer.cpp" />
     <ClCompile Include="src\Gui\Vellum\WidgetTree.cpp" />
     <ClCompile Include="src\Gui\Vellum\VellumLayer.cpp" />
+    <ClCompile Include="src\Gui\Hud\HudWidgetRegistry.cpp" />
+    <ClCompile Include="src\Gui\Hud\HudAsset.cpp" />
+    <ClCompile Include="src\Gui\Hud\HudInstance.cpp" />
+    <ClCompile Include="src\Gui\Hud\HudSystem.cpp" />
     <ClCompile Include="src\MCP\AgentSession.cpp" />
     <ClCompile Include="src\MCP\AssetTools.cpp" />
     <ClCompile Include="src\MCP\CommandRegistry.cpp" />
@@ -201,6 +211,17 @@
     <ClCompile Include="src\Noise\NoiseBaker.cpp" />
     <ClCompile Include="src\Noise\NoisePlan.cpp" />
     <ClCompile Include="src\Noise\NoiseGraphResource.cpp" />
+    <ClCompile Include="src\Terrain\RuleGraph.cpp" />
+    <ClCompile Include="src\Terrain\RulePlan.cpp" />
+    <ClCompile Include="src\Terrain\RuleGraphResource.cpp" />
+    <ClCompile Include="src\Terrain\GlobeWeightBaker.cpp" />
+    <ClCompile Include="src\Geometry\GeometryBuffer.cpp" />
+    <ClCompile Include="src\Geometry\GeometryGraph.cpp" />
+    <ClCompile Include="src\Geometry\GeometryGraphResource.cpp" />
+    <ClCompile Include="src\Geometry\GeometryEvaluator.cpp" />
+    <ClCompile Include="src\Geometry\GeometryBaker.cpp" />
+    <ClCompile Include="src\Geometry\CubeSphereMeshBuilder.cpp" />
+    <ClCompile Include="src\Geometry\CubeSphereLod.cpp" />
     <ClCompile Include="src\Platform\OpenGL\OpenGLBuffer.cpp" />
     <ClCompile Include="src\Platform\OpenGL\OpenGLContext.cpp" />
     <ClCompile Include="src\Platform\OpenGL\OpenGLFrameBuffer.cpp" />
@@ -219,6 +240,7 @@
     <ClCompile Include="src\Renderer\MaterialGraph.cpp" />
     <ClCompile Include="src\Renderer\MaterialNodes.cpp" />
     <ClCompile Include="src\Renderer\LayeredMaterial.cpp" />
+    <ClCompile Include="src\Renderer\LayeredShaderBuilder.cpp" />
     <ClCompile Include="src\Renderer\MaterialLayerAsset.cpp" />
     <ClCompile Include="src\Renderer\MaterialInstance.cpp" />
     <ClCompile Include="src\Renderer\SingleMaterial.cpp" />
@@ -234,6 +256,7 @@
     <ClCompile Include="src\Renderer\Renderer3D.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\CloudPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\CloudTAAPass.cpp" />
+    <ClCompile Include="src\Renderer\RenderPass\VolumetricLightPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\GBufferPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\HDRBufferPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\PostBufferPass.cpp" />
@@ -241,8 +264,14 @@
     <ClCompile Include="src\Renderer\RenderPass\RenderPassBase.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\PassBinding.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\PresentPass.cpp" />
+    <ClCompile Include="src\Renderer\RenderPass\RVTBakePass.cpp" />
+    <ClCompile Include="src\Renderer\RenderPass\RVTDebugPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\TAAPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPipeline.cpp" />
+    <ClCompile Include="src\Renderer\RuntimeVirtualTexture.cpp" />
+    <ClCompile Include="src\Renderer\GpuReadback.cpp" />
+    <ClCompile Include="src\Renderer\GpuReadbackSelfTest.cpp" />
+    <ClCompile Include="src\Platform\OpenGL\OpenGLGpuReadback.cpp" />
     <ClCompile Include="src\Renderer\Shadow\ShadowCascadeCalculator.cpp" />
     <ClCompile Include="src\Renderer\Pipeline\PipelineConfig.cpp" />
     <ClCompile Include="src\Renderer\Pipeline\SettingsRegistry.cpp" />
@@ -294,12 +323,15 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Asset\AssetAuthoring.h" />
+    <ClInclude Include="src\Build\Packager.h" />
+    <ClInclude Include="src\Platform\Process.h" />
     <ClInclude Include="src\Asset\AssetLibrary.h" />
     <ClInclude Include="src\Asset\BuiltinReousrces.h" />
     <ClInclude Include="src\Asset\ImportManager.h" />
     <ClInclude Include="src\Asset\StaticMeshImporter.h" />
     <ClInclude Include="src\Asset\StaticMeshResource.h" />
     <ClInclude Include="src\Asset\TextureImporter.h" />
+    <ClInclude Include="src\Asset\TextureFormat.h" />
     <ClInclude Include="src\Asset\TextureResource.h" />
     <ClInclude Include="src\Asset\Utils.h" />
     <ClInclude Include="src\Core\Application.h" />
@@ -332,6 +364,7 @@
     <ClInclude Include="src\Core\Log.h" />
     <ClInclude Include="src\Core\Reflection.h" />
     <ClInclude Include="src\Core\ResourceStorage.h" />
+    <ClInclude Include="src\Core\Types.h" />
     <ClInclude Include="src\Core\ResourceManager.h" />
     <ClInclude Include="src\Core\vepch.h" />
     <ClInclude Include="src\Core\Window.h" />
@@ -354,6 +387,10 @@
     <ClInclude Include="src\Gui\Vellum\VellumRenderer.h" />
     <ClInclude Include="src\Gui\Vellum\WidgetTree.h" />
     <ClInclude Include="src\Gui\Vellum\VellumLayer.h" />
+    <ClInclude Include="src\Gui\Hud\HudWidgetRegistry.h" />
+    <ClInclude Include="src\Gui\Hud\HudAsset.h" />
+    <ClInclude Include="src\Gui\Hud\HudInstance.h" />
+    <ClInclude Include="src\Gui\Hud\HudSystem.h" />
     <ClInclude Include="src\Input.h" />
     <ClInclude Include="src\KeyCodes.h" />
     <ClInclude Include="src\Math\Math.h" />
@@ -371,6 +408,21 @@
     <ClInclude Include="src\Noise\NoiseNodes.h" />
     <ClInclude Include="src\Noise\NoisePlan.h" />
     <ClInclude Include="src\Noise\NoiseSettings.h" />
+    <ClInclude Include="src\Terrain\RuleGraph.h" />
+    <ClInclude Include="src\Terrain\RuleNodes.h" />
+    <ClInclude Include="src\Terrain\RulePlan.h" />
+    <ClInclude Include="src\Terrain\RuleGraphResource.h" />
+    <ClInclude Include="src\Terrain\GlobeWeightBaker.h" />
+    <ClInclude Include="src\Geometry\GeometryBuffer.h" />
+    <ClInclude Include="src\Geometry\GeometryGraph.h" />
+    <ClInclude Include="src\Geometry\GeometryGraphResource.h" />
+    <ClInclude Include="src\Geometry\GeometryNodes.h" />
+    <ClInclude Include="src\Geometry\GeometryEvaluator.h" />
+    <ClInclude Include="src\Geometry\GeometryBaker.h" />
+    <ClInclude Include="src\Geometry\CubeSphereMeshBuilder.h" />
+    <ClInclude Include="src\Geometry\CubeSphereLod.h" />
+    <ClInclude Include="src\Sdf\SdfValue.h" />
+    <ClInclude Include="src\Sdf\SdfNodes.h" />
     <ClInclude Include="src\Platform\OpenGL\OpenGLBuffer.h" />
     <ClInclude Include="src\Platform\OpenGL\OpenGLContext.h" />
     <ClInclude Include="src\Platform\OpenGL\OpenGLFrameBuffer.h" />
@@ -384,16 +436,20 @@
     <ClInclude Include="src\Renderer\Atmosphere.h" />
     <ClInclude Include="src\Renderer\Buffer.h" />
     <ClInclude Include="src\Renderer\Clouds.h" />
+    <ClInclude Include="src\Renderer\VolumetricLight.h" />
     <ClInclude Include="src\Renderer\FrameBuffer.h" />
     <ClInclude Include="src\Renderer\GraphicsContext.h" />
     <ClInclude Include="src\Renderer\Camera.h" />
     <ClInclude Include="src\Renderer\CameraController.h" />
+    <ClInclude Include="src\Renderer\Projection.h" />
+    <ClInclude Include="src\Renderer\GpuLightData.h" />
     <ClInclude Include="src\Renderer\Light.h" />
     <ClInclude Include="src\Renderer\Material.h" />
     <ClInclude Include="src\Renderer\MaterialAsset.h" />
     <ClInclude Include="src\Renderer\MaterialGraph.h" />
     <ClInclude Include="src\Renderer\MaterialNodes.h" />
     <ClInclude Include="src\Renderer\LayeredMaterial.h" />
+    <ClInclude Include="src\Renderer\LayeredShaderBuilder.h" />
     <ClInclude Include="src\Renderer\MaterialLayer.h" />
     <ClInclude Include="src\Renderer\MaterialLayerAsset.h" />
     <ClInclude Include="src\Renderer\MaterialInstance.h" />
@@ -412,6 +468,7 @@
     <ClInclude Include="src\Renderer\RendererAPI.h" />
     <ClInclude Include="src\Renderer\RenderPass\CloudPass.h" />
     <ClInclude Include="src\Renderer\RenderPass\CloudTAAPass.h" />
+    <ClInclude Include="src\Renderer\RenderPass\VolumetricLightPass.h" />
     <ClInclude Include="src\Renderer\RenderPass\GBufferPass.h" />
     <ClInclude Include="src\Renderer\RenderPass\HDRBufferPass.h" />
     <ClInclude Include="src\Renderer\RenderPass\PostBufferPass.h" />
@@ -419,8 +476,14 @@
     <ClInclude Include="src\Renderer\RenderPass\RenderPassBase.h" />
     <ClInclude Include="src\Renderer\RenderPass\PassBinding.h" />
     <ClInclude Include="src\Renderer\RenderPass\PresentPass.h" />
+    <ClInclude Include="src\Renderer\RenderPass\RVTBakePass.h" />
+    <ClInclude Include="src\Renderer\RenderPass\RVTDebugPass.h" />
     <ClInclude Include="src\Renderer\RenderPass\TAAPass.h" />
     <ClInclude Include="src\Renderer\RenderPipeline.h" />
+    <ClInclude Include="src\Renderer\RuntimeVirtualTexture.h" />
+    <ClInclude Include="src\Renderer\GpuReadback.h" />
+    <ClInclude Include="src\Renderer\GpuReadbackSelfTest.h" />
+    <ClInclude Include="src\Platform\OpenGL\OpenGLGpuReadback.h" />
     <ClInclude Include="src\Renderer\Shadow\ShadowCascadeCalculator.h" />
     <ClInclude Include="src\Renderer\Pipeline\PipelineConfig.h" />
     <ClInclude Include="src\Renderer\Pipeline\SettingsRegistry.h" />
@@ -448,6 +511,7 @@
     <ClInclude Include="src\Scene\SceneSerializer.h" />
     <ClInclude Include="src\Scene\Terrain\QuadTreeTerrain.h" />
     <ClInclude Include="src\Scene\Terrain\Terrain.h" />
+    <ClInclude Include="src\Scene\Terrain\TerrainBuildQueue.h" />
     <ClInclude Include="src\Scene\Terrain\TerrainDataResource.h" />
     <ClInclude Include="src\Scene\Terrain\TerrainMeshBuilder.h" />
     <ClInclude Include="thirdparty\IMGUI\backends\imgui_impl_glfw.h" />

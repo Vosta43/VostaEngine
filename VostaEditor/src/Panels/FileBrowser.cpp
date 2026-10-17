@@ -10,9 +10,13 @@
 #include "Renderer/Material.h"
 #include "Renderer/LayeredMaterial.h"
 #include "Renderer/MaterialLayerAsset.h"
+#include "Renderer/SingleMaterial.h"
 #include "Renderer/ThumbnailRenderer.h"
 #include "Noise/NoiseSettings.h"
 #include "Noise/NoiseNodes.h"
+#include "Geometry/GeometryNodes.h"
+#include "Terrain/RuleGraph.h"
+#include "Terrain/RuleNodes.h"
 #include "Scene/Archive.h"
 #include <imgui.h>
 #include <windows.h>
@@ -461,9 +465,13 @@ namespace ve {
                     handle = ResourceManager::store<MaterialLayerAsset>(path);
                 }
                 if (auto layer = ResourceManager::get<MaterialLayerAsset>(handle)) {
-                    const std::string albedo = ResourceManager::getPath<Texture2D>(layer->layer.albedoMap);
-                    if (!albedo.empty()) {
-                        if (auto tex = texturePreviewForAsset(albedo))
+                    AssetHandle albedo;
+                    if (auto mat = std::dynamic_pointer_cast<SingleMaterial>(
+                            ResourceManager::get<Material>(layer->layer.material)))
+                        albedo = mat->albedoMapHandle;
+                    const std::string albedoPath = ResourceManager::getPath<Texture2D>(albedo);
+                    if (!albedoPath.empty()) {
+                        if (auto tex = texturePreviewForAsset(albedoPath))
                             return tex;
                     }
                 }
@@ -860,6 +868,66 @@ namespace ve {
                 }
                 refreshFiles();
                 beginRename(nz.string(), displayName(nz.filename().string()));
+            }
+            else if (ImGui::MenuItem("Geometry Graph")) {
+                std::error_code ec;
+                std::filesystem::path gg(m_currentPath + "/New Geometry.veasset");
+                for (int i = 1; std::filesystem::exists(gg, ec); ++i)
+                    gg = std::filesystem::path(m_currentPath + "/New Geometry " + std::to_string(i) + ".veasset");
+
+                // Same on-disk contract as GeometryGraphPanel::saveToFile: the "geometry"
+                // token, the format version, then a default Icosphere -> Noise Displace ->
+                // Mesh Output graph.
+                TextArchive ar(gg.string(), ArchiveMode::write);
+                if (ar.isGood()) {
+                    GeometryGraph graph;
+                    auto sphere   = CreateRef<IcosphereNode>();
+                    auto displace = CreateRef<NoiseDisplaceNode>();
+                    auto out      = CreateRef<MeshOutputNode>();
+                    graph.addNode(sphere,   glm::vec2(-520.0f, 0.0f));
+                    graph.addNode(displace, glm::vec2(-180.0f, 0.0f));
+                    graph.addNode(out,      glm::vec2(160.0f, 0.0f));
+                    graph.addLink(sphere->m_outputPins[0].id, displace->m_inputPins[0].id);
+                    graph.addLink(displace->m_outputPins[0].id, out->m_inputPins[0].id);
+
+                    ar << std::string("geometry");
+                    ar << (int32_t)1;
+                    serializeGeometryGraph(graph, ar);
+                }
+                else {
+                    VE_CORE_WARN_PRINT("New Geometry failed: %s", gg.string().c_str());
+                }
+                refreshFiles();
+                beginRename(gg.string(), displayName(gg.filename().string()));
+            }
+            else if (ImGui::MenuItem("Terrain Rule Graph")) {
+                std::error_code ec;
+                std::filesystem::path tr(m_currentPath + "/New Terrain Rule.veasset");
+                for (int i = 1; std::filesystem::exists(tr, ec); ++i)
+                    tr = std::filesystem::path(m_currentPath + "/New Terrain Rule " + std::to_string(i) + ".veasset");
+
+                // Same on-disk contract as TerrainRulePanel::saveToFile: the
+                // "terrain_rule" token, the format version, then a default
+                // Field Source (Height) -> Layer Bands graph.
+                TextArchive ar(tr.string(), ArchiveMode::write);
+                if (ar.isGood()) {
+                    RuleGraph graph;
+                    auto src   = CreateRef<FieldSourceNode>();
+                    auto bands = CreateRef<LayerBandsNode>();
+                    src->mode = FieldSourceNode::Mode::Height;
+                    graph.addNode(src,   glm::vec2(-280.0f, 0.0f));
+                    graph.addNode(bands, glm::vec2(60.0f, 0.0f));
+                    graph.addLink(src->m_outputPins[0].id, bands->m_inputPins[0].id);
+
+                    ar << std::string("terrain_rule");
+                    ar << (int32_t)2;
+                    serializeRuleGraph(graph, ar);
+                }
+                else {
+                    VE_CORE_WARN_PRINT("New Terrain Rule failed: %s", tr.string().c_str());
+                }
+                refreshFiles();
+                beginRename(tr.string(), displayName(tr.filename().string()));
             }
             else if (ImGui::MenuItem("Paste", nullptr, false, !m_clipboardPath.empty())) {
                 pasteClipboard();

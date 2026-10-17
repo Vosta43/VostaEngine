@@ -1,10 +1,14 @@
 
 // volume_cloud.glsl — volumetric cloud raymarch library (M1: Worley FBM + single scattering).
-// Inlined into pbrlighting.glsl AFTER atmosphere.glsl (reuses raySphere, u_SunDirection, u_SunIntensity).
-// Gated by u_CloudOuterRadius > u_CloudInnerRadius: leave both 0 to disable clouds entirely.
-
-uniform float u_CloudInnerRadius;    // planet radius + cloud bottom altitude (meters)
-uniform float u_CloudOuterRadius;    // planet radius + cloud top altitude  (meters)
+// Inlined into pbrlighting.glsl AFTER atmosphere.glsl (reuses rayShell, u_SunDirection, u_SunIntensity).
+// Gated by u_CloudOuterAltitude > u_CloudInnerAltitude: equal altitudes disable clouds.
+//
+// The shell bounds are ALTITUDES, not radii. Every test here needs the difference
+// between two radii that both sit near the planet radius, and that difference
+// cannot be formed from float32 radii — see rayShell. u_CamAltitude (from
+// atmosphere.glsl) carries the camera's altitude the same way.
+uniform float u_CloudInnerAltitude = 0.0;  // cloud bottom above sea level (metres)
+uniform float u_CloudOuterAltitude = 0.0;  // cloud top above sea level  (metres)
 uniform float u_CloudSigma;           // view-side extinction (Unity _lightAbsorptionThroughCloud)
 uniform float u_CloudLightAbsorption; // sun-side self-shadow (Unity _lightAbsorptionTowardSun)
 uniform float u_CloudBaseFrequency;  // base noise frequency (1/meters)
@@ -104,24 +108,23 @@ float cloudGateThreshold() {
 // Intersect the view ray with the spherical cloud shell [inner, outer].
 // The shell is the region BETWEEN the two spheres: "inside outer" AND "outside inner".
 // max(near)/min(far) would give the ball INTERSECTION (below the cloud base), which is wrong.
-vec2 rayCloudLayer(vec3 rayOrigin, vec3 rayDir) {
-    vec2 innerHit = raySphere(rayOrigin, rayDir, u_CloudInnerRadius);
-    vec2 outerHit = raySphere(rayOrigin, rayDir, u_CloudOuterRadius);
+vec2 rayCloudLayer(vec3 rayOrigin, vec3 rayDir, float rayOriginAltitude) {
+    vec2 innerHit = rayShell(rayOrigin, rayDir, rayOriginAltitude, u_CloudInnerAltitude);
+    vec2 outerHit = rayShell(rayOrigin, rayDir, rayOriginAltitude, u_CloudOuterAltitude);
 
-    float camDist = length(rayOrigin);
     float entryT = 0.0;
     float exitT  = -1.0;
 
-    if (camDist < u_CloudInnerRadius) {
-        // Camera below the cloud base: enter at the base, exit at the top.
+    if (rayOriginAltitude < u_CloudInnerAltitude) {
+        // Origin below the cloud base: enter at the base, exit at the top.
         entryT = innerHit.y;
         exitT  = outerHit.y;
-    } else if (camDist > u_CloudOuterRadius) {
-        // Camera above the cloud top: enter at the top, exit at the base.
+    } else if (rayOriginAltitude > u_CloudOuterAltitude) {
+        // Origin above the cloud top: enter at the top, exit at the base.
         entryT = outerHit.x;
         exitT  = innerHit.x;
     } else {
-        // Camera inside the layer: exit whichever boundary lies ahead.
+        // Origin inside the layer: exit whichever boundary lies ahead.
         entryT = 0.0;
         exitT  = max(outerHit.y, innerHit.x);
     }
@@ -131,7 +134,7 @@ vec2 rayCloudLayer(vec3 rayOrigin, vec3 rayDir) {
 
     // Planet occlusion — same check as atmosphere.glsl: if the ray hits the planet,
     // stop the cloud raymarch at the surface so clouds behind the planet are hidden.
-    vec2 planetHit = raySphere(rayOrigin, rayDir, u_PlanetRadius);
+    vec2 planetHit = rayShell(rayOrigin, rayDir, rayOriginAltitude, 0.0);
     if (planetHit.x > 0.0)
         exitT = min(exitT, planetHit.x);
 
@@ -200,7 +203,16 @@ vec3 warpDomain(vec3 p) {
 }
 
 float heightFraction(vec3 p) {
-    return (length(p) - u_CloudInnerRadius) / (u_CloudOuterRadius - u_CloudInnerRadius);
+    return (length(p) - u_PlanetRadius - u_CloudInnerAltitude)
+         / (u_CloudOuterAltitude - u_CloudInnerAltitude);
+}
+
+// Altitude of the point `rayOrigin + rayDir * t`, given the precise altitude of
+// the ray origin and the ray's elevation sine (s) and its square complement
+// (cc2). Expanding |o + t d| - R cancels the O(R) radius terms outright — the
+// rise along the ray is s*t plus the curvature term cc2*t^2/(2R).
+float marchAltitude(float originAltitude, float s, float cc2, float t) {
+    return originAltitude + s * t + cc2 * t * t / max(2.0 * u_PlanetRadius, 1.0);
 }
 
 // Equirectangular UV for the weather map from the sample direction (planet
@@ -324,12 +336,12 @@ float phaseCloud(float mu) {
 // then combines with the phase function and ambient floor. T = 1 at the
 // sun-facing surface (bright top) falling to 0 in the interior/underside (dark
 // bottom) — the self-shadow behind the classic "bright top, dark bottom" look.
-// The march covers the FULL sun-side shell crossing (rayCloudLayer(p, sunDir)):
+// The march covers the FULL sun-side shell crossing (rayCloudLayer(p, sunDir, pAltitude)):
 // the old fixed 0.4/baseFrequency step reached only ~320 m vs a 2300 m shell,
 // so deep samples never saw the cloud ahead and the shadow sat constant -> flat.
-vec3 lightMarchColor(vec3 p, vec3 sunDir, vec3 sunColor, float mu) {
+vec3 lightMarchColor(vec3 p, float pAltitude, vec3 sunDir, vec3 sunColor, float mu) {
     const int LIGHT_STEPS = 8;
-    vec2 shellT = rayCloudLayer(p, sunDir);
+    vec2 shellT = rayCloudLayer(p, sunDir, pAltitude);
     float step = shellT.x < 0.0 ? 0.0 : max(shellT.y, 0.0) / float(LIGHT_STEPS);
     vec3 pos = p + sunDir * step * cloudBlueNoise(gl_FragCoord.xy  + 31.7);
     float opticalDepth = 0.0;
@@ -347,7 +359,15 @@ vec3 lightMarchColor(vec3 p, vec3 sunDir, vec3 sunColor, float mu) {
 
 // Returns (in-scattered radiance, remaining transmittance).
 vec4 raymarchClouds(vec3 rayOrigin, vec3 rayDir, vec3 sunDir) {
-    vec2 shellT = rayCloudLayer(rayOrigin, rayDir);
+    // Derived once and reused for every shell test and sample altitude: the ray's
+    // elevation sine against the local up, and its square complement. The altitude
+    // of each sample then follows from the march distance alone, so nothing along
+    // the ray has to recover it from a planet-centred position.
+    vec3  up  = normalize(rayOrigin);
+    float s   = dot(rayDir, up);
+    float cc2 = max(1.0 - s * s, 0.0);
+
+    vec2 shellT = rayCloudLayer(rayOrigin, rayDir, u_CamAltitude);
     if (shellT.x < 0.0) return vec4(0.0, 0.0, 0.0, 1.0);   // miss -> full transmittance
 
     // Physical sun color at the shell entry: white light attenuated by the
@@ -375,7 +395,8 @@ vec4 raymarchClouds(vec3 rayOrigin, vec3 rayDir, vec3 sunDir) {
     for (int i = 0; i < MAX_STEPS; i++) {
         if (dist > shellT.y) break;
         float stepLen = u_CloudStep;
-        vec3 pos = rayOrigin + rayDir * dist;
+        vec3  pos = rayOrigin + rayDir * dist;
+        float posAltitude = marchAltitude(u_CamAltitude, s, cc2, dist);
 
         // Full density from the shared sampleDensity() (shape + (1-shape)³
         // detail erosion, see u_CloudDetailErodeWeight) — the same field the light
@@ -385,7 +406,7 @@ vec4 raymarchClouds(vec3 rayOrigin, vec3 rayDir, vec3 sunDir) {
         if (rho > 0.0) {
             emptySteps = 0;
             float mu = dot(rayDir, sunDir);
-            vec3 light = lightMarchColor(pos, sunDir, sunColor, mu);
+            vec3 light = lightMarchColor(pos, posAltitude, sunDir, sunColor, mu);
             acc += transmittance * light * rho * stepLen;
             transmittance *= exp(-u_CloudSigma * rho * stepLen);
         }

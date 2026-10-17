@@ -38,6 +38,13 @@ namespace ve {
         for (uint32_t id : entities) {
             const Entity entity = registry.getEntity(id);
 
+            // A streamed terrain tile exists because a camera asked for it, so it
+            // is runtime state, not scene state. Dropping it here covers all three
+            // consumers at once: save, load, and the play session's clone, which
+            // round-trips through this same serializer.
+            if (registry.has<TerrainComponent>(id) && registry.get<TerrainComponent>(id).bStreamed)
+                continue;
+
             w.beginObject();
             w.beginObject("components");
 

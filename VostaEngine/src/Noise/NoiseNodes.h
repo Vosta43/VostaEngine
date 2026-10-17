@@ -38,6 +38,15 @@ namespace ve {
 			return NoiseCPU::sample(s, x, y);
 		}
 
+		// A 3D consumer samples the backend's native 3D field, which is seamless in
+		// every direction — a flat slice at z would seam on a closed surface.
+		float evaluate3(const std::vector<float>& in, float x, float y, float z) const override {
+			NoiseSettings s = settings;
+			if (in.size() > 0) s.frequency = in[0];
+			if (in.size() > 1) s.seed = (int)std::lround(in[1]);
+			return NoiseCPU::sample(s, x, y, z);
+		}
+
 		void serialize(Archive& ar) const override {
 			NoiseNode::serializeBase(ar);
 			settings.serialize(ar);

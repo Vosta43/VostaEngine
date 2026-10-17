@@ -15,7 +15,7 @@ namespace ve {
 	PrefabRegistrar reg_prefabEmpty{ "empty", "Empty", "Core",
 		[](Scene& scene) {
 			Entity entity = scene.createEntity();
-			scene.assignComponent<TransformComponent>(entity, glm::mat4(1.0f));
+			scene.assignComponent<TransformComponent>(entity);
 			return entity;
 		} };
 
@@ -23,7 +23,7 @@ namespace ve {
 		[](Scene& scene) {
 			Entity entity = scene.createEntity();
 			scene.assignComponent<NameComponent>(entity, "Light");
-			scene.assignComponent<TransformComponent>(entity, glm::mat4(1.0f));
+			scene.assignComponent<TransformComponent>(entity);
 			scene.assignComponent<LightComponent>(entity);
 			return entity;
 		} };
@@ -32,7 +32,7 @@ namespace ve {
 		[](Scene& scene) {
 			Entity entity = scene.createEntity();
 			scene.assignComponent<NameComponent>(entity, "Mesh");
-			scene.assignComponent<TransformComponent>(entity, glm::mat4(1.0f));
+			scene.assignComponent<TransformComponent>(entity);
 			scene.assignComponent<StaticMeshComponent>(entity);
 			return entity;
 		} };
@@ -41,7 +41,7 @@ namespace ve {
 		[](Scene& scene) {
 			Entity entity = scene.createEntity();
 			scene.assignComponent<NameComponent>(entity, "Skybox");
-			scene.assignComponent<TransformComponent>(entity, glm::mat4(1.0f));
+			scene.assignComponent<TransformComponent>(entity);
 			scene.assignComponent<SkyBoxComponent>(entity);
 			return entity;
 		} };
@@ -52,9 +52,10 @@ namespace ve {
 			scene.assignComponent<NameComponent>(entity, "Atmosphere");
 
 			// Planet centre sits directly below the scene origin, so y = 0 is the surface.
-			float planetRadius = AtmosphereComponent().atmosphere.planetRadius;
-			glm::mat4 transform(1.0f);
-			transform[3] = glm::vec4(0.0f, -planetRadius, 0.0f, 1.0f);
+			// Kept in the authoritative precision: at planetary radius a float32 y would
+			// quantize the centre by ~0.5 m.
+			TransformComponent transform;
+			transform.position.y = -(ve::Vec3::value_type)AtmosphereComponent().atmosphere.planetRadius;
 			scene.assignComponent<TransformComponent>(entity, transform);
 
 			scene.assignComponent<AtmosphereComponent>(entity);
@@ -65,7 +66,7 @@ namespace ve {
 		[](Scene& scene) {
 			Entity entity = scene.createEntity();
 			scene.assignComponent<NameComponent>(entity, "Sprite");
-			scene.assignComponent<TransformComponent>(entity, glm::mat4(1.0f));
+			scene.assignComponent<TransformComponent>(entity);
 			scene.assignComponent<SpriteRendererComponent>(entity);
 			return entity;
 		} };
@@ -74,13 +75,13 @@ namespace ve {
 		[](Scene& scene) {
 			// A tile only draws once the scene has a system to bake from, so make
 			// sure one exists before adding the first tile.
-			Terrain::ensureSystem(scene);
-			return scene.getEntity(Terrain::addTile(scene, glm::ivec2(0)));
+			TerrainSubsystem(scene).ensureSystem();
+			return scene.getEntity(TerrainSubsystem(scene).addTile(glm::ivec2(0)));
 		} };
 
 	PrefabRegistrar reg_prefabTerrainSystem{ "terrain_system", "Terrain System", "Environment",
 		[](Scene& scene) {
-			return scene.getEntity(Terrain::ensureSystem(scene));
+			return scene.getEntity(TerrainSubsystem(scene).ensureSystem());
 		} };
 
 }

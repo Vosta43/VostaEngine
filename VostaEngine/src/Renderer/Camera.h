@@ -1,5 +1,7 @@
 #pragma once
 #include "Core/Log.h"
+#include "Core/Types.h"
+#include "Renderer/Projection.h"
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
 #include <gtc/quaternion.hpp>
@@ -9,7 +11,7 @@ namespace ve {
     class VE_API Camera {
     public:
         Camera(float left, float right, float bottom, float top)
-            : m_projectionMatrix(glm::ortho(left, right, bottom, top, -1.0f, 100.0f))
+            : m_projectionMatrix(makeOrtho(left, right, bottom, top, -1.0f, 100.0f))
             , m_viewMatrix(1.0f)
             , m_position(0.0f)
             , m_rotation(0.0f)
@@ -34,27 +36,27 @@ namespace ve {
         void recalculateProjection() {
             //VE_CORE_SUCCESS_PRINT("FOV=%.2f Aspect=%.2f", m_perspectiveFov, m_aspectRatio);
             if (m_isPerspective) {
-                m_projectionMatrix = glm::perspective(glm::radians(m_perspectiveFov), m_aspectRatio, m_nearPlane, m_farPlane);
+                m_projectionMatrix = makePerspective(glm::radians(m_perspectiveFov), m_aspectRatio, m_nearPlane, m_farPlane);
             }
             else {
                 float halfHeight = (m_top - m_bottom) * 0.5f;
                 float halfWidth = halfHeight * m_aspectRatio;
-                m_projectionMatrix = glm::ortho(-halfWidth, halfWidth, -halfHeight, halfHeight, -1.0f, 100.0f);
+                m_projectionMatrix = makeOrtho(-halfWidth, halfWidth, -halfHeight, halfHeight, -1.0f, 100.0f);
             }
         }
 
-        void setPosition(const glm::vec3& position) {
+        void setPosition(const ve::Vec3& position) {
             m_position = position;
             recalculateViewMatrix();
         }
 
-        const glm::vec3& getPosition() const { return m_position; }
+        const ve::Vec3& getPosition() const { return m_position; }
 
         // Pose straight from a world matrix (an entity's Transform): the view is
         // its inverse, the position its translation. The yaw/pitch/roll fields are
         // left alone -- they only drive the input-driven fly-cam.
         void setWorldTransform(const glm::mat4& world) {
-            m_position = glm::vec3(world[3]);
+            m_position = ve::Vec3(glm::vec3(world[3]));
             m_viewMatrix = glm::inverse(world);
         }
 
@@ -100,6 +102,15 @@ namespace ve {
         const glm::mat4& getProjectionMatrix() const { return m_projectionMatrix; }
         const glm::mat4& getViewMatrix() const { return m_viewMatrix; }
         glm::mat4 getViewProjectionMatrix() const { return m_projectionMatrix * m_viewMatrix; }
+
+        // View matrix for the render boundary. Render space is anchored at the
+        // camera, so the eye sits at its origin and this is the bare orientation:
+        // there is no translation to rebase and none to lose precision on. The
+        // absolute view (getViewMatrix) keeps the chart translation for scene
+        // queries; only this one reaches the GPU.
+        glm::mat4 getRenderViewMatrix() const {
+            return glm::mat4(glm::mat3(m_viewMatrix));
+        }
 
         void setYawPitch(float yaw, float pitch) {
             m_yaw = yaw;
@@ -156,17 +167,27 @@ namespace ve {
             glm::quat rollQuat = glm::angleAxis(glm::radians(m_roll), glm::vec3(0.0f, 0.0f, 1.0f));
             glm::quat orientation = yawQuat * pitchQuat * rollQuat;
 
-            glm::vec3 front = orientation * glm::vec3(0.0f, 0.0f, -1.0f);
-            glm::vec3 up = orientation * glm::vec3(0.0f, 1.0f, 0.0f);
-
-            m_viewMatrix = glm::lookAt(m_position, m_position + front, up);
+            // View = [R^T | -R^T * position], rotation straight from the orientation
+            // quaternion. The obvious lookAt(position, position + front, up) recovers
+            // the direction by subtracting two positions, which rounds it to the
+            // position's float32 ULP: 4.9e-4 rad at 7 km (0.6 px at 1000 px / 45 deg),
+            // 0.5 rad at planetary radius. That snaps the whole frame every time the
+            // camera turns. The translation below is still inherently float32 -- that
+            // is the large-world-coordinate problem, solved by camera-relative
+            // rendering, not here.
+            glm::mat3 rotT = glm::mat3_cast(glm::conjugate(orientation));
+            m_viewMatrix = glm::mat4(rotT);
+            // The absolute view. The translation is float32 by nature -- fine for
+            // scene queries, which work in world space anyway; the render path uses
+            // getRenderViewMatrix instead.
+            m_viewMatrix[3] = glm::vec4(-(rotT * glm::vec3(m_position)), 1.0f);
         }
     private:
 
         glm::mat4 m_projectionMatrix;
         glm::mat4 m_viewMatrix;
 
-        glm::vec3 m_position;
+        ve::Vec3 m_position;
         float m_rotation;
         float m_yaw = -90.0f;
         float m_pitch = 0.0f;

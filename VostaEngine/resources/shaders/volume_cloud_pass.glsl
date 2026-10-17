@@ -24,7 +24,8 @@ layout(location = 0) out vec4 o_FragColor;
 
 // Includes are inlined by the engine BEFORE the stage split, so they must sit
 // after #shader fragment to land only here. atmosphere.glsl first — the cloud
-// library reuses its raySphere + u_SunDirection/u_SunIntensity/u_PlanetRadius.
+// library reuses its rayShell + u_CamAltitude + u_PlanetRadius, and the pass sets
+// u_SunDirection/u_SunIntensity/u_CloudInnerAltitude/u_CloudOuterAltitude on top.
 #include "atmosphere.glsl"
 #include "volume_cloud.glsl"
 
@@ -32,7 +33,8 @@ void main()
 {
     // Outward ray through the far plane — same reconstruction pbrlighting uses,
     // so the half-res cloud texture and the full-res occlusion test stay aligned.
-    vec4 ndc      = vec4(v_TexCoord * 2.0 - 1.0, 1.0, 1.0);
+    // Reverse-Z: the far plane is at z_ndc 0.
+    vec4 ndc      = vec4(v_TexCoord * 2.0 - 1.0, 0.0, 1.0);
     vec4 farPlane = u_InvViewProj * ndc;
     vec3 rayDir   = normalize(farPlane.xyz / farPlane.w - u_CameraPos);
 

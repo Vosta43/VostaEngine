@@ -25,6 +25,12 @@ namespace ve {
 		static void invalidate(AssetHandle materialHandle);
 		static void invalidateMesh(AssetHandle staticMeshHandle);
 
+		// Fills `ctx` with the IBL and atmosphere inputs the scene view uses (via
+		// BakeService), so an offscreen preview renders with real lighting and no
+		// scene loaded. Shared by the thumbnail bakes and the editor's live mesh
+		// previews.
+		static void applyPreviewLighting(RenderContext& ctx);
+
 
 	private:
 		struct CachedThumbnail {

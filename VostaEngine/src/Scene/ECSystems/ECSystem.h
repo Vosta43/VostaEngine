@@ -12,7 +12,9 @@ namespace ve {
 
 	class VE_API ECSystemBase {
 	public:
-		
+
+		virtual ~ECSystemBase() = default;
+
 		virtual void onUpdate(float deltaTime) = 0;
 
 	private:

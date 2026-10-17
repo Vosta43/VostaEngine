@@ -3,4 +3,15 @@
     <VostaRepoRoot>$(MSBuildThisFileDirectory)</VostaRepoRoot>
     <VostaEngineDir>$(VostaRepoRoot)VostaEngine\</VostaEngineDir>
   </PropertyGroup>
+
+  <!-- Authoritative world precision, applied to every project under this root so
+       the engine, the editor, the hosts and game modules never disagree: the
+       macro changes sizeof(TransformComponent), and a mixed build would corrupt
+       every component handle across the DLL boundary. Remove the define to build
+       small-world (float32 authoritative coordinates). -->
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>VE_LARGE_WORLD_COORDINATES;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
 </Project>

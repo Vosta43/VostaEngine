@@ -56,7 +56,9 @@ namespace ve {
         if (glm::length(movement) > 0.0f)
             movement = glm::normalize(movement) * moveSpeed;
 
-        m_camera.setPosition(m_camera.getPosition() + movement);
+        // movement is float32; promote it once so the add happens in the
+        // authoritative (double) space -- GLM has no mixed-precision operator+.
+        m_camera.setPosition(m_camera.getPosition() + ve::Vec3(movement));
     }
 
     void CameraController::onMouseScrolled(float xOffset, float yOffset) {

@@ -64,6 +64,12 @@ namespace ve {
         Ref<Texture3D> getMieScatteringLUT(const AtmosphereParams& params);
         Ref<Texture3D> getMultipleScatteringLUT(const AtmosphereParams& params);
 
+        // True once the async scattering LUTs have been uploaded by update(). A
+        // preview that renders on demand polls this so it keeps re-rendering until
+        // its first frame actually has sky, instead of rendering every frame
+        // forever or freezing on a black first frame.
+        bool hasAtmosphereLUTs() const;
+
         // Cloud volumes, baked once on first request.
         const CloudTextures& getCloudTextures();
 

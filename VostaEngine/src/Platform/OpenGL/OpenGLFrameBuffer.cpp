@@ -36,6 +36,7 @@ namespace ve {
         case TextureInternalFormat::RGBA8:   return GL_RGBA8;
         case TextureInternalFormat::RGBA16F: return GL_RGBA16F;
         case TextureInternalFormat::R32I:    return GL_R32I;
+        case TextureInternalFormat::R16UI:   return GL_R16UI;
         }
         return GL_RGBA8;
     }
@@ -50,9 +51,10 @@ namespace ve {
 
     static GLenum toGLDataType(TextureDataType t) {
         switch (t) {
-        case TextureDataType::UNSIGNED_BYTE: return GL_UNSIGNED_BYTE;
-        case TextureDataType::FLOAT:         return GL_FLOAT;
-        case TextureDataType::INT:           return GL_INT;
+        case TextureDataType::UNSIGNED_BYTE:  return GL_UNSIGNED_BYTE;
+        case TextureDataType::FLOAT:          return GL_FLOAT;
+        case TextureDataType::INT:            return GL_INT;
+        case TextureDataType::UNSIGNED_SHORT: return GL_UNSIGNED_SHORT;
         }
         return GL_UNSIGNED_BYTE;
     }
@@ -90,10 +92,10 @@ namespace ve {
 
         }
 
-        if (m_spec.hasDepthStencil) {
+        if (m_spec.hasDepth) {
             GLuint depthTexID = 0;
             glCreateTextures(GL_TEXTURE_2D, 1, &depthTexID);
-            glTextureStorage2D(depthTexID, 1, GL_DEPTH24_STENCIL8, m_width, m_height);
+            glTextureStorage2D(depthTexID, 1, GL_DEPTH_COMPONENT32F, m_width, m_height);
             // Compare mode makes each tap a hardware depth test and needs bilinear
             // filtering for the 2x2 PCF footprint; plain depth reads stay NEAREST.
             const GLint filter = m_spec.depthCompare ? GL_LINEAR : GL_NEAREST;
@@ -103,11 +105,13 @@ namespace ve {
             glTextureParameteri(depthTexID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             if (m_spec.depthCompare) {
                 glTextureParameteri(depthTexID, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-                glTextureParameteri(depthTexID, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+                // GEQUAL, not LEQUAL: reverse-Z stores the near plane as 1, so a
+                // fragment is lit when its reference is at least the stored depth.
+                glTextureParameteri(depthTexID, GL_TEXTURE_COMPARE_FUNC, GL_GEQUAL);
             }
 
             glNamedFramebufferTexture(m_rendererID,
-                GL_DEPTH_STENCIL_ATTACHMENT,
+                GL_DEPTH_ATTACHMENT,
                 depthTexID, 0);
 
             m_depthTexture = Texture2D::create(depthTexID, m_width, m_height);
@@ -153,7 +157,7 @@ namespace ve {
 
         GLuint depthTexID = 0;
         glCreateTextures(GL_TEXTURE_2D, 1, &depthTexID);
-        glTextureStorage2D(depthTexID, 1, GL_DEPTH24_STENCIL8, m_width, m_height);
+        glTextureStorage2D(depthTexID, 1, GL_DEPTH_COMPONENT32F, m_width, m_height);
         glTextureParameteri(depthTexID, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTextureParameteri(depthTexID, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTextureParameteri(depthTexID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -161,7 +165,7 @@ namespace ve {
 
         glCreateFramebuffers(1, &m_rendererID);
         glNamedFramebufferTexture(m_rendererID, GL_COLOR_ATTACHMENT0, texID, 0);
-        glNamedFramebufferTexture(m_rendererID, GL_DEPTH_STENCIL_ATTACHMENT, depthTexID, 0);
+        glNamedFramebufferTexture(m_rendererID, GL_DEPTH_ATTACHMENT, depthTexID, 0);
 
         m_depthTexture = Texture2D::create(depthTexID, m_width, m_height);
 
@@ -272,6 +276,32 @@ namespace ve {
             mipLevel,
             face
         );
+    }
+
+    void OpenGLFramebuffer::attachColorTextureLayer(uint32_t attachmentIndex, uint32_t layer,
+        const Ref<Texture2DArray>& array, uint32_t mipLevel) {
+
+        if (!array) return;
+
+        glNamedFramebufferTextureLayer(
+            m_rendererID,
+            GL_COLOR_ATTACHMENT0 + attachmentIndex,
+            array->getRendererID(),
+            mipLevel,
+            layer
+        );
+
+        m_hasLayerAttachment = true;
+        m_attachedLayerMax = (attachmentIndex > m_attachedLayerMax) ? attachmentIndex : m_attachedLayerMax;
+
+        // Widen the draw-buffer range to cover every attachment attached so far, so
+        // the MRT bake shader's outputs land on the right slices.
+        std::vector<GLenum> drawBuffers;
+        drawBuffers.reserve(m_attachedLayerMax + 1);
+        for (uint32_t i = 0; i <= m_attachedLayerMax; ++i)
+            drawBuffers.push_back(GL_COLOR_ATTACHMENT0 + i);
+        glNamedFramebufferDrawBuffers(m_rendererID,
+            static_cast<GLsizei>(drawBuffers.size()), drawBuffers.data());
     }
 
     Ref<Texture2D> OpenGLFramebuffer::getColorTexture(uint32_t attachmentIndex) const {

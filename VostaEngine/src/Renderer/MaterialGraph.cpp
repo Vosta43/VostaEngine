@@ -39,6 +39,7 @@ namespace ve {
 			r.registerNode<SaturateNode>((uint8_t)MaterialNodeTag::Saturate);
 			r.registerNode<ComponentMaskNode>((uint8_t)MaterialNodeTag::ComponentMask);
 			r.registerNode<AppendNode>((uint8_t)MaterialNodeTag::Append);
+			r.registerNode<AppendManyNode>((uint8_t)MaterialNodeTag::AppendMany);
 			return r;
 		}();
 		return registry;

@@ -63,8 +63,11 @@ __pycache__/
 snapshot_gui.py
 open_claude.py
 cns_scanner.py
+loc_chart.py
+loc_chart.png
 chinese_in_cpp.txt
 ve_build_check.bat
+import_sanmiguel.py
 
 # ── imgui-node-editor: only the core files the engine compiles are kept ─
 VostaEngine/thirdparty/imgui-node-editor/examples/
@@ -80,6 +83,7 @@ n.veasset
 s.veasset
 fountain_taobaodianpu_CFSC194SG.veasset
 default.veasset
+__builtin_default_white
 SandBox/e.veasset
 
 # Materials baked next to the built-in meshes on launch (engine-owned dir)
@@ -119,9 +123,14 @@ VostaEngine/thirdparty/JSON/*
 !VostaEngine/thirdparty/JSON/LICENSES/
 
 # ── Engine-owned mesh files (the *.obj rule above is for compiler outputs) ──
+!VostaEngine/resources/models/*.obj
 !SandBox/assets/models/sphere.obj
 !SandBox/assets/models/cube.obj
 !VostaEditor/assets/models/sphere.obj
+
+# The OBJ importer writes a <stem>_default.veasset material next to a mesh on
+# first import. Generated, never authored -- so never committed.
+VostaEngine/resources/models/*_default.veasset
 
 # ── Athenaeum knowledge-base CLI (local-only tool, not for distribution) ──
 ath.py

@@ -148,16 +148,16 @@ namespace ve {
 			const std::vector<std::string>& in,
 			const std::vector<std::string>&) const override
 		{
-			auto v = [&](int i, const char* def) {
-				return in[i].find("DEFAULT_") == 0 ? def : in[i];
+			auto v = [&](int i) {
+				return in[i].find("DEFAULT_") == 0 ? kMaterialOutputDefaults[i] : in[i];
 				};
 			return
-				"vec3  baseColor = " + v(0, "vec3(1.0)") + ";\n"
-				"float metallic  = " + v(1, "0.0") + ";\n"
-				"float roughness = " + v(2, "0.5") + ";\n"
-				"float ao        = " + v(3, "1.0") + ";\n"
-				"vec3  emissive  = " + v(5, "vec3(0.0)") + ";\n"
-				"vec3  tangentNormal = normalize(" + v(4, "vec3(0.5, 0.5, 1.0)") + " * 2.0 - 1.0);\n"
+				"vec3  baseColor = " + v(0) + ";\n"
+				"float metallic  = " + v(1) + ";\n"
+				"float roughness = " + v(2) + ";\n"
+				"float ao        = " + v(3) + ";\n"
+				"vec3  emissive  = " + v(5) + ";\n"
+				"vec3  tangentNormal = normalize(" + v(4) + " * 2.0 - 1.0);\n"
 				"vec3  worldNormal = normalize(v_TBN * tangentNormal);\n"
 				"vec3  encodedNormal = worldNormal * 0.5 + 0.5;\n"
 				"Frag0_Albedo   = vec4(baseColor, 1.0);\n"
@@ -687,6 +687,30 @@ namespace ve {
 		std::string generateCode(const std::vector<std::string>& in,
 		                         const std::vector<std::string>& out) const override {
 			return "vec2 " + out[0] + " = vec2(" + in[0] + ", " + in[1] + ");\n";
+		}
+
+		void serialize(Archive& ar) const override   { MaterialNode::serializeBase(ar); }
+		void deserialize(Archive& ar) override       { MaterialNode::deserializeBase(ar); }
+	};
+
+	// Fixed 4-scalar -> vec4 packer: R/G/B/A in, one RGBA out. Inputs keep their
+	// declared Float type (no adaptsInputTypes) so a wired vec3 narrows to its
+	// first component in codegen, matching Append.
+	class AppendManyNode : public MaterialNode {
+	public:
+		AppendManyNode() {
+			m_nodeType = NodeType::Math;
+			m_displayName = "AppendMany";
+			m_inputPins.push_back(GraphPin("R", {}, PinType::Float, true));
+			m_inputPins.push_back(GraphPin("G", {}, PinType::Float, true));
+			m_inputPins.push_back(GraphPin("B", {}, PinType::Float, true));
+			m_inputPins.push_back(GraphPin("A", {}, PinType::Float, true));
+			m_outputPins.push_back(GraphPin("Result", {}, PinType::Float4, false));
+		}
+		std::string generateCode(const std::vector<std::string>& in,
+		                         const std::vector<std::string>& out) const override {
+			return "vec4 " + out[0] + " = vec4(" + in[0] + ", " + in[1] + ", " +
+			       in[2] + ", " + in[3] + ");\n";
 		}
 
 		void serialize(Archive& ar) const override   { MaterialNode::serializeBase(ar); }

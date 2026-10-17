@@ -19,11 +19,16 @@ namespace ve {
 		AssetHandle textureHandle;
 	};
 
+	// Which GL sampler a texture binding targets, so the pass binds it to the right
+	// texture type instead of assuming 2D.
+	enum class TextureTarget { Texture2D, Texture2DArray };
+
 	// One named texture slot a material wants bound for a draw.
 	struct MaterialTextureBinding {
-		std::string uniformName;
-		AssetHandle textureHandle;
-		uint32_t    unit = 0;
+		std::string   uniformName;
+		AssetHandle   textureHandle;
+		uint32_t      unit = 0;
+		TextureTarget target = TextureTarget::Texture2D;
 	};
 
 	// One named scalar/vector uniform a material wants set for a draw.
@@ -54,6 +59,13 @@ namespace ve {
 		// Shader the geometry pass binds. Null means "use the pass's default".
 		virtual Ref<Shader> getShader() = 0;
 
+		// Shader that samples the frame's runtime virtual texture in place of
+		// evaluating this material's own surface, or null when this material has no
+		// RVT path (or has it switched off). The geometry pass prefers it whenever
+		// the frame has an RVT, and otherwise falls back to getShader(). Filling the
+		// RVT is a separate job -- the bake pass always uses getShader().
+		virtual Ref<Shader> getRVTShader() { return nullptr; }
+
 		// Fill this material's per-draw bindings. The caller owns the set and
 		// reuses it across draws, so implementations clear-then-append.
 		virtual void fillBindings(MaterialBindingSet& out) const = 0;
@@ -66,6 +78,12 @@ namespace ve {
 		// stored in the file body is not trusted (it goes stale on rename/move).
 		virtual std::string assetPath() const { return {}; }
 		virtual void setAssetPath(const std::string&) {}
+
+		// Bumped whenever the material's authored content changes in a way that
+		// affects generated code (a recompile, a reload from disk). Consumers that
+		// build a shader from this material fold the number into their cache key, so
+		// editing it invalidates their shader without any change to its handle.
+		uint32_t revision() const { return m_revision; }
 
 		// serialize() writes typeTag() first; deserialize() reads it back.
 		virtual void serialize(Archive& ar) const = 0;
@@ -81,6 +99,13 @@ namespace ve {
 		// recompiles). No-op when nothing is registered at `path`. Returns true when
 		// a reload happened.
 		static bool refreshFromFile(const std::string& path);
+
+	protected:
+		// Concrete kinds call this when their authored content changes (see revision()).
+		void bumpRevision() { ++m_revision; }
+
+	private:
+		uint32_t m_revision = 0;
 	};
 
 }

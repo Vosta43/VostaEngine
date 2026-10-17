@@ -13,7 +13,7 @@ namespace ve {
 	// Quadtree terrain LOD. Reuses TerrainMeshBuilder for the shared full-res
 	// vertex buffer; this class only owns subdivision (per-node index ranges
 	// into one master index buffer) and the per-frame update (LOD selection).
-	// The mesh never changes after build(); LOD just picks which node ranges to
+	// The mesh never changes after a build; LOD just picks which node ranges to
 	// draw via StaticMesh::draw(startIndex, indexCount).
 	class VE_API QuadTreeTerrain {
 	public:
@@ -27,14 +27,31 @@ namespace ve {
 			float worldSize = 0.0f; // node edge length in world units
 		};
 
-		// Build the shared mesh plus every node's index range. Reuses
+		// A build split in two so the generation can run off the render thread and
+		// only the GPU upload has to stay on it.
+		struct BuildResult {
+			Ref<StaticMeshResource> mesh;      // vertices + indices, no GPU object yet
+			std::vector<ChunkRange> chunks;    // one range per node, flat quadtree order
+			int                     maxDepth = 0;
+
+			bool valid() const { return mesh != nullptr; }
+		};
+
+		// Generate the master mesh and every node's index range. Reuses
 		// TerrainMeshBuilder for the vertices. Call once when the heightmap or
 		// terrain parameters change. worldOrigin is the tile's world-space corner,
 		// which makes the chunk centres come out in world space so the LOD walk
 		// measures camera distance against the right place.
-		Ref<StaticMesh> build(const Ref<TextureResource>& heightMap, float tileSize,
+		//
+		// No GL and no instance state: static so it can run on a worker thread with no
+		// instance in sight. Hand the result to commit().
+		static BuildResult buildResource(const Ref<TextureResource>& heightMap, float tileSize,
 			float heightScale, int maxDepth, int segments,
 			const glm::vec2& worldOrigin = glm::vec2(0.0f));
+
+		// Adopt a buildResource product: upload the mesh and take over the node ranges
+		// and depth the next update() picks from. Render thread only.
+		Ref<StaticMesh> commit(BuildResult&& result);
 
 		// Re-pick the active LOD chunks for this frame's camera. Returns the list
 		// of ranges to draw, all referencing the mesh returned by build().
@@ -45,7 +62,7 @@ namespace ve {
 
 		// Append one node's triangles (segments x segments quads at stride) into
 		// `indices`.
-		void generateNode(int x0, int z0, int stride, int size, int segments,
+		static void generateNode(int x0, int z0, int stride, int size, int segments,
 			std::vector<int>& indices);
 
 		// Recursive LOD walk; emit the kept ranges into mActives.

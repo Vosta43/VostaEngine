@@ -25,7 +25,8 @@ uniform int       u_DiscardBackground;
 // crisp. u_ViewProj is the non-jittered matrix (a jittered one would shimmer).
 uniform mat4 u_ViewProj;
 uniform mat4 u_InvViewProj;
-uniform vec3 u_CameraPos;
+uniform vec3 u_CameraPos;      // render space; the camera itself is near the origin
+uniform vec3 u_WorldOrigin;    // render space = world - u_WorldOrigin
 uniform int  u_GroundGrid;
 
 layout(location = 0) out vec4 o_FragColor;
@@ -40,27 +41,30 @@ float gridLine(vec2 xz, float spacing) {
 void main()
 {
     // Thumbnails render onto a transparent target, so drop the ray-marched sky
-    // behind the geometry (depth cleared to 1.0). The scene view keeps it opaque
-    // so the atmosphere shows through.
-    if (u_DiscardBackground != 0 && texture(u_DepthMap, v_TexCoord).r >= 0.999)
+    // behind the geometry (reverse-Z: an untouched depth buffer reads 0 at the far
+    // plane). The scene view keeps it opaque so the atmosphere shows through.
+    if (u_DiscardBackground != 0 && texture(u_DepthMap, v_TexCoord).r <= 0.001)
         discard;
 
     vec3 color = texture(u_ScreenTexture, v_TexCoord).rgb;
 
     if (u_GroundGrid != 0) {
         vec2 ndc  = v_TexCoord * 2.0 - 1.0;
-        vec4 far4 = u_InvViewProj * vec4(ndc, 1.0, 1.0);
+        vec4 far4 = u_InvViewProj * vec4(ndc, 0.0, 1.0);   // reverse-Z: far = 0
         far4 /= far4.w;
         vec3 rd = normalize(far4.xyz - u_CameraPos);
         if (rd.y < -1e-4) {
-            float t = -u_CameraPos.y / rd.y;                 // hit the y = 0 plane
-            vec3  P = u_CameraPos + t * rd;
+            // The world y = 0 plane sits at render-space y = -u_WorldOrigin.y.
+            float camY = u_CameraPos.y + u_WorldOrigin.y;    // absolute camera height
+            float t = -camY / rd.y;                          // hit the y = 0 plane
+            vec3  P = u_CameraPos + t * rd;                  // render-space hit point
             vec4  clip = u_ViewProj * vec4(P, 1.0);
-            float dPlane = clip.z / clip.w * 0.5 + 0.5;
+            float dPlane = clip.z / clip.w;                  // reverse-Z / 0..1 clip space
             float dScene = texture(u_DepthMap, v_TexCoord).r;
-            if (t > 0.0 && dPlane < dScene - 1e-5) {          // in front of the geometry
-                float minor = gridLine(P.xz, 1.0);
-                float major = gridLine(P.xz, 10.0);
+            if (t > 0.0 && dPlane > dScene + 1e-5) {          // in front of the geometry (nearer = larger)
+                vec2 worldXZ = P.xz + u_WorldOrigin.xz;       // anchor the lines in world
+                float minor = gridLine(worldXZ, 1.0);
+                float major = gridLine(worldXZ, 10.0);
                 float fade  = 1.0 - smoothstep(120.0, 400.0, length(P.xz - u_CameraPos.xz));
                 vec3  gc = mix(vec3(0.30), vec3(0.55), major);
                 float ga = max(minor * 0.35, major * 0.60) * fade;
@@ -70,5 +74,7 @@ void main()
     }
 
     o_FragColor = vec4(color, 1.0);
-    gl_FragDepth = 0.0;
+    // Force the near plane (reverse-Z: 1.0) so later overlays drawn into the same
+    // target composite in front of the presented image.
+    gl_FragDepth = 1.0;
 }

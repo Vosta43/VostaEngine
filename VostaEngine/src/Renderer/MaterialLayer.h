@@ -13,36 +13,41 @@ namespace ve {
 		HeightBlend,  // modulated by the layer's height channel
 	};
 
-	// Highest layer count the layered surface shader is compiled for. Every layer
-	// costs two samplers (albedo+height, normal+roughness), so this must stay within
-	// the fixed sampler array the shader declares.
-	inline constexpr int kMaxMaterialLayers = 4;
+	// Ceiling on a layered material's layers. Weights live in a texture array (one
+// slice per layer) and the shader is generated per material with MAX_LAYERS set to
+// that material's own layer count, so a material's arrays and weight slices stay as
+// small as it needs. What caps the count is samplers: each layer costs one or more
+// content samplers (its material graph's samplers, or its fixed-slot maps) and the
+// weight array takes one, sharing GL's 16 guaranteed fragment texture units. Raise
+// this together with kWeightsTextureUnit / kMaxContentSamplers if the target GPUs
+// expose more units (desktop NVIDIA/Intel report 32, which would allow 31 layers).
+	inline constexpr int kMaxMaterialLayers = 15;
 
-	// One surface layer: a set of logical texture maps plus the rule deciding
-	// where it shows up. Nothing here is tied to a particular surface kind — the
-	// shader turns these into per-layer blend weights.
+	// One surface layer: a material reference plus the rule deciding where it shows
+	// up. Nothing here is tied to a particular surface kind — the shader turns these
+	// into per-layer blend weights.
 	//
-	// The maps are authored as separate images and may each be left unset. The
-	// runtime packs them into the two channel-packed samplers the shader samples
-	// (see MaterialLayerAsset::packedTextures) — albedo rgb + height a, normal
-	// rgb + roughness a — so authoring never needs a manual pack step.
+	// Albedo, normal, roughness, metallic, AO and emissive are evaluated from the
+	// referenced material (its node graph, or its fixed PBR slots) once per layer;
+	// only height is layer-local, since SingleMaterial has no height channel.
 	struct MaterialLayer {
 
 		// Identity. Not required to be unique.
 		std::string name = "Layer";
 
-		AssetHandle albedoMap;     // rgb
-		AssetHandle normalMap;     // rgb (tangent space)
-		AssetHandle roughnessMap;  // red channel used
+		// Surface source: a SingleMaterial, evaluated per layer. Unset falls back to
+		// white albedo, flat normal, roughness 0.5 and no metallic/emissive.
+		AssetHandle material;
 		AssetHandle heightMap;     // red channel used; drives HeightBlend
 
 		// World-space UV scale: uv = worldXZ / tiling.
 		float tiling = 8.0f;
 
-		// Procedural weight rule: the weight is the product of the enabled terms,
-		// then normalized against the other weight-blend layers. Slope is
-		// 1 - worldNormal.y (0 = flat, 1 = vertical); height is the world Y
-		// expressed as a fraction of the surface's heightScale.
+		// Procedural weight rule, evaluated on the CPU into the terrain's weight map
+		// (not in the shader): the weight is the product of the enabled terms. Slope
+		// is 1 - worldNormal.y (0 = flat, 1 = vertical); height is the world Y
+		// expressed as a fraction of the surface's heightScale. Editing these re-bakes
+		// the weights, overwriting painted coverage the same way a rule graph does.
 		bool  useSlope = true;
 		float slopeMin = 0.0f;
 		float slopeMax = 0.6f;

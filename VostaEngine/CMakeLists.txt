@@ -27,6 +27,7 @@ set(ENGINE_SOURCES
     src/Platform/OpenGL/OpenGLBuffer.cpp
     src/Platform/OpenGL/OpenGLContext.cpp
     src/Platform/OpenGL/OpenGLFrameBuffer.cpp
+    src/Platform/OpenGL/OpenGLGpuReadback.cpp
     src/Platform/OpenGL/OpenGLRendererAPI.cpp
     src/Platform/OpenGL/OpenGLShader.cpp
     src/Platform/OpenGL/OpenGLStaticMesh.cpp
@@ -43,6 +44,7 @@ set(ENGINE_SOURCES
     src/Renderer/MaterialGraph.cpp
     src/Renderer/MaterialNodes.cpp
     src/Renderer/LayeredMaterial.cpp
+    src/Renderer/LayeredShaderBuilder.cpp
     src/Renderer/MaterialLayerAsset.cpp
     src/Renderer/MaterialInstance.cpp
     src/Renderer/SingleMaterial.cpp
@@ -51,6 +53,9 @@ set(ENGINE_SOURCES
     src/Renderer/Renderer2D.cpp
     src/Renderer/Renderer3D.cpp
     src/Renderer/RenderPipeline.cpp
+    src/Renderer/RuntimeVirtualTexture.cpp
+    src/Renderer/GpuReadback.cpp
+    src/Renderer/GpuReadbackSelfTest.cpp
     src/Renderer/SceneRenderer.cpp
     src/Renderer/SceneViewRenderer.cpp
     src/Renderer/SceneView.cpp
@@ -72,6 +77,9 @@ set(ENGINE_SOURCES
     src/Renderer/RenderPass/PostBufferPass.cpp
     src/Renderer/RenderPass/PassBinding.cpp
     src/Renderer/RenderPass/PresentPass.cpp
+    src/Renderer/RenderPass/RVTBakePass.cpp
+    src/Renderer/RenderPass/RVTDebugPass.cpp
+    src/Renderer/RenderPass/VolumetricLightPass.cpp
     src/Renderer/RenderPass/ShadowPass.cpp
     src/Renderer/Shadow/ShadowCascadeCalculator.cpp
     src/Renderer/Pipeline/PipelineConfig.cpp
@@ -82,6 +90,15 @@ set(ENGINE_SOURCES
     src/Renderer/Preprocess/AtmosphereBaker.cpp
     src/Renderer/Preprocess/AtmosphereSkyBaker.cpp
     src/Renderer/Preprocess/WeatherMapBaker.cpp
+
+    # Geometry (procedural mesh graphs, SDF evaluation, cube-sphere LOD)
+    src/Geometry/CubeSphereLod.cpp
+    src/Geometry/CubeSphereMeshBuilder.cpp
+    src/Geometry/GeometryBaker.cpp
+    src/Geometry/GeometryBuffer.cpp
+    src/Geometry/GeometryEvaluator.cpp
+    src/Geometry/GeometryGraph.cpp
+    src/Geometry/GeometryGraphResource.cpp
 
     # Scene / ECS
     src/Scene/Archive.cpp
@@ -94,13 +111,34 @@ set(ENGINE_SOURCES
     src/Scene/Scene.cpp
     src/Scene/SceneClone.cpp
     src/Scene/SceneSerializer.cpp
+    src/Scene/Terrain/QuadTreeTerrain.cpp
+    src/Scene/Terrain/Terrain.cpp
+    src/Scene/Terrain/TerrainDataResource.cpp
+    src/Scene/Terrain/TerrainMeshBuilder.cpp
 
     # Asset import
     src/Asset/AssetAuthoring.cpp
     src/Asset/AssetLibrary.cpp
+    src/Asset/BuiltinReousrces.cpp
     src/Asset/ImportManager.cpp
     src/Asset/StaticMeshImporter.cpp
     src/Asset/TextureImporter.cpp
+
+    # Graph (node graphs shared by material and noise)
+    src/Graph/NodeGraph.cpp
+
+    # Noise (procedural noise graphs and baking)
+    src/Noise/NoiseBaker.cpp
+    src/Noise/NoiseCPU.cpp
+    src/Noise/NoiseGraph.cpp
+    src/Noise/NoiseGraphResource.cpp
+    src/Noise/NoisePlan.cpp
+
+    # Terrain rule graphs (CPU-baked material layer weights)
+    src/Terrain/RuleGraph.cpp
+    src/Terrain/RuleGraphResource.cpp
+    src/Terrain/RulePlan.cpp
+    src/Terrain/GlobeWeightBaker.cpp
 
     # GUI
     src/Gui/Gui.cpp
@@ -117,7 +155,14 @@ set(ENGINE_SOURCES
     src/Gui/Vellum/WidgetTree.cpp
     src/Gui/Vellum/VellumLayer.cpp
 
+    # HUD (authored Vellum trees as assets)
+    src/Gui/Hud/HudWidgetRegistry.cpp
+    src/Gui/Hud/HudAsset.cpp
+    src/Gui/Hud/HudInstance.cpp
+    src/Gui/Hud/HudSystem.cpp
+
     # MCP tool layer
+    src/MCP/CommandRegistry.cpp
     src/MCP/ToolRegistry.cpp
     src/MCP/ToolDispatchQueue.cpp
     src/MCP/SceneTools.cpp
@@ -140,6 +185,16 @@ set(ENGINE_SOURCES
     thirdparty/stb_truetype/stb_truetype.cpp
     thirdparty/ufbx/ufbx.c
 )
+
+# Packaging drives MSBuild on a project's .slnx, and process spawning is the one
+# platform seam it needs. Both are Windows-only today, so they are added only
+# there rather than carrying dead branches on other platforms.
+if(WIN32)
+    list(APPEND ENGINE_SOURCES
+        src/Build/Packager.cpp
+        src/Platform/Windows/ProcessWindows.cpp
+    )
+endif()
 
 # ── Engine shared library ───────────────────────────────────────────────
 add_library(VostaEngine SHARED ${ENGINE_SOURCES})
@@ -232,7 +287,7 @@ target_compile_definitions(VostaEngine
 
 # ── Warnings ────────────────────────────────────────────────────────────
 if(MSVC)
-    target_compile_options(VostaEngine PRIVATE /W3 /wd4251 /utf-8)
+    target_compile_options(VostaEngine PRIVATE /W3 /wd4251 /utf-8 /MP)
 else()
     target_compile_options(VostaEngine PRIVATE -Wall -Wextra)
 endif()

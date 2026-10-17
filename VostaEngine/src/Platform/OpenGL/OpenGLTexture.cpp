@@ -4,6 +4,8 @@
 #include <glad/glad.h>
 #include "stb_image.h"
 
+#include <algorithm>
+
 namespace ve {
 
     OpenGLTexture2D::OpenGLTexture2D(const std::string& path)
@@ -78,9 +80,25 @@ namespace ve {
             outInternalFormat = GL_RGB8;
             outDataFormat = GL_RGB;
             break;
+        case TextureFormat::SRGB8:
+            outInternalFormat = GL_SRGB8;
+            outDataFormat = GL_RGB;
+            break;
+        case TextureFormat::SRGB8_ALPHA8:
+            outInternalFormat = GL_SRGB8_ALPHA8;
+            outDataFormat = GL_RGBA;
+            break;
         case TextureFormat::R8:
             outInternalFormat = GL_R8;
             outDataFormat = GL_RED;
+            break;
+        case TextureFormat::R16UI:
+            outInternalFormat = GL_R16UI;
+            outDataFormat = GL_RED_INTEGER;
+            break;
+        case TextureFormat::R32UI:
+            outInternalFormat = GL_R32UI;
+            outDataFormat = GL_RED_INTEGER;
             break;
         case TextureFormat::RG16F:
             outInternalFormat = GL_RG16F;
@@ -116,9 +134,53 @@ namespace ve {
         case TextureFormat::RGBA16F:
         case TextureFormat::R16F:
             return GL_FLOAT;
+        case TextureFormat::R16UI:
+            return GL_UNSIGNED_SHORT;
+        case TextureFormat::R32UI:
+            return GL_UNSIGNED_INT;
         default:
             return GL_UNSIGNED_BYTE;
         }
+    }
+
+    // The image-unit format qualifier for a texture format. It must name the same
+    // internal format the texture was created with: the compiler derives the type
+    // imageLoad returns from it, so there is no conversion to fall back on.
+    static GLenum textureFormatToImageFormat(TextureFormat tf) {
+        switch (tf) {
+        case TextureFormat::R8:           return GL_R8;
+        case TextureFormat::R16F:         return GL_R16F;
+        case TextureFormat::R16UI:        return GL_R16UI;
+        case TextureFormat::R32UI:        return GL_R32UI;
+        case TextureFormat::RG16F:        return GL_RG16F;
+        case TextureFormat::RGB16F:       return GL_RGB16F;
+        case TextureFormat::RGBA16F:      return GL_RGBA16F;
+        case TextureFormat::SRGB8:        return GL_SRGB8;
+        case TextureFormat::SRGB8_ALPHA8: return GL_SRGB8_ALPHA8;
+        case TextureFormat::RGB:          return GL_RGB8;
+        case TextureFormat::RGBA:         return GL_RGBA8;
+        default:                          return GL_RGBA8;
+        }
+    }
+
+    static GLenum imageAccessToOpenGL(ImageAccess access) {
+        switch (access) {
+        case ImageAccess::Read:      return GL_READ_ONLY;
+        case ImageAccess::Write:     return GL_WRITE_ONLY;
+        case ImageAccess::ReadWrite: return GL_READ_WRITE;
+        }
+        return GL_READ_WRITE;
+    }
+
+    static void bindImageToUnit(uint32_t unit, uint32_t rendererId, TextureFormat format,
+        ImageAccess access, int level, bool layered, int layer) {
+        glBindImageTexture(unit, rendererId, level, layered ? GL_TRUE : GL_FALSE, layer,
+            imageAccessToOpenGL(access), textureFormatToImageFormat(format));
+    }
+
+    static void unbindImageFromUnit(uint32_t unit) {
+        // Image unit 0 with texture 0 clears the binding; the format is ignored.
+        glBindImageTexture(unit, 0, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
     }
 
     OpenGLTexture2D::OpenGLTexture2D(Ref<TextureResource> textureResource)
@@ -170,6 +232,10 @@ namespace ve {
     }
 
     OpenGLTexture2D::OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format)
+        : OpenGLTexture2D(width, height, format, 1) {
+    }
+
+    OpenGLTexture2D::OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format, uint32_t mipLevels)
         : m_width(width)
         , m_height(height)
         , m_ownsTexture(true)
@@ -179,10 +245,14 @@ namespace ve {
         textureFormatToOpenGL(format, internalFormat, dataFormat);
 
         glCreateTextures(GL_TEXTURE_2D, 1, &m_rendererId);
-        glTextureStorage2D(m_rendererId, 1, internalFormat, m_width, m_height);
+        glTextureStorage2D(m_rendererId, mipLevels ? (GLsizei)mipLevels : 1, internalFormat, m_width, m_height);
 
-        glTextureParameteri(m_rendererId, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTextureParameteri(m_rendererId, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        // Integer formats (R16UI) have no linear filter in GL; asking for one is an
+        // error. The page table is read as an exact index, so nearest is also what
+        // the sampler wants.
+        const bool integerFormat = (format == TextureFormat::R16UI || format == TextureFormat::R32UI);
+        glTextureParameteri(m_rendererId, GL_TEXTURE_MIN_FILTER, integerFormat ? GL_NEAREST : GL_LINEAR);
+        glTextureParameteri(m_rendererId, GL_TEXTURE_MAG_FILTER, integerFormat ? GL_NEAREST : GL_LINEAR);
         glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         // Pin anisotropic filtering to 1 (the spec default). The R16F weather map
@@ -217,9 +287,28 @@ namespace ve {
                             dataFormat, textureFormatToOpenGLType(m_format), data);
     }
 
+    void OpenGLTexture2D::setDataLevel(void* data, uint32_t size, uint32_t mip) {
+        GLenum internalFormat, dataFormat;
+        textureFormatToOpenGL(m_format, internalFormat, dataFormat);
+        // Each level halves, floored at one texel -- the same rule glTextureStorage2D
+        // allocated the chain with, so the upload always matches the level's extent.
+        const uint32_t w = (std::max)(1u, m_width  >> mip);
+        const uint32_t h = (std::max)(1u, m_height >> mip);
+        glTextureSubImage2D(m_rendererId, (GLint)mip, 0, 0, w, h,
+                            dataFormat, textureFormatToOpenGLType(m_format), data);
+    }
+
     void OpenGLTexture2D::bind(uint32_t slot) const {
         glActiveTexture(GL_TEXTURE0 + slot);
         glBindTexture(GL_TEXTURE_2D, m_rendererId);
+    }
+
+    void OpenGLTexture2D::bindImage(uint32_t unit, ImageAccess access, int level, bool layered, int layer) const {
+        bindImageToUnit(unit, m_rendererId, m_format, access, level, layered, layer);
+    }
+
+    void OpenGLTexture2D::unbindImage(uint32_t unit) const {
+        unbindImageFromUnit(unit);
     }
 
     OpenGLTextureCube::OpenGLTextureCube(Ref<TextureCubeMapResource> resource) {
@@ -231,6 +320,7 @@ namespace ve {
         m_path = resource->sourceFilePathPath;
         m_width = resource->width;
         m_height = resource->height;
+        m_format = resource->format;
 
         GLenum internalFormat, dataFormat;
         textureFormatToOpenGL(resource->format, internalFormat, dataFormat);
@@ -264,7 +354,8 @@ namespace ve {
 
     OpenGLTextureCube::OpenGLTextureCube(uint32_t faceSize)
         : m_width(faceSize)
-        , m_height(faceSize) {
+        , m_height(faceSize)
+        , m_format(TextureFormat::RGBA16F) {
 
         glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &m_rendererId);
         glTextureStorage2D(m_rendererId, 1, GL_RGBA16F, faceSize, faceSize);
@@ -278,7 +369,8 @@ namespace ve {
 
     OpenGLTextureCube::OpenGLTextureCube(uint32_t faceSize, uint32_t mipLevels)
         : m_width(faceSize)
-        , m_height(faceSize) {
+        , m_height(faceSize)
+        , m_format(TextureFormat::RGBA16F) {
 
         glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &m_rendererId);
         glTextureStorage2D(m_rendererId, mipLevels, GL_RGBA16F, faceSize, faceSize);
@@ -304,8 +396,68 @@ namespace ve {
         glBindTexture(GL_TEXTURE_CUBE_MAP, m_rendererId);
     }
 
+    void OpenGLTextureCube::bindImage(uint32_t unit, ImageAccess access, int level, bool layered, int layer) const {
+        bindImageToUnit(unit, m_rendererId, m_format, access, level, layered, layer);
+    }
+
+    void OpenGLTextureCube::unbindImage(uint32_t unit) const {
+        unbindImageFromUnit(unit);
+    }
+
     void OpenGLTextureCube::setData(void* data, uint32_t size) {
         // CubeMap faces are write-once during construction
+    }
+
+    OpenGLTexture2DArray::OpenGLTexture2DArray(uint32_t width, uint32_t height, uint32_t layers,
+        TextureFormat format, const void* data)
+        : m_width(width)
+        , m_height(height)
+        , m_layers(layers)
+        , m_rendererId(0)
+        , m_format(format) {
+
+        GLenum internalFormat, dataFormat;
+        textureFormatToOpenGL(format, internalFormat, dataFormat);
+
+        glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &m_rendererId);
+        glTextureStorage3D(m_rendererId, 1, internalFormat, m_width, m_height, m_layers);
+        if (data) {
+            glTextureSubImage3D(m_rendererId, 0, 0, 0, 0, m_width, m_height, m_layers,
+                                dataFormat, textureFormatToOpenGLType(format), data);
+        }
+
+        glTextureParameteri(m_rendererId, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(m_rendererId, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        // Explicit AF=1, the spec default: see the R16F Texture2D ctor.
+        glTextureParameterf(m_rendererId, GL_TEXTURE_MAX_ANISOTROPY, 1.0f);
+    }
+
+    OpenGLTexture2DArray::~OpenGLTexture2DArray() {
+        if (m_rendererId != 0) {
+            glDeleteTextures(1, &m_rendererId);
+        }
+    }
+
+    void OpenGLTexture2DArray::setData(void* data, uint32_t size) {
+        GLenum internalFormat, dataFormat;
+        textureFormatToOpenGL(m_format, internalFormat, dataFormat);
+        glTextureSubImage3D(m_rendererId, 0, 0, 0, 0, m_width, m_height, m_layers,
+                            dataFormat, textureFormatToOpenGLType(m_format), data);
+    }
+
+    void OpenGLTexture2DArray::bind(uint32_t slot) const {
+        glActiveTexture(GL_TEXTURE0 + slot);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, m_rendererId);
+    }
+
+    void OpenGLTexture2DArray::bindImage(uint32_t unit, ImageAccess access, int level, bool layered, int layer) const {
+        bindImageToUnit(unit, m_rendererId, m_format, access, level, layered, layer);
+    }
+
+    void OpenGLTexture2DArray::unbindImage(uint32_t unit) const {
+        unbindImageFromUnit(unit);
     }
 
     OpenGLTexture3D::OpenGLTexture3D(uint32_t width, uint32_t height, uint32_t depth, const float* data)
@@ -375,6 +527,14 @@ namespace ve {
     void OpenGLTexture3D::bind(uint32_t slot) const {
         glActiveTexture(GL_TEXTURE0 + slot);
         glBindTexture(GL_TEXTURE_3D, m_rendererId);
+    }
+
+    void OpenGLTexture3D::bindImage(uint32_t unit, ImageAccess access, int level, bool layered, int layer) const {
+        bindImageToUnit(unit, m_rendererId, m_format, access, level, layered, layer);
+    }
+
+    void OpenGLTexture3D::unbindImage(uint32_t unit) const {
+        unbindImageFromUnit(unit);
     }
 
 }

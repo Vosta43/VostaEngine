@@ -38,9 +38,20 @@ namespace ve {
 
 	void MaterialInstance::setTexture(const std::string& name, AssetHandle texture, uint32_t unit) {
 		for (auto& e : overrides.textures) {
-			if (e.uniformName == name) { e.textureHandle = texture; e.unit = unit; return; }
+			if (e.uniformName == name) {
+				e.textureHandle = texture; e.unit = unit; e.target = TextureTarget::Texture2D; return;
+			}
 		}
-		overrides.textures.push_back({ name, texture, unit });
+		overrides.textures.push_back({ name, texture, unit, TextureTarget::Texture2D });
+	}
+
+	void MaterialInstance::setTextureArray(const std::string& name, AssetHandle texture, uint32_t unit) {
+		for (auto& e : overrides.textures) {
+			if (e.uniformName == name) {
+				e.textureHandle = texture; e.unit = unit; e.target = TextureTarget::Texture2DArray; return;
+			}
+		}
+		overrides.textures.push_back({ name, texture, unit, TextureTarget::Texture2DArray });
 	}
 
 	void MaterialInstance::fillBindings(MaterialBindingSet& out) const {
@@ -62,6 +73,7 @@ namespace ve {
 				if (d.uniformName == s.uniformName) {
 					d.textureHandle = s.textureHandle;
 					d.unit = s.unit;
+					d.target = s.target;
 					replaced = true;
 					break;
 				}

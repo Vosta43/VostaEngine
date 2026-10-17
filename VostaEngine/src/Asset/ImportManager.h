@@ -13,6 +13,13 @@ namespace ve {
 		// <stem>.veasset next to it.
 		static void import(const std::string& sourcePath, const std::string& destDir);
 
+		// Bake-time color-space inference from the file name (color maps -> sRGB,
+		// data maps -> linear). A heuristic, not a source of truth: a misnamed
+		// source bakes with the wrong color space. On by default; turn it off to
+		// bake every LDR texture linear and set the flag explicitly per asset.
+		static void setInferColorSpaceFromName(bool enabled);
+		static bool inferColorSpaceFromName();
+
 	private:
 
 

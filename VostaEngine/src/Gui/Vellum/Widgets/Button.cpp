@@ -17,6 +17,11 @@ glm::vec2 Button::computeDesiredSize() const {
 	return m_size;
 }
 
+void Button::setSize(const glm::vec2& size) {
+	m_size = size;
+	invalidateDesiredSize();
+}
+
 void Button::arrange(const Rect& slot) {
 	m_rect = slot;
 	// The label (any child) keeps its measured size and centres in the button.

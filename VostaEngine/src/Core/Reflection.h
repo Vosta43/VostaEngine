@@ -1,9 +1,7 @@
 #pragma once
 
 #include "Core.h"
-#include "Log.h"
 
-#include <cctype>
 #include <string>
 #include <vector>
 #include <functional>
@@ -15,7 +13,7 @@ namespace ve {
 	struct ReflectionProperty {
 		std::string name;
 		std::string typeName; // raw type : int/std::string/float/Handle(Customized val)
-		void* offset; //deprecated
+		void* offset = nullptr; //deprecated
 		std::function<void*(void*)> getter;
 		
 		bool enableEdit = true;
@@ -27,78 +25,16 @@ namespace ve {
 		std::string meta;
 		std::string uiType;
 		std::string text;
-		float minValue;
-		float maxValue;
-		float speed;   // custom drag step; 0 = derive from (max-min)*0.01
+		float minValue = 0.0f;
+		float maxValue = 0.0f;
+		float speed = 0.0f;   // custom drag step; 0 = derive from (max-min)*0.01
 		std::string format; // DragFloat display/typing format, e.g. "%.6f"; empty = "%.3f"
 		std::vector<std::string> options;
 	};
 
-	inline float parseMetaFloat(const std::string& s, float fallback = 0.0f) {
-		try {
-			size_t idx = 0;
-			float v = std::stof(s, &idx);
-			return (idx == 0) ? fallback : v;
-		} catch (...) {
-			return fallback;
-		}
-	}
-
-	inline void parseMeta(const std::string& meta, ReflectionProperty& rp) {
-		rp.meta = meta;
-		rp.uiType.clear();
-		rp.text.clear();
-		rp.minValue = 0.0f;
-		rp.maxValue = 0.0f;
-		rp.speed = 0.0f;
-		rp.format.clear();
-		rp.enableEdit = true;
-		rp.options.clear();
-
-
-		size_t pos = 0;
-		while (pos < meta.size()) {
-			while (pos < meta.size() && std::isspace((unsigned char)meta[pos])) ++pos;
-			if (pos >= meta.size()) break;
-
-			size_t comma = meta.find(',', pos);
-			std::string token = meta.substr(pos,
-				comma == std::string::npos ? std::string::npos : comma - pos);
-			pos = (comma == std::string::npos) ? meta.size() : comma + 1;
-
-			while (!token.empty() && std::isspace((unsigned char)token.back())) token.pop_back();
-			if (token.empty()) continue;
-
-			size_t eq = token.find('=');
-			std::string key   = (eq == std::string::npos) ? token : token.substr(0, eq);
-			std::string value = (eq == std::string::npos) ? "" : token.substr(eq + 1);
-
-			while (!key.empty() && std::isspace((unsigned char)key.back())) key.pop_back();
-			size_t vpos = 0;
-			while (vpos < value.size() && std::isspace((unsigned char)value[vpos])) ++vpos;
-			value = value.substr(vpos);
-
-			if (key == "type")          rp.uiType = value;
-			else if (key == "minValue") rp.minValue = parseMetaFloat(value);
-			else if (key == "maxValue") rp.maxValue = parseMetaFloat(value);
-			else if (key == "speed")    rp.speed = parseMetaFloat(value);
-			else if (key == "format")   rp.format = value;
-			else if (key == "text")     rp.text = value;
-			else if (key == "readonly") rp.enableEdit = !(value == "true" || value == "1");
-			else if (key == "options") {
-
-				size_t s = 0;
-				while (s <= value.size()) {
-					size_t bar = value.find('|', s);
-					std::string opt = value.substr(s,
-						bar == std::string::npos ? std::string::npos : bar - s);
-					if (!opt.empty()) rp.options.push_back(opt);
-					if (bar == std::string::npos) break;
-					s = bar + 1;
-				}
-			}
-		}
-	}
+	// Parses a VEPROPERTY meta string into a ReflectionProperty. Defined in
+	// Reflection.cpp and exported because VEPROPERTY expands in consumer modules.
+	VE_API void parseMeta(const std::string& meta, ReflectionProperty& rp);
 
 	class VE_API ReflectionSystem {
 	public:

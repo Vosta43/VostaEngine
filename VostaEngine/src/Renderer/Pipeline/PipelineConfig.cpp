@@ -23,19 +23,22 @@ namespace ve {
 			if (s == "RGBA8")    return TextureInternalFormat::RGBA8;
 			if (s == "RGBA16F")  return TextureInternalFormat::RGBA16F;
 			if (s == "R32I")     return TextureInternalFormat::R32I;
+			if (s == "R16UI")    return TextureInternalFormat::R16UI;
 			VE_CORE_WARN_PRINT("PipelineConfig: unknown internalFormat '%s', using RGBA8", s.c_str());
 			return TextureInternalFormat::RGBA8;
 		}
 
 		TextureDataFormat defaultFormat(TextureInternalFormat f) {
-			return (f == TextureInternalFormat::R32I) ? TextureDataFormat::RED_INTEGER
-			                                          : TextureDataFormat::RGBA;
+			return (f == TextureInternalFormat::R32I || f == TextureInternalFormat::R16UI)
+			           ? TextureDataFormat::RED_INTEGER
+			           : TextureDataFormat::RGBA;
 		}
 
 		TextureDataType defaultType(TextureInternalFormat f) {
 			switch (f) {
 				case TextureInternalFormat::RGBA16F: return TextureDataType::FLOAT;
 				case TextureInternalFormat::R32I:    return TextureDataType::INT;
+				case TextureInternalFormat::R16UI:   return TextureDataType::UNSIGNED_SHORT;
 				default:                             return TextureDataType::UNSIGNED_BYTE;
 			}
 		}
@@ -50,9 +53,10 @@ namespace ve {
 
 		TextureDataType parseDataType(const std::string& s, TextureInternalFormat f) {
 			if (s.empty()) return defaultType(f);
-			if (s == "UNSIGNED_BYTE") return TextureDataType::UNSIGNED_BYTE;
-			if (s == "FLOAT")         return TextureDataType::FLOAT;
-			if (s == "INT")           return TextureDataType::INT;
+			if (s == "UNSIGNED_BYTE")  return TextureDataType::UNSIGNED_BYTE;
+			if (s == "FLOAT")          return TextureDataType::FLOAT;
+			if (s == "INT")            return TextureDataType::INT;
+			if (s == "UNSIGNED_SHORT") return TextureDataType::UNSIGNED_SHORT;
 			VE_CORE_WARN_PRINT("PipelineConfig: unknown type '%s', deriving from internalFormat", s.c_str());
 			return defaultType(f);
 		}
@@ -79,11 +83,11 @@ namespace ve {
 
 		DepthFuncType parseDepthFunc(const std::string& s) {
 			const std::string l = lower(s);
-			if (l.empty())  return DepthFuncType::Less;
-			if (l == "lequal") return DepthFuncType::Lequal;
-			if (l == "less")   return DepthFuncType::Less;
-			VE_CORE_WARN_PRINT("PipelineConfig: depthFunc '%s' unsupported, using less", s.c_str());
-			return DepthFuncType::Less;
+			if (l.empty())  return DepthFuncType::Greater;
+			if (l == "gequal")  return DepthFuncType::Gequal;
+			if (l == "greater") return DepthFuncType::Greater;
+			VE_CORE_WARN_PRINT("PipelineConfig: depthFunc '%s' unsupported, using greater", s.c_str());
+			return DepthFuncType::Greater;
 		}
 
 		UniformKind parseUniformKind(const std::string& s) {
@@ -127,7 +131,7 @@ namespace ve {
 			f.heightScale = el.getFloat("heightScale", 1.0f);
 			f.width = (uint32_t)std::max(0, el.getInt("width", 0));
 			f.height = (uint32_t)std::max(0, el.getInt("height", 0));
-			f.hasDepthStencil = el.getBool("depth", false);
+			f.hasDepth = el.getBool("depth", false);
 			f.depthCompare = el.getBool("depthCompare", false);
 
 			const size_t n = el.arraySize("attachments");
@@ -287,13 +291,14 @@ namespace ve {
 
 		c.shaders = {
 			{ "gbuffer",           "VostaEngine/resources/shaders/gbuffer.glsl" },
-			{ "terrain_layers",    "VostaEngine/resources/shaders/terrain_layers.glsl" },
 			{ "volume_cloud_pass", "VostaEngine/resources/shaders/volume_cloud_pass.glsl" },
 			{ "cloud_taa",         "VostaEngine/resources/shaders/cloud_taa.glsl" },
+			{ "volumetric_light",  "VostaEngine/resources/shaders/volumetric_light.glsl" },
 			{ "pbrlighting",       "VostaEngine/resources/shaders/pbrlighting.glsl" },
 			{ "taa",               "VostaEngine/resources/shaders/taa.glsl" },
 			{ "postprocess",       "VostaEngine/resources/shaders/postprocess.glsl" },
 			{ "screen",            "VostaEngine/resources/shaders/screen.glsl" },
+			{ "rvt_debug",         "VostaEngine/resources/shaders/rvt_debug.glsl" },
 		};
 
 		auto color = [](int slot, TextureInternalFormat fmt) {
@@ -311,7 +316,7 @@ namespace ve {
 			f.name = name;
 			f.widthScale = wScale;
 			f.heightScale = hScale;
-			f.hasDepthStencil = depth;
+			f.hasDepth = depth;
 			f.attachments = std::move(atts);
 			return f;
 		};
@@ -321,12 +326,14 @@ namespace ve {
 				color(0, TextureInternalFormat::RGBA8),
 				color(1, TextureInternalFormat::RGBA16F),
 				color(2, TextureInternalFormat::RGBA8),
-				color(3, TextureInternalFormat::RGBA8),
+				color(3, TextureInternalFormat::RGBA16F),
 			}),
 			fbo("hdr", 1.0f, 1.0f, false, { color(0, TextureInternalFormat::RGBA16F) }),
 			fbo("cloud", 0.25f, 0.25f, false, { color(0, TextureInternalFormat::RGBA16F) }),
 			fbo("cloudTaaA", 0.25f, 0.25f, false, { color(0, TextureInternalFormat::RGBA16F) }),
 			fbo("cloudTaaB", 0.25f, 0.25f, false, { color(0, TextureInternalFormat::RGBA16F) }),
+			fbo("volumetricA", 0.5f, 0.5f, false, { color(0, TextureInternalFormat::RGBA16F) }),
+			fbo("volumetricB", 0.5f, 0.5f, false, { color(0, TextureInternalFormat::RGBA16F) }),
 			fbo("taaA", 1.0f, 1.0f, false, { color(0, TextureInternalFormat::RGBA16F) }),
 			fbo("taaB", 1.0f, 1.0f, false, { color(0, TextureInternalFormat::RGBA16F) }),
 			fbo("post", 1.0f, 1.0f, false, { color(0, TextureInternalFormat::RGBA8) }),
@@ -340,6 +347,10 @@ namespace ve {
 			p.shader = shader;
 			return p;
 		};
+
+		// Fills the runtime virtual texture's pages. Declares no target: it binds
+		// its own bake framebuffer, and no-ops when the frame has no RVT.
+		PassDef rvtBake = pass("rvtBake", "rvtbake", "", "");
 
 		PassDef gbuffer = pass("gbuffer", "gbuffer", "gbuffer", "gbuffer");
 
@@ -356,17 +367,42 @@ namespace ve {
 			{ "u_History",    1, "@history", "2d", 0, false },
 		};
 
+		// God-rays: half-res, shadow-mapped ray march with temporal accumulation.
+		// Runs unconditionally (no `when`): the HDR pass samples its output, and a
+		// gate would leave a stale texture bound on that unit — the same reason the
+		// cloud passes run unconditionally. It clears to black when inactive.
+		PassDef volumetric = pass("volumetric", "volumetric", "volumetricA", "volumetric_light");
+		volumetric.history = { "volumetricA", "volumetricB" };
+		volumetric.inputs = {
+			{ "u_DepthMap",   0,  "gbuffer", "2d", 0, true  },
+			{ "u_History",    1,  "@history","2d", 0, false },
+			{ "u_ShadowMap0", 13, "shadow0", "2d", 0, true  },
+			{ "u_ShadowMap1", 14, "shadow1", "2d", 0, true  },
+			{ "u_ShadowMap2", 15, "shadow2", "2d", 0, true  },
+		};
+		{
+			UniformValueDef shadowSamples;
+			shadowSamples.uniform = "SHADOW_SAMPLES";
+			shadowSamples.kind = UniformKind::Float;
+			shadowSamples.v[0] = 9.0f;
+			volumetric.uniforms.push_back(shadowSamples);
+		}
+
 		PassDef hdr = pass("hdr", "hdr", "hdr", "pbrlighting");
 		hdr.inputs = {
 			{ "u_AlbedoMap",        0, "gbuffer",  "2d", 0, false },
 			{ "u_NormalMap",        1, "gbuffer",  "2d", 1, false },
 			{ "u_MaterialMap",      2, "gbuffer",  "2d", 2, false },
+			{ "u_EmissiveMap",      16, "gbuffer",  "2d", 3, false },
 			{ "u_DepthMap",         3, "gbuffer",  "2d", 0, true  },
 			{ "u_CloudTex",         4, "cloudTaa", "2d", 0, false },
 			{ "u_SkyboxMap",        5, "@skybox",       "cube", 0, false },
 			{ "u_IrradianceMap",    6, "@irradiance",   "cube", 0, false },
 			{ "u_PrefilteredEnvMap",7, "@prefilteredEnv","cube", 0, false },
 			{ "u_BRDFLUT",          8, "@brdfLUT",      "2d",   0, false },
+			// The volumetric pass always runs and writes its half-res buffer, so
+			// this resolves to a defined texture (black when no god-rays).
+			{ "u_VolumetricTex",    17, "volumetric", "2d", 0, false },
 		};
 
 		PassDef taa = pass("taa", "taa", "taaA", "taa");
@@ -377,6 +413,11 @@ namespace ve {
 			{ "u_History",  2, "@history",  "2d", 0, false },
 			{ "u_CloudTex", 3, "cloudTaa",  "2d", 0, false },
 		};
+		// Gated on the "taa" provider. Safe to skip: post reads "@previous" (a
+		// moving ref), so it falls through to the HDR buffer instead of sampling a
+		// stale taaA by name.
+		taa.when.provider = "taa";
+		taa.hasCondition = true;
 
 		PassDef post = pass("post", "post", "post", "postprocess");
 		post.inputs = {
@@ -389,7 +430,13 @@ namespace ve {
 			{ "u_DepthMap",      1, "gbuffer",   "2d", 0, true  },
 		};
 
-		c.passes = { gbuffer, cloud, cloudTaa, hdr, taa, post, present };
+		// Bake inspector: overwrites the presented image while the RVT debug view
+		// is on. Gated, so it costs nothing otherwise.
+		PassDef rvtDebug = pass("rvtDebug", "rvtdbg", "@default", "rvt_debug");
+		rvtDebug.when.provider = "rvtDebug";
+		rvtDebug.hasCondition = true;
+
+		c.passes = { rvtBake, gbuffer, cloud, cloudTaa, volumetric, hdr, taa, post, present, rvtDebug };
 		return c;
 	}
 

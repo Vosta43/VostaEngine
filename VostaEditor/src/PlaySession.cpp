@@ -30,8 +30,11 @@ bool PlaySession::play(Application& app, const Ref<Scene>& authored, const std::
     m_stepOnce = false;
 
     if (!dllPath.empty()) {
-        if (m_host.load(app, dllPath))
-            m_host.module()->onPlay(*m_runtimeScene);
+        if (m_host.load(app, dllPath)) {
+            if (!m_host.start(*m_runtimeScene))
+                VE_CORE_WARN_PRINT("PlaySession: module start failed, running without gameplay: %s",
+                                   m_host.lastError().c_str());
+        }
         else
             VE_CORE_WARN_PRINT("PlaySession: module load failed, running without gameplay: %s",
                                m_host.lastError().c_str());
@@ -75,7 +78,7 @@ void PlaySession::stepOnce() {
 void PlaySession::stop() {
     if (m_host.isLoaded()) {
         if (m_runtimeScene)
-            m_host.module()->onStop(*m_runtimeScene);
+            m_host.stop(*m_runtimeScene);
         m_host.unload();
     }
 

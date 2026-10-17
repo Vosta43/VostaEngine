@@ -20,10 +20,14 @@ namespace ve {
 		// anything that has none assigned (terrain, submeshes, ...).
 		static AssetHandle getDefaultMaterial();
 
-		// 1x1 opaque white. Serves as the default for a texture parameter a
-		// material declares but no instance has overridden — e.g. a white weight
-		// map leaves every layer's mask fully open.
+		// 1x1 opaque white. Serves as the default for a sampler2D parameter a
+		// material declares but no instance has overridden.
 		static AssetHandle getDefaultWhiteTexture();
+
+		// A 1x1 x layerCount array of zeros: the default for a layered material's
+		// weight map when no instance overrides it. Zero weight on every layer means
+		// an unpainted surface shows only the residual base layer.
+		static AssetHandle getDefaultWeightArray();
 
 		// Unit UV sphere, generated rather than imported: indexed vertices with
 		// smooth normals, real UVs and analytic tangents. Used as the material

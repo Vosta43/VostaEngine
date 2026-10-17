@@ -48,6 +48,10 @@ public:
     void start(size_t threadsCount);
     void stop();
 
+    // Worker threads available to run jobs. A job that fans out with parallelFor
+    // needs more than one, or it blocks the only worker it has.
+    size_t threadCount() const { return m_threads.size(); }
+
     template<class F, class R = std::invoke_result_t<F&>>
     TaskHandle<R> schedule(F&& function, std::vector<TaskHandle<void>> deps = {});
 

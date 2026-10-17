@@ -14,6 +14,7 @@ namespace ve {
 		ECSytemGraph() = default;
 
 		void addSystem(const Ref<ECSystemBase>& system);
+		void removeSystem(const Ref<ECSystemBase>& system);
 		void onUpdate(float deltaTime);
 
 	private:

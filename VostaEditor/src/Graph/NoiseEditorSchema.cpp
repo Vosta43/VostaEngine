@@ -164,7 +164,10 @@ void NoiseEditorSchema::drawNoiseSettings(NoiseSettings& s, bool canvasSpace) {
 	enumDropdown("Type", kTypeNames, IM_ARRAYSIZE(kTypeNames), static_cast<int>(s.type),
 		[&s](int i) { s.type = static_cast<S::Type>(i); }, canvasSpace);
 	ImGui::DragInt("Seed", &s.seed);
-	ImGui::DragFloat("Frequency", &s.frequency, 0.0005f, 0.0001f, 0.1f, "%.4f");
+	// The inline preview samples one noise unit per pixel over a ~141-unit window,
+	// so above ~1 the field aliases to static; cap there rather than at the
+	// geometry node's unit-sphere scale (which needs up to ~10).
+	ImGui::DragFloat("Frequency", &s.frequency, 0.0f, 0.0001f, 1.0f, "%.4f", ImGuiSliderFlags_Logarithmic);
 
 	sectionHeader("Fractal");
 	enumDropdown("Fractal", kFractalNames, IM_ARRAYSIZE(kFractalNames), static_cast<int>(s.fractal),

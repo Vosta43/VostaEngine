@@ -4,11 +4,18 @@
 #include "Math/Math.h"
 
 namespace ve {
-	Ref<StaticMesh> QuadTreeTerrain::build(const Ref<TextureResource>& heightMap, float tileSize, float heightScale, int maxDepth, int segments, const glm::vec2& worldOrigin) {
-		Ref<StaticMeshResource> res = TerrainMeshBuilder::buildMeshResourceFromHeightMap(heightMap, tileSize, heightScale, TerrainMeshBuilder::kDefaultUvTileMeters, worldOrigin);
-		int size = (int)sqrt((double)res->vertexBuffer.size());
+	QuadTreeTerrain::BuildResult QuadTreeTerrain::buildResource(const Ref<TextureResource>& heightMap, float tileSize, float heightScale, int maxDepth, int segments, const glm::vec2& worldOrigin) {
+		BuildResult out;
+		out.mesh = TerrainMeshBuilder::buildMeshResourceFromHeightMap(heightMap, tileSize, heightScale, TerrainMeshBuilder::kDefaultUvTileMeters, worldOrigin);
+		// A source with no texels (an empty or unreadable heightmap) has no grid to
+		// subdivide, and `size - 1` below would wrap.
+		if (out.mesh->vertexBuffer.empty()) {
+			out.mesh = nullptr;
+			return out;
+		}
+		int size = (int)sqrt((double)out.mesh->vertexBuffer.size());
 		segments = (std::max)(1, segments);
-		
+
 		// Smallest depth whose root still spans the whole grid, so every tile gets a
 		// complete mesh. Sizing the build off the incoming Max Depth instead let the
 		// far edge go ungenerated whenever the resolution was not a clean multiple of
@@ -16,18 +23,16 @@ namespace ve {
 		int buildDepth = 0;
 		while (((size_t)1 << buildDepth) * (size_t)segments < (size_t)(size - 1))
 			++buildDepth;
-		maxDepth = buildDepth;
-		mMaxDepth = maxDepth; // remember the depth we actually built
+		out.maxDepth = buildDepth;
 
 		std::vector<int> indices;
-		mChunks.clear();
 
-		for (int d = 0;d <= maxDepth;d++) {
-			int stride = 1 << (maxDepth - d);
+		for (int d = 0;d <= out.maxDepth;d++) {
+			int stride = 1 << (out.maxDepth - d);
 			int nodeSpan = stride * segments;
 			int perSideNodeCount = 1 << d;
 			float nodeWorldSize = nodeSpan * tileSize;
-			
+
 			for (int cz = 0;cz < perSideNodeCount;cz ++) {
 				for (int cx = 0;cx < perSideNodeCount;cx++) {
 					int x0 = cx * nodeSpan;
@@ -40,14 +45,24 @@ namespace ve {
 					range.indexCount = (uint32_t)indices.size() - firstIndex;
 					range.centerWorld = worldOrigin + glm::vec2((x0 + nodeSpan * 0.5) * tileSize, (z0 + nodeSpan * 0.5) * tileSize);
 					range.worldSize = nodeWorldSize;
-					mChunks.push_back(range);
+					out.chunks.push_back(range);
 				}
 			}
 		}
 
+		out.mesh->indexBuffer.assign(indices.begin(), indices.end());
+		return out;
+	}
 
-		res->indexBuffer.assign(indices.begin(), indices.end());
-		return StaticMesh::create(res);
+	Ref<StaticMesh> QuadTreeTerrain::commit(BuildResult&& result) {
+		// Adopt the ranges even when the upload fails: keeping the previous build's
+		// would tie update() to a mesh that is no longer there.
+		mMaxDepth = result.maxDepth;
+		mChunks = std::move(result.chunks);
+
+		if (!result.valid())
+			return nullptr;
+		return StaticMesh::create(result.mesh);
 	}
 
 	void QuadTreeTerrain::generateNode(int x0, int z0, int stride, int size, int segments, std::vector<int>& indices) {

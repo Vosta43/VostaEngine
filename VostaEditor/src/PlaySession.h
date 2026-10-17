@@ -21,9 +21,10 @@ public:
     PlaySession& operator=(const PlaySession&) = delete;
 
     // Duplicates `authored`, loads the module at `dllPath` (empty = run with no
-    // gameplay module) and calls its onPlay on the copy. False when a session is
-    // already live, the scene is null, or the clone fails. A module that fails to
-    // load is logged, not fatal: the session still runs, just without gameplay.
+    // gameplay module) and starts its play session on the copy. False when a
+    // session is already live, the scene is null, or the clone fails. A module
+    // that fails to load is logged, not fatal: the session still runs, just
+    // without gameplay.
     bool play(Application& app, const Ref<Scene>& authored, const std::string& dllPath);
 
     // Drives the runtime scene. A no-op while paused, except that a pending single

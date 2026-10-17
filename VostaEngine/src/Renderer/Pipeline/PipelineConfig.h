@@ -36,7 +36,7 @@ namespace ve {
 		float    heightScale = 1.0f;
 		uint32_t width = 0;
 		uint32_t height = 0;
-		bool     hasDepthStencil = false;
+		bool     hasDepth = false;
 		// Put the depth attachment in compare mode (sampler2DShadow). Shadow maps.
 		bool     depthCompare = false;
 		std::vector<FboAttachmentDef> attachments;
@@ -61,7 +61,7 @@ namespace ve {
 	};
 
 	enum class BlendFactor { Zero, One, SrcAlpha, OneMinusSrcAlpha };
-	enum class DepthFuncType { Less, Lequal };
+	enum class DepthFuncType { Greater, Gequal };
 
 	struct PassStateDef {
 		bool          blend = false;
@@ -69,7 +69,7 @@ namespace ve {
 		BlendFactor   dst = BlendFactor::OneMinusSrcAlpha;
 		bool          depthTest = false;
 		bool          depthWrite = false;
-		DepthFuncType depthFunc = DepthFuncType::Less;
+		DepthFuncType depthFunc = DepthFuncType::Greater;
 	};
 
 	struct ConditionDef {

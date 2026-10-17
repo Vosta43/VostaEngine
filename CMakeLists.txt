@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(VostaEngine VERSION 0.2.7 LANGUAGES CXX)
+project(VostaEngine VERSION 0.2.8 LANGUAGES C CXX)
 
 option(VE_BUILD_SANDBOX "Build SandBox gameplay module" ON)
 option(VE_BUILD_EDITOR "Build VostaEditor application" ON)
@@ -15,6 +15,10 @@ find_package(OpenGL REQUIRED)
 if(WIN32)
     add_compile_definitions(_WIN32)
 endif()
+
+# 权威世界坐标精度：宏改变 sizeof(TransformComponent)，引擎/编辑器/宿主/游戏模块
+# 必须一致，故在根目录统一定义。移除本行即切回 float32 权威坐标的“小世界”模式。
+add_compile_definitions(VE_LARGE_WORLD_COORDINATES)
 
 add_subdirectory(VostaEngine)
 

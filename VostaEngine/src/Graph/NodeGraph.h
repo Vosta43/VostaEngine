@@ -16,7 +16,9 @@ namespace ve {
 		Float2,
 		Float3,
 		Float4,
-		Sampler2D
+		Sampler2D,
+		Geometry,
+		Sdf
 	};
 
 	inline PinType GetPromotedType(PinType a, PinType b) {

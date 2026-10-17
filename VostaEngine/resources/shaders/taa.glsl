@@ -19,7 +19,7 @@ in vec2 v_TexCoord;
 layout(location = 0) out vec4 o_FragColor;
 
 uniform sampler2D u_HDRColor;   // current frame, linear HDR
-uniform sampler2D u_DepthMap;   // current frame depth (DEPTH24_STENCIL8, .r = [0,1])
+uniform sampler2D u_DepthMap;   // current frame depth (float32, reverse-Z: 1 = near, 0 = far)
 uniform sampler2D u_History;    // previous TAA output (RGBA16F)
 uniform mat4 u_InvViewProj;     // inverse(current jittered VP)
 uniform mat4 u_PrevViewProj;    // previous jittered VP
@@ -28,9 +28,9 @@ uniform vec2  u_TexelSize;      // vec2(1/w, 1/h), 3x3 neighborhood offset
 uniform sampler2D u_CloudTex;   // accumulated cloud (quarter-res), .a = transmittance, 1.0 = no cloud
 
 // Reverse reprojection: depth + current jittered VP -> world, then previous VP -> prev UV.
+// Reverse-Z / 0..1 clip space: the stored depth is already the NDC z.
 vec3 reconstructWorld(vec2 uv, float depth) {
-    float z = depth * 2.0 - 1.0;                                   // [0,1] -> NDC
-    vec4 clip = vec4(uv * 2.0 - 1.0, z, 1.0);
+    vec4 clip = vec4(uv * 2.0 - 1.0, depth, 1.0);
     vec4 world = u_InvViewProj * clip;
     return world.xyz / world.w;
 }
@@ -49,7 +49,7 @@ void main() {
 
     vec3 outCol = cur;
     float alpha = u_BlendAlpha;
-    if (depth < 0.999999 && cloudT >= 0.999) {
+    if (depth > 0.000001 && cloudT >= 0.999) {
         vec3 worldPos = reconstructWorld(uv, depth);
         vec4 prevClip = u_PrevViewProj * vec4(worldPos, 1.0);
         vec2 prevUV = prevClip.xy / prevClip.w * 0.5 + 0.5;

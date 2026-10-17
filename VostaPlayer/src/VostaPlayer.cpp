@@ -68,15 +68,17 @@ namespace {
             m_sceneView.setCameraSource(ve::SceneView::CameraSource::Scene);
 
             const std::string dllPath = (ve::getProjectRoot() / "Binaries" / "game.dll").string();
-            if (m_host.load(ve::Application::get(), dllPath))
-                m_host.module()->onPlay(*m_scene);
+            if (m_host.load(ve::Application::get(), dllPath)) {
+                if (!m_host.start(*m_scene))
+                    VE_CORE_WARN_PRINT("Player: running without gameplay: %s", m_host.lastError().c_str());
+            }
             else
                 VE_CORE_WARN_PRINT("Player: running without gameplay: %s", m_host.lastError().c_str());
         }
 
         void onDetach() override {
             if (m_host.isLoaded()) {
-                m_host.module()->onStop(*m_scene);
+                m_host.stop(*m_scene);
                 m_host.unload();
             }
         }
@@ -85,6 +87,9 @@ namespace {
             auto* win = ve::Application::get().getWindow();
             const uint32_t width  = static_cast<uint32_t>(win->getWidth());
             const uint32_t height = static_cast<uint32_t>(win->getHeight());
+
+            // Tick gameplay before rendering so this frame shows its result.
+            m_scene->onUpdate(ve::DeltaTime::get().getDeltaTime());
 
             m_sceneView.setSize(width, height);
             m_sceneView.onUpdate(ve::DeltaTime::get().getDeltaTime());
@@ -113,10 +118,15 @@ namespace {
 int main(int argc, char** argv) {
     ve::setAssetRoot(ve::resolveEngineRoot().string());
 
-    // Run the project given on the command line, defaulting to the built-in one.
+    // A packaged build is its own project root: project.json sits beside
+    // VostaEngine/resources, so a double-click launches it with no arguments.
+    // Otherwise run the project named on the command line, defaulting to the
+    // built-in SandBox.
     const std::filesystem::path projectDir = argc > 1
         ? std::filesystem::absolute(argv[1])
-        : (ve::getAssetRoot() / "SandBox");
+        : (std::filesystem::exists(ve::getAssetRoot() / "project.json")
+               ? ve::getAssetRoot()
+               : ve::getAssetRoot() / "SandBox");
 
     VostaPlayerApp* app = new VostaPlayerApp(projectDir);
     ve::Logger::Get().printAllToConsole();

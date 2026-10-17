@@ -20,7 +20,7 @@ There are also **two different encodings** behind the same extension:
 
 | Encoding | Used by | On disk |
 |---|---|---|
-| `TextArchive` | `material`, `layered_material`, `material_layer`, `noise` | ASCII, whitespace-delimited, human-readable |
+| `TextArchive` | `material`, `layered_material`, `material_layer`, `noise`, `geometry` | ASCII, whitespace-delimited, human-readable |
 | `BinaryArchive` | `texture`, `staticmesh` | opaque host-endian byte blobs |
 
 `utils::isEngineAsset(path)` is literally just "extension == `.veasset`"
@@ -73,8 +73,8 @@ Shared primitives (`Scene/Archive.h`, `TextArchive`):
 
 ### 4.1 Embedded node-graph encoding
 
-Only `material` and `noise` bodies contain a graph. Both use the same layout
-(`Graph/NodeGraph.cpp`), after their own header:
+`material`, `noise` and `geometry` bodies each contain a graph. All three use the
+same layout (`Graph/NodeGraph.cpp`), after their own header:
 
 ```
 int32  nodeCount
@@ -140,7 +140,7 @@ Writer: `Renderer/LayeredMaterial.cpp`. Token: `layered_material`.
 int32  version        # must be 2 (kFormatVersion) — mismatch discards the body
 string name
 float  heightScale, macroStrength, macroScale
-int32  layerCount     # clamped to 0..4 (kMaxMaterialLayers)
+int32  layerCount     # clamped to 0..15 (kMaxMaterialLayers)
   repeat layerCount:
     string layerAssetPath   # path to a material_layer asset; "" = invalid handle
 ```
@@ -150,9 +150,11 @@ int32  layerCount     # clamped to 0..4 (kMaxMaterialLayers)
 Writer: `Renderer/MaterialLayerAsset.cpp`. Token: `material_layer`.
 
 ```
-int32  version        # must be 2 — mismatch discards the body
+int32  version        # must be 3 — mismatch discards the body
 string name
-string albedoPath, normalPath, roughnessPath, heightPath
+string materialPath   # path to a SingleMaterial asset (albedo/normal/roughness
+                      # source); "" = invalid handle
+string heightPath
 float  tiling
 int32  useSlope
 float  slopeMin, slopeMax
@@ -222,6 +224,57 @@ float outputMax
 ```
 
 Enum orders mirror FastNoiseLite so the backend mapping is a plain cast.
+
+### 4.6 `geometry` — procedural-geometry graph
+
+Writer: the editor's GeometryGraphPanel. Reader:
+`Geometry/GeometryGraphResource.cpp`. Token: `geometry`.
+
+```
+string geometry
+int32  version        # must be 1 — mismatch discards the file
+<node graph>          # §4.1
+```
+
+Evaluating the graph yields a CPU mesh; a **MeshOutput node must be the
+terminal** or the graph produces nothing. Geometry node tags (`GeometryNodeTag`,
+`Geometry/GeometryGraph.h`; SDF node classes in `Sdf/SdfNodes.h`; registry
+`GeometryGraph.cpp`):
+
+| tag | node | extra params after base |
+|---|---|---|
+| 0 | Icosphere | `float radius; int32 subdivisions; vec3 scale` |
+| 1 | Subdivide | `int32 iterations; int32 smooth` |
+| 2 | NoiseDisplace | `NoiseSettings` (16 fields, §4.5) + `float amplitude, bias; int32 mode; vec3 direction; int32 sampleInUnitSpace` |
+| 3 | Transform | `vec3 translate; vec3 rotateEulerDeg; vec3 scale` |
+| 4 | MeshOutput | `string name; int32 recalcNormals, generateUVs, recalcTangents` |
+| 5 | FieldDisplace | `string field` (a noise asset path) + `float amplitude, bias; int32 mode; vec3 direction; int32 sampleInUnitSpace` |
+| 6 | SdfSphere | `vec3 center; float radius` |
+| 7 | MarchingCubes | `vec3 boundsMin, boundsMax; int32 resolution` |
+| 8 | SdfNoiseDisplace | `string field` (a noise asset path) + `float amplitude, bias, frequency` |
+| 9 | SdfBoolean | `int32 op; float smooth` — `op` is `0=Union, 1=Subtract, 2=Intersect`; `Subtract` means A minus B; `smooth` is a fuse radius in world units (`0` = hard boolean) |
+
+`mode` is `0=Normal, 1=Direction, 2=XYZ` (shared by both displace nodes).
+
+**Two ways to displace by noise.** `NoiseDisplace` (tag 2) embeds a full
+`NoiseSettings` in the node itself — self-contained, one-off. `FieldDisplace`
+(tag 5) references an authored `noise` graph by asset path (`field`), so one
+field drives many meshes and is edited in the noise editor. The referenced noise
+graph is sampled in **3D**; the same graph still reads as a 2D field for terrain
+and the 2D preview.
+
+**The SDF route (tags 6-9).** Instead of carrying a mesh, these carry a
+*signed-distance function* over space, and their pins use the `Sdf` type, not
+`Geometry`. `SdfSphere` emits a field; `SdfBoolean` (tag 9) combines two fields —
+`Union`/`Intersect` are `min`/`max`, `Subtract` is `max(a, -b)`, and a non-zero
+`smooth` fuses the seam with a fillet of that radius, which is what gives sculpted
+organic shapes; `SdfNoiseDisplace` perturbs an upstream
+field by subtracting a scalar noise value (its `field` is a noise graph sampled
+in 3D — keep `amplitude * frequency` small, roughly `<= 0.3`, or the field grows
+spurious zero crossings, and keep `MarchingCubes` `resolution` at least
+`2 * frequency * extent` or the detail aliases away); `MarchingCubes` is the only
+node that turns a field back into mesh geometry. So a valid SDF chain ends
+`... -> SdfNoiseDisplace -> MarchingCubes -> MeshOutput`.
 
 ---
 
@@ -321,8 +374,10 @@ are JSON. If a `.veworld` does not start with `{`, it predates the migration.
 **Built-in assets** (`Asset/BuiltinReousrces.h`) live in memory under reserved
 `__builtin_...` keys, never as files — so they never collide with project
 content and never leave stray `.veasset`s: `getDefaultMaterial` (white matte,
-fallback), `getDefaultWhiteTexture` (1×1, fallback for un-overridden texture
-params), `getBuiltinSphere` (generated UV sphere; **needs a live GL context**).
+fallback), `getDefaultWhiteTexture` (1×1, fallback for un-overridden sampler2D
+params), `getDefaultWeightArray` (1×1 × layer-cap, all-zero; a layered material's
+weight array default, so an un-baked surface shows only its base layer),
+`getBuiltinSphere` (generated UV sphere; **needs a live GL context**).
 
 ---
 

@@ -155,6 +155,8 @@ void MaterialEditorSchema::buildCreateMenu(NodeGraph& graph, const glm::vec2& ca
 			addNode(CreateRef<SmoothstepNode>(), canvasPos);
 		if (ImGui::MenuItem("Append"))
 			addNode(CreateRef<AppendNode>(), canvasPos);
+		if (ImGui::MenuItem("AppendMany"))
+			addNode(CreateRef<AppendManyNode>(), canvasPos);
 		ImGui::EndMenu();
 	}
 

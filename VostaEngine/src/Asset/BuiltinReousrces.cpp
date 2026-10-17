@@ -2,10 +2,12 @@
 #include "BuiltinReousrces.h"
 #include "Core/ResourceManager.h"
 #include "Renderer/Material.h"
+#include "Renderer/MaterialLayer.h"
 #include "Renderer/SingleMaterial.h"
 #include "Renderer/MaterialNodes.h"
 #include "Renderer/Texture.h"
 #include "Renderer/StaticMesh.h"
+#include "Asset/TextureResource.h"
 
 #include <cmath>
 
@@ -14,10 +16,12 @@ namespace ve {
 	namespace {
 		AssetHandle s_defaultMaterial;
 		AssetHandle s_defaultWhiteTexture;
+		AssetHandle s_defaultWeightArray;
 		AssetHandle s_builtinSphere;
 
 		const char* kDefaultMaterialKey = "__builtin_default_white";
 		const char* kDefaultWhiteTextureKey = "__builtin_white_1x1";
+		const char* kDefaultWeightArrayKey = "__builtin_weight_array";
 		const char* kBuiltinSphereKey = "__builtin_sphere";
 
 		constexpr float kPi = 3.14159265358979323846f;
@@ -116,6 +120,22 @@ namespace ve {
 				kDefaultWhiteTextureKey, Texture2D::create(white));
 		}
 		return s_defaultWhiteTexture;
+	}
+
+	AssetHandle BuiltinResources::getDefaultWeightArray() {
+		// Same lazy-create reason as the white texture: a texture needs a live GL
+		// context, and init() runs before the window exists. Sized to the layer cap so
+		// any material's layer index is an in-range slice; all zero, so an unpainted
+		// surface resolves to the residual base layer alone.
+		if (!s_defaultWeightArray.isValid()) {
+			const uint8_t zeros[kMaxMaterialLayers] = { 0 };
+			auto array = Texture2DArray::create(1, 1, (uint32_t)kMaxMaterialLayers,
+				TextureFormat::R8, zeros);
+
+			s_defaultWeightArray = ResourceManager::getStorage<Texture2DArray>().store(
+				kDefaultWeightArrayKey, array);
+		}
+		return s_defaultWeightArray;
 	}
 
 	AssetHandle BuiltinResources::getBuiltinSphere() {

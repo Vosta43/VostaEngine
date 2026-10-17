@@ -9,7 +9,9 @@
 
 #include "Scene/Terrain/Terrain.h"
 #include "Renderer/LayeredMaterial.h"
+#include "Renderer/Material.h"
 #include "Renderer/MaterialLayerAsset.h"
+#include "Renderer/SingleMaterial.h"
 #include "Renderer/Texture.h"
 #include "Asset/TextureResource.h"
 
@@ -46,7 +48,9 @@ namespace ve {
 		void drawLayerSwatch(AssetHandle layerAsset, float size) {
 			AssetHandle albedo;
 			if (auto a = ResourceManager::get<MaterialLayerAsset>(layerAsset))
-				albedo = a->layer.albedoMap;
+				if (auto mat = std::dynamic_pointer_cast<SingleMaterial>(
+						ResourceManager::get<Material>(a->layer.material)))
+					albedo = mat->albedoMapHandle;
 
 			auto tex = ResourceManager::get<Texture2D>(albedo);
 			if (tex && tex->getRendererID() != 0)
@@ -56,7 +60,7 @@ namespace ve {
 		}
 
 		// Brush shape preview: the radial white-centre-to-black-edge falloff that
-		// Terrain::paintWeight writes, so the head's softness is visible before
+		// TerrainTile::paint writes, so the head's softness is visible before
 		// painting (Unity's paint tools show the same swatch).
 		Ref<Texture2D> buildBrushThumb(int n) {
 			auto res = CreateRef<TextureResource>();
@@ -187,7 +191,7 @@ namespace ve {
 
 		// The brush acts on the whole terrain through the scene's system, so no
 		// tile selection is needed: aiming only decides *where* a stroke lands.
-		TerrainSystemComponent* sys = Terrain::findSystem(scene);
+		TerrainSystemComponent* sys = TerrainSubsystem(scene).system();
 		if (!sys) {
 			ImGui::TextDisabled("No terrain system in this scene.");
 			return;
@@ -208,14 +212,14 @@ namespace ve {
 		ImGui::SetNextItemWidth(200.0f);
 		ImGui::SliderFloat("Size", &m_settings.radius, 0.5f, 100.0f, "%.1f m");
 		ImGui::SetNextItemWidth(200.0f);
-		ImGui::SliderFloat("Strength", &m_settings.strength, 0.0f, 1.0f, "%.2f");
+		ImGui::SliderFloat("Strength", &m_settings.strength, -1.0f, 1.0f, "%.2f");
 		ImGui::EndGroup();
 
 		// Palette rows are numbered exactly like the material editor's list, so the
-		// two read the same: material layer i is the control map's channel i-1.
-		// Layer 0 is the auto-fill base and has no channel, hence not selectable.
+		// two read the same: material layer i is weight slice i.
+		// Layer 0 is the auto-fill base and has no slice, hence not selectable.
 		const int count = layered ? (int)layered->layers.size() : 0;
-		const int paintable = std::min(count > 0 ? count - 1 : 0, 3);
+		const int paintable = count > 0 ? count - 1 : 0;
 
 		if (m_settings.layer > paintable) m_settings.layer = paintable;
 		if (m_settings.layer < 1) m_settings.layer = 1;
@@ -228,7 +232,7 @@ namespace ve {
 		else if (count == 1)
 			ImGui::TextDisabled("Only the auto-fill base; add a layer to paint one.");
 
-		for (int i = 0; i < count && i <= 3; ++i) {
+		for (int i = 0; i < count; ++i) {
 			const AssetHandle lh = layered->layers[i];
 			const bool isBase = (i == 0);
 			const std::string nm = layerName(lh);
@@ -251,12 +255,12 @@ namespace ve {
 		ImGui::Spacing();
 		ImGui::BeginDisabled(paintable < 1);
 		if (ImGui::Button("Fill", ImVec2(70, 0))) {
-			Terrain::fillWeight(scene, m_settings.layer);
+			TerrainSubsystem(scene).fillWeight(m_settings.layer);
 			m_status = "Filled Layer " + std::to_string(m_settings.layer);
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Clear", ImVec2(70, 0))) {
-			Terrain::clearWeight(scene, m_settings.layer);
+			TerrainSubsystem(scene).clearWeight(m_settings.layer);
 			m_status = "Cleared Layer " + std::to_string(m_settings.layer);
 		}
 		ImGui::EndDisabled();
@@ -275,7 +279,7 @@ namespace ve {
 		glm::vec3 rayO, rayD;
 		viewportRay(view, proj, mouseViewportPos, viewportSize, rayO, rayD);
 
-		return Terrain::raycastScene(scene, rayO, rayD, 100000.0f, outEntity, outWorldPos);
+		return TerrainSubsystem(scene).raycastScene(rayO, rayD, 100000.0f, outEntity, outWorldPos);
 	}
 
 	bool TerrainEditor::hoverPoint(const glm::mat4& view, const glm::mat4& proj,
@@ -287,17 +291,16 @@ namespace ve {
 				entity, outWorldPos))
 			return false;
 
-		auto& tc = scene.getComponent<TerrainComponent>(entity);
 		auto& tr = scene.getComponent<TransformComponent>(entity);
-		const glm::vec3 t(tr.transform[3]);
-		outNormal = Terrain::surfaceNormal(scene, tc, outWorldPos.x - t.x, outWorldPos.z - t.z);
+		const glm::vec3 t(glm::vec3(tr.position));
+		outNormal = TerrainTile(scene, entity).surfaceNormal(outWorldPos.x - t.x, outWorldPos.z - t.z);
 		return true;
 	}
 
 	bool TerrainEditor::paintAt(const glm::mat4& view, const glm::mat4& proj,
 	                            const glm::vec2& mouseViewportPos, const glm::vec2& viewportSize,
 	                            Scene& scene) {
-		if (m_settings.radius <= 0.0f || m_settings.strength <= 0.0f)
+		if (m_settings.radius <= 0.0f || m_settings.strength == 0.0f)
 			return false;
 
 		uint32_t entity = UINT32_MAX;
@@ -308,8 +311,8 @@ namespace ve {
 			return false;
 		}
 
-		Terrain::paintWeightWorld(scene, entity, world, m_settings.layer,
-		                          m_settings.radius, m_settings.strength);
+		TerrainSubsystem(scene).paintWeightWorld(entity, world, m_settings.layer,
+		                                          m_settings.radius, m_settings.strength);
 		return true;
 	}
 

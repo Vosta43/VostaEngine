@@ -9,6 +9,8 @@ namespace ve {
 	// Lets a noise graph load through ResourceManager like any other asset, so a
 	// terrain can reference one by handle. The on-disk header ("noise" token + a
 	// version int) matches NoisePanel's reader, so both sides read the same files.
+	// Only ever replaced whole (refreshFromFile), never edited in place, so a copy of
+	// `nodes` stays valid to evaluate off-thread.
 	struct VE_API NoiseGraphResource {
 		NoiseGraph graph;
 		// Hash of the file bytes, so a dependent mesh can key on the graph's content.

@@ -78,6 +78,18 @@
     <ClCompile Include="src\Gui\Vellum\VellumLayer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Gui\Hud\HudWidgetRegistry.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Hud\HudAsset.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Hud\HudInstance.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Hud\HudSystem.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\MCP\AgentSession.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -133,6 +145,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Platform\WindowInput.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Build\Packager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Platform\Windows\ProcessWindows.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderer\GraphicsContext.cpp">
@@ -288,6 +306,9 @@
     <ClCompile Include="src\Renderer\LayeredMaterial.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Renderer\LayeredShaderBuilder.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Renderer\MaterialLayerAsset.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -357,6 +378,9 @@
     <ClCompile Include="src\Renderer\RenderPass\CloudTAAPass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Renderer\RenderPass\VolumetricLightPass.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Renderer\Pipeline\PipelineConfig.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -367,6 +391,24 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderer\RenderPass\PresentPass.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\RenderPass\RVTBakePass.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\RenderPass\RVTDebugPass.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\RuntimeVirtualTexture.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\GpuReadback.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\GpuReadbackSelfTest.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Platform\OpenGL\OpenGLGpuReadback.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderer\Preprocess\WeatherMapBaker.cpp">
@@ -403,6 +445,39 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Noise\NoiseGraphResource.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Terrain\RuleGraph.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Terrain\RulePlan.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Terrain\RuleGraphResource.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Terrain\GlobeWeightBaker.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Geometry\GeometryBuffer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Geometry\GeometryGraph.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Geometry\GeometryGraphResource.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Geometry\GeometryEvaluator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Geometry\GeometryBaker.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Geometry\CubeSphereMeshBuilder.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Geometry\CubeSphereLod.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -482,6 +557,18 @@
     <ClInclude Include="src\Gui\Vellum\VellumLayer.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Gui\Hud\HudWidgetRegistry.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Hud\HudAsset.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Hud\HudInstance.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Hud\HudSystem.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\MCP\AgentSession.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -557,6 +644,12 @@
     <ClInclude Include="src\Platform\WindowInput.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Build\Packager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Platform\Process.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\KeyCodes.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -597,6 +690,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderer\Camera.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\Projection.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Core\Deltatime.h">
@@ -695,6 +791,9 @@
     <ClInclude Include="src\Asset\TextureImporter.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Asset\TextureFormat.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Asset\TextureResource.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -722,6 +821,9 @@
     <ClInclude Include="src\Core\Reflection.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Core\Types.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Renderer\RenderPipeline.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -743,6 +845,24 @@
     <ClInclude Include="src\Renderer\RenderPass\PresentPass.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Renderer\RenderPass\RVTBakePass.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\RenderPass\RVTDebugPass.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\RuntimeVirtualTexture.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\GpuReadback.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\GpuReadbackSelfTest.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Platform\OpenGL\OpenGLGpuReadback.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Renderer\RenderPass\RenderPassBase.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -758,6 +878,9 @@
     <ClInclude Include="src\Renderer\RenderPass\PostBufferPass.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Renderer\GpuLightData.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Renderer\Light.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -771,6 +894,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderer\LayeredMaterial.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\LayeredShaderBuilder.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderer\MaterialLayer.h">
@@ -815,6 +941,9 @@
     <ClInclude Include="src\Scene\Terrain\Terrain.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Scene\Terrain\TerrainBuildQueue.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Scene\Terrain\TerrainDataResource.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -836,6 +965,9 @@
     <ClInclude Include="src\Renderer\Clouds.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Renderer\VolumetricLight.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Renderer\RenderPass\CloudPass.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -849,6 +981,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderer\RenderPass\CloudTAAPass.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\RenderPass\VolumetricLightPass.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderer\Preprocess\WeatherMapBaker.h">
@@ -894,6 +1029,51 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Noise\NoiseGraphResource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Terrain\RuleGraph.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Terrain\RuleNodes.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Terrain\RulePlan.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Terrain\RuleGraphResource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Terrain\GlobeWeightBaker.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Geometry\GeometryBuffer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Geometry\GeometryGraph.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Geometry\GeometryGraphResource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Geometry\GeometryNodes.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Geometry\GeometryEvaluator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Geometry\GeometryBaker.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Geometry\CubeSphereMeshBuilder.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Geometry\CubeSphereLod.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Sdf\SdfValue.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Sdf\SdfNodes.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

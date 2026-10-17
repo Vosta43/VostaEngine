@@ -81,10 +81,10 @@ namespace ve {
 			// A tile's world position is derived from the system's tileSize, so the
 			// system has to exist before the tiles are placed; without this the new
 			// tiles would sit at the origin until something re-placed them.
-			Terrain::ensureSystem(*scene);
+			TerrainSubsystem(*scene).ensureSystem();
 
 			const size_t before = tileCount(*scene);
-			Terrain::addTiles(*scene, lo, hi);
+			TerrainSubsystem(*scene).addTiles(lo, hi);
 			const size_t after = tileCount(*scene);
 
 			return "{\"ok\":true,\"added\":" + std::to_string(after - before) +
@@ -102,7 +102,7 @@ namespace ve {
 				return toolError(error);
 
 			const size_t before = tileCount(*scene);
-			Terrain::removeTiles(*scene, lo, hi);
+			TerrainSubsystem(*scene).removeTiles(lo, hi);
 			const size_t after = tileCount(*scene);
 
 			return "{\"ok\":true,\"removed\":" + std::to_string(before - after) +
@@ -132,7 +132,7 @@ namespace ve {
 
 			uint32_t entity = UINT32_MAX;
 			glm::vec3 hit(0.0f);
-			if (!Terrain::raycastScene(*scene, origin, down, kHighAbove * 2.0f, entity, hit))
+			if (!TerrainSubsystem(*scene).raycastScene(origin, down, kHighAbove * 2.0f, entity, hit))
 				return "{\"hit\":false}";
 
 			return "{\"hit\":true,\"y\":" + std::to_string(hit.y) +

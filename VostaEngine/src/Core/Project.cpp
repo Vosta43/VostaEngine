@@ -19,7 +19,7 @@ namespace {
     constexpr const char* kSdkSubdir       = "SDK";
     constexpr const char* kTemplatesSubdir = "templates/GameProject";
     // The folders that make up a project's <project>/engine/ directory.
-    constexpr const char* kPayloadDirs[] = { "include", "lib", "bin", "buildsystem", "VostaEngine" };
+    constexpr const char* kPayloadDirs[] = { "include", "lib", "bin", "buildsystem", "VostaEngine", "docs" };
 
     std::filesystem::path metaPath(const std::filesystem::path& dir) {
         return dir / kMetaFileName;
@@ -104,8 +104,8 @@ namespace {
     }
 
     // Copies the scaffold and the engine payload into a new project folder:
-    //   <SDK>/templates/GameProject/**                   -> <dir>/         (Game.* renamed)
-    //   <SDK>/{include,lib,bin,buildsystem,VostaEngine}  -> <dir>/engine/
+    //   <SDK>/templates/GameProject/**                             -> <dir>/         (Game.* renamed)
+    //   <SDK>/{include,lib,bin,buildsystem,VostaEngine,docs}       -> <dir>/engine/
     // All scaffold files are text, so placeholders are substituted during the
     // copy; the engine payload is copied verbatim.
     bool materializeProject(const std::filesystem::path& dir, const std::string& name) {

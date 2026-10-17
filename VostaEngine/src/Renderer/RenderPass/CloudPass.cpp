@@ -48,24 +48,23 @@ namespace ve {
 		if (enabled) {
 			const AtmosphereParams& a = ctx.atmosphere;
 			const CloudParams& c = ctx.clouds;
-			float inner = a.planetRadius + c.bottomAltitude;
-			float outer = a.planetRadius + c.topAltitude;
-			enabled = outer > inner;   // invalid/disabled layer -> leave cleared to transparent
+			enabled = c.topAltitude > c.bottomAltitude;   // invalid/disabled layer -> leave cleared to transparent
 			if (enabled) {
 				m_shader->bind();
 				m_shader->setMat4("u_InvViewProj", glm::inverse(ctx.projMatrix * ctx.viewMatrix));
-				m_shader->setFloat3("u_CameraPos", ctx.cameraPosition);
-				m_shader->setFloat3("u_PlanetCenter", ctx.planetCenter);
+				m_shader->setFloat3("u_CameraPos", toRenderSpaceChart(ctx.cameraPosition, ctx));
+				m_shader->setFloat3("u_PlanetCenter", toRenderSpace(ctx.planetCenter, ctx.renderOrigin));
 				m_shader->setFloat3("u_SunDirection", glm::normalize(a.sunDirection));
-				m_shader->setFloat("u_SunIntensity", a.sunIntensity);
+				m_shader->setFloat3("u_SunIntensity", a.sunIntensity * a.resolveSunColor());
 				m_shader->setFloat("u_PlanetRadius", a.planetRadius);
 				m_shader->setFloat("u_AtmosphereHeight", a.atmosphereHeight);
+				m_shader->setFloat("u_CamAltitude", cameraAltitude(ctx));
 				// Physical sun color for the cloud in-scatter (raymarchClouds in
 				// volume_cloud.glsl): sampled from the transmittance LUT, which this
 				// pass binds itself — HDRBufferPass binds it only for its own shader.
 				m_shader->setTexture("u_TransmittanceLUT", ctx.transmittanceTexture, 12);
-				m_shader->setFloat("u_CloudInnerRadius", inner);
-				m_shader->setFloat("u_CloudOuterRadius", outer);
+				m_shader->setFloat("u_CloudInnerAltitude", c.bottomAltitude);
+				m_shader->setFloat("u_CloudOuterAltitude", c.topAltitude);
 				m_shader->setFloat("u_CloudSigma", c.sigma);
 				m_shader->setFloat("u_CloudLightAbsorption", c.lightAbsorption);
 				m_shader->setFloat("u_CloudBaseFrequency", c.baseFrequency);

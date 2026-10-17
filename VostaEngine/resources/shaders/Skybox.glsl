@@ -11,8 +11,10 @@ void main()
 {
     v_TexCoord = a_Position;
     vec4 clipPos = u_ViewProjection * vec4(a_Position, 1.0);
-    // Force w = z so depth is 1.0 after perspective divide
-    gl_Position = clipPos.xyww;
+    // Force z = 0 so the depth is the far plane after the perspective divide.
+    // Reverse-Z puts the far plane at 0, not 1, and 0 is what a freshly cleared
+    // depth buffer holds — the skybox is drawn with GL_GEQUAL against it.
+    gl_Position = vec4(clipPos.xy, 0.0, clipPos.w);
 }
 
 #shader fragment

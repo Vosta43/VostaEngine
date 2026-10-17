@@ -6,6 +6,10 @@
 #include "Asset/Utils.h"
 #include "Core/AssetConfig.h"
 #include "Core/ResourceManager.h"
+#include "Geometry/GeometryGraph.h"
+#include "Geometry/GeometryGraphResource.h"
+#include "Geometry/GeometryNodes.h"
+#include "Sdf/SdfNodes.h"
 #include "Graph/NodeGraph.h"
 #include "Noise/NoiseBaker.h"
 #include "Noise/NoiseGraph.h"
@@ -143,6 +147,10 @@ namespace ve {
 			return h.isValid() ? ResourceManager::getPath<Texture2D>(h) : std::string();
 		}
 
+		std::string materialPath(AssetHandle h) {
+			return h.isValid() ? ResourceManager::getPath<Material>(h) : std::string();
+		}
+
 		// Resolve a texture reference and register it. An empty reference is a
 		// no-op so a map can be left unset.
 		bool storeTexture(const JsonReader& src, const char* key, AssetHandle& out, std::string& error) {
@@ -158,6 +166,26 @@ namespace ve {
 			out = ResourceManager::store<Texture2D>(abs);
 			if (!out.isValid()) {
 				error = "texture '" + p + "' could not be loaded";
+				return false;
+			}
+			return true;
+		}
+
+		// Resolve a material reference and register it. An empty reference is a
+		// no-op so the slot can be left unset.
+		bool storeMaterial(const JsonReader& src, const char* key, AssetHandle& out, std::string& error) {
+			error.clear();
+			const std::string p = src.getString(key, "");
+			if (p.empty())
+				return true;
+
+			std::string pathError;
+			const std::string abs = resolveAssetPath(p, false, pathError);
+			if (!pathError.empty()) { error = pathError; return false; }
+
+			out = ResourceManager::store<Material>(abs);
+			if (!out.isValid()) {
+				error = "material '" + p + "' could not be loaded";
 				return false;
 			}
 			return true;
@@ -205,6 +233,7 @@ namespace ve {
 				{ "Saturate",          "Value",         "Result",           {} },
 				{ "ComponentMask",     "Input",         "R, G, B, A",       {} },
 				{ "Append",            "A, B",          "Result",           {} },
+				{ "AppendMany",        "R, G, B, A",    "Result",           {} },
 			};
 			return specs;
 		}
@@ -234,6 +263,23 @@ namespace ve {
 			return specs;
 		}
 
+		// Index == GeometryNodeTag. Order must stay in step with the enum.
+		const std::vector<NodeSpec>& geometrySpecs() {
+			static const std::vector<NodeSpec> specs = {
+				{ "Icosphere",     "",         "Geometry", { {"radius","float"}, {"subdivisions","int"}, {"scale","vec3"} } },
+				{ "Subdivide",     "Geometry", "Geometry", { {"iterations","int"}, {"smooth","bool"} } },
+				{ "NoiseDisplace", "Geometry", "Geometry", { {"settings","object (see noise_settings_fields)"}, {"amplitude","float"}, {"bias","float"}, {"mode","Normal|Direction|XYZ"}, {"direction","vec3"}, {"sampleInUnitSpace","bool"} } },
+				{ "Transform",     "Geometry", "Geometry", { {"translate","vec3"}, {"rotateEulerDeg","vec3"}, {"scale","vec3"} } },
+				{ "MeshOutput",    "Geometry", "",         { {"name","string"}, {"recalcNormals","bool"}, {"generateUVs","bool"}, {"recalcTangents","bool"} } },
+				{ "FieldDisplace", "Geometry", "Geometry", { {"field","string (a noise asset path)"}, {"amplitude","float"}, {"bias","float"}, {"mode","Normal|Direction|XYZ"}, {"direction","vec3"}, {"sampleInUnitSpace","bool"} } },
+				{ "SdfSphere",     "",         "Sdf",      { {"center","vec3"}, {"radius","float"} } },
+				{ "MarchingCubes", "Sdf",      "Geometry", { {"boundsMin","vec3"}, {"boundsMax","vec3"}, {"resolution","int"} } },
+				{ "SdfNoiseDisplace", "Sdf",   "Sdf",      { {"field","string (a noise asset path)"}, {"amplitude","float"}, {"bias","float"}, {"frequency","float"} } },
+				{ "SdfBoolean",    "Sdf,Sdf",  "Sdf",      { {"op","Union|Subtract|Intersect"}, {"smooth","float"} } },
+			};
+			return specs;
+		}
+
 		int tagOfName(const std::vector<NodeSpec>& specs, const std::string& name) {
 			for (size_t i = 0; i < specs.size(); ++i)
 				if (name == specs[i].name) return static_cast<int>(i);
@@ -241,10 +287,14 @@ namespace ve {
 		}
 
 		const NodeRegistry& registryFor(const std::string& kind) {
-			return (kind == "noise") ? getNoiseNodeRegistry() : getMaterialNodeRegistry();
+			if (kind == "noise")    return getNoiseNodeRegistry();
+			if (kind == "geometry") return getGeometryNodeRegistry();
+			return getMaterialNodeRegistry();
 		}
 		const std::vector<NodeSpec>& specsFor(const std::string& kind) {
-			return (kind == "noise") ? noiseSpecs() : materialSpecs();
+			if (kind == "noise")    return noiseSpecs();
+			if (kind == "geometry") return geometrySpecs();
+			return materialSpecs();
 		}
 
 		// ── NoiseSettings JSON ─────────────────────────────────────────────
@@ -255,6 +305,8 @@ namespace ve {
 		const char* kCellularReturnNames[]   = { "CellValue", "Distance", "Distance2", "Distance2Add", "Distance2Sub", "Distance2Mul", "Distance2Div" };
 		const char* kDomainWarpNames[]       = { "None", "OpenSimplex2", "OpenSimplex2Reduced", "BasicGrid" };
 		const char* kBlendNames[]            = { "WeightBlend", "AlphaBlend", "HeightBlend" };
+		const char* kDisplaceModeNames[]     = { "Normal", "Direction", "XYZ" };
+		const char* kBooleanOpNames[]        = { "Union", "Subtract", "Intersect" };
 
 		int clampIndex(int v, int count) {
 			return (v < 0) ? 0 : (v >= count ? count - 1 : v);
@@ -450,7 +502,13 @@ namespace ve {
 		void writeNoiseParams(int tag, const GraphNode& node, JsonWriter& w) {
 			switch (tag) {
 			case (int)NoiseNodeTag::NoiseUnit:
-				writeNoiseSettings(w, static_cast<const NoiseUnitNode&>(node).settings); break;
+				// Wrapped in 'params' like every other node, so the writer matches
+				// readNoiseParams (which reads node.child("params").child("settings")) and
+				// the shape the catalogue advertises. A bare 'settings' here used to make
+				// read_asset -> write_asset silently drop the unit's settings.
+				w.beginObject("params");
+				writeNoiseSettings(w, static_cast<const NoiseUnitNode&>(node).settings);
+				w.end(); break;
 			case (int)NoiseNodeTag::Output: {
 				auto& n = static_cast<const NoiseOutputNode&>(node);
 				w.beginObject("params");
@@ -502,13 +560,168 @@ namespace ve {
 			}
 		}
 
+		void readGeometryParams(int tag, GraphNode& node, const JsonReader& p) {
+			switch (tag) {
+			case (int)GeometryNodeTag::Icosphere: {
+				auto& n = static_cast<IcosphereNode&>(node);
+				n.radius = p.getFloat("radius", n.radius);
+				n.subdivisions = p.getInt("subdivisions", n.subdivisions);
+				n.scale = p.getVec3("scale", n.scale);
+				break; }
+			case (int)GeometryNodeTag::Subdivide: {
+				auto& n = static_cast<SubdivideNode&>(node);
+				n.iterations = p.getInt("iterations", n.iterations);
+				n.smooth = p.getBool("smooth", n.smooth);
+				break; }
+			case (int)GeometryNodeTag::NoiseDisplace: {
+				auto& n = static_cast<NoiseDisplaceNode&>(node);
+				if (p.has("settings"))
+					readNoiseSettings(p.child("settings"), n.settings);
+				n.amplitude = p.getFloat("amplitude", n.amplitude);
+				n.bias = p.getFloat("bias", n.bias);
+				n.mode = (NoiseDisplaceNode::Mode)clampIndex(
+					enumFromJson(p, "mode", kDisplaceModeNames, 3, (int)n.mode), 3);
+				n.direction = p.getVec3("direction", n.direction);
+				n.sampleInUnitSpace = p.getBool("sampleInUnitSpace", n.sampleInUnitSpace);
+				break; }
+			case (int)GeometryNodeTag::Transform: {
+				auto& n = static_cast<TransformNode&>(node);
+				n.translate = p.getVec3("translate", n.translate);
+				n.rotateEulerDeg = p.getVec3("rotateEulerDeg", n.rotateEulerDeg);
+				n.scale = p.getVec3("scale", n.scale);
+				break; }
+			case (int)GeometryNodeTag::MeshOutput: {
+				auto& n = static_cast<MeshOutputNode&>(node);
+				n.name = p.getString("name", n.name);
+				n.recalcNormals = p.getBool("recalcNormals", n.recalcNormals);
+				n.generateUVs = p.getBool("generateUVs", n.generateUVs);
+				n.recalcTangents = p.getBool("recalcTangents", n.recalcTangents);
+				break; }
+			case (int)GeometryNodeTag::FieldDisplace: {
+				auto& n = static_cast<FieldDisplaceNode&>(node);
+				n.noisePath = p.getString("field", n.noisePath);
+				n.amplitude = p.getFloat("amplitude", n.amplitude);
+				n.bias = p.getFloat("bias", n.bias);
+				n.mode = (FieldDisplaceNode::Mode)clampIndex(
+					enumFromJson(p, "mode", kDisplaceModeNames, 3, (int)n.mode), 3);
+				n.direction = p.getVec3("direction", n.direction);
+				n.sampleInUnitSpace = p.getBool("sampleInUnitSpace", n.sampleInUnitSpace);
+				break; }
+			case (int)GeometryNodeTag::SdfSphere: {
+				auto& n = static_cast<SdfSphereNode&>(node);
+				n.center = p.getVec3("center", n.center);
+				n.radius = p.getFloat("radius", n.radius);
+				break; }
+			case (int)GeometryNodeTag::SdfNoiseDisplace: {
+				auto& n = static_cast<SdfNoiseDisplaceNode&>(node);
+				n.noisePath = p.getString("field", n.noisePath);
+				n.amplitude = p.getFloat("amplitude", n.amplitude);
+				n.bias = p.getFloat("bias", n.bias);
+				n.frequency = p.getFloat("frequency", n.frequency);
+				break; }
+			case (int)GeometryNodeTag::MarchingCubes: {
+				auto& n = static_cast<MarchingCubesNode&>(node);
+				n.boundsMin = p.getVec3("boundsMin", n.boundsMin);
+				n.boundsMax = p.getVec3("boundsMax", n.boundsMax);
+				n.resolution = p.getInt("resolution", n.resolution);
+				break; }
+			case (int)GeometryNodeTag::SdfBoolean: {
+				auto& n = static_cast<SdfBooleanNode&>(node);
+				n.mode = (SdfBooleanNode::Mode)clampIndex(
+					enumFromJson(p, "op", kBooleanOpNames, 3, (int)n.mode), 3);
+				n.smoothRadius = p.getFloat("smooth", n.smoothRadius);
+				break; }
+			default: break;
+			}
+		}
+
+		void writeGeometryParams(int tag, const GraphNode& node, JsonWriter& w) {
+			switch (tag) {
+			case (int)GeometryNodeTag::Icosphere: {
+				auto& n = static_cast<const IcosphereNode&>(node);
+				w.beginObject("params");
+				w.set("radius", n.radius);
+				w.set("subdivisions", n.subdivisions);
+				w.set("scale", n.scale);
+				w.end(); break; }
+			case (int)GeometryNodeTag::Subdivide: {
+				auto& n = static_cast<const SubdivideNode&>(node);
+				w.beginObject("params");
+				w.set("iterations", n.iterations);
+				w.set("smooth", n.smooth);
+				w.end(); break; }
+			case (int)GeometryNodeTag::NoiseDisplace: {
+				auto& n = static_cast<const NoiseDisplaceNode&>(node);
+				w.beginObject("params");
+				writeNoiseSettings(w, n.settings);
+				w.set("amplitude", n.amplitude);
+				w.set("bias", n.bias);
+				w.set("mode", std::string(kDisplaceModeNames[clampIndex((int)n.mode, 3)]));
+				w.set("direction", n.direction);
+				w.set("sampleInUnitSpace", n.sampleInUnitSpace);
+				w.end(); break; }
+			case (int)GeometryNodeTag::Transform: {
+				auto& n = static_cast<const TransformNode&>(node);
+				w.beginObject("params");
+				w.set("translate", n.translate);
+				w.set("rotateEulerDeg", n.rotateEulerDeg);
+				w.set("scale", n.scale);
+				w.end(); break; }
+			case (int)GeometryNodeTag::MeshOutput: {
+				auto& n = static_cast<const MeshOutputNode&>(node);
+				w.beginObject("params");
+				w.set("name", n.name);
+				w.set("recalcNormals", n.recalcNormals);
+				w.set("generateUVs", n.generateUVs);
+				w.set("recalcTangents", n.recalcTangents);
+				w.end(); break; }
+			case (int)GeometryNodeTag::FieldDisplace: {
+				auto& n = static_cast<const FieldDisplaceNode&>(node);
+				w.beginObject("params");
+				w.set("field", n.noisePath);
+				w.set("amplitude", n.amplitude);
+				w.set("bias", n.bias);
+				w.set("mode", std::string(kDisplaceModeNames[clampIndex((int)n.mode, 3)]));
+				w.set("direction", n.direction);
+				w.set("sampleInUnitSpace", n.sampleInUnitSpace);
+				w.end(); break; }
+			case (int)GeometryNodeTag::SdfSphere: {
+				auto& n = static_cast<const SdfSphereNode&>(node);
+				w.beginObject("params");
+				w.set("center", n.center);
+				w.set("radius", n.radius);
+				w.end(); break; }
+			case (int)GeometryNodeTag::SdfNoiseDisplace: {
+				auto& n = static_cast<const SdfNoiseDisplaceNode&>(node);
+				w.beginObject("params");
+				w.set("field", n.noisePath);
+				w.set("amplitude", n.amplitude);
+				w.set("bias", n.bias);
+				w.set("frequency", n.frequency);
+				w.end(); break; }
+			case (int)GeometryNodeTag::MarchingCubes: {
+				auto& n = static_cast<const MarchingCubesNode&>(node);
+				w.beginObject("params");
+				w.set("boundsMin", n.boundsMin);
+				w.set("boundsMax", n.boundsMax);
+				w.set("resolution", n.resolution);
+				w.end(); break; }
+			case (int)GeometryNodeTag::SdfBoolean: {
+				auto& n = static_cast<const SdfBooleanNode&>(node);
+				w.beginObject("params");
+				w.set("op", std::string(kBooleanOpNames[clampIndex((int)n.mode, 3)]));
+				w.set("smooth", n.smoothRadius);
+				w.end(); break; }
+			default: break;
+			}
+		}
+
 		// ── graph <-> JSON ─────────────────────────────────────────────────
 
 		// `src` is the object holding "nodes" and "links"; `out` is filled from
 		// scratch. Returns false with the reason in `error` on the first malformed
 		// node or link, so a bad graph never half-applies.
 		bool graphFromJson(const std::string& kind, const JsonReader& src, NodeGraph& out, std::string& error) {
-			const bool isNoise = (kind == "noise");
 			const NodeRegistry& registry = registryFor(kind);
 			const std::vector<NodeSpec>& specs = specsFor(kind);
 
@@ -542,8 +755,9 @@ namespace ve {
 				if (!displayName.empty())
 					node->m_displayName = displayName;
 
-				if (isNoise) readNoiseParams(tag, *node, n.child("params"));
-				else         readMaterialParams(tag, *node, n.child("params"));
+				if (kind == "noise")         readNoiseParams(tag, *node, n.child("params"));
+				else if (kind == "geometry") readGeometryParams(tag, *node, n.child("params"));
+				else                         readMaterialParams(tag, *node, n.child("params"));
 
 				out.assignPinIds(node.get());
 				byId[id] = node.get();
@@ -598,7 +812,6 @@ namespace ve {
 		}
 
 		void graphToJson(const std::string& kind, const NodeGraph& graph, JsonWriter& w) {
-			const bool isNoise = (kind == "noise");
 			const NodeRegistry& registry = registryFor(kind);
 			const std::vector<NodeSpec>& specs = specsFor(kind);
 
@@ -614,8 +827,9 @@ namespace ve {
 				w.set("y", node->m_pos.y);
 				if (!node->m_displayName.empty())
 					w.set("displayName", node->m_displayName);
-				if (isNoise) writeNoiseParams(tag, *node, w);
-				else         writeMaterialParams(tag, *node, w);
+				if (kind == "noise")         writeNoiseParams(tag, *node, w);
+				else if (kind == "geometry") writeGeometryParams(tag, *node, w);
+				else                         writeMaterialParams(tag, *node, w);
 				w.end();
 			}
 			w.end();
@@ -664,6 +878,31 @@ namespace ve {
 			return w.str();
 		}
 
+		std::string readGeometry(const std::string& file, const std::string& asGiven) {
+			TextArchive ar(file, ArchiveMode::read);
+			if (!ar.isGood())
+				return errorJson("cannot open '" + file + "' for reading");
+
+			std::string token;
+			int32_t version = 0;
+			ar >> token;
+			ar >> version;
+			if (token != "geometry" || version != 1)
+				return errorJson("'" + file + "' is not a geometry asset (token '" + token +
+				                 "', version " + std::to_string(version) + ")");
+
+			NodeGraph graph;
+			deserializeGeometryGraph(graph, ar);
+
+			JsonWriter w;
+			w.set("path", asGiven);
+			w.set("kind", std::string("geometry"));
+			w.beginObject("graph");
+			graphToJson("geometry", graph, w);
+			w.end();
+			return w.str();
+		}
+
 		std::string readMaterialLayer(const std::string& file, const std::string& asGiven) {
 			Ref<MaterialLayerAsset> asset = MaterialLayerAsset::create(file);
 			if (!asset)
@@ -674,9 +913,7 @@ namespace ve {
 			w.set("path", asGiven);
 			w.set("kind", std::string("material_layer"));
 			w.set("name", l.name);
-			w.set("albedoMap", texturePath(l.albedoMap));
-			w.set("normalMap", texturePath(l.normalMap));
-			w.set("roughnessMap", texturePath(l.roughnessMap));
+			w.set("material", materialPath(l.material));
 			w.set("heightMap", texturePath(l.heightMap));
 			w.set("tiling", l.tiling);
 			w.set("useSlope", l.useSlope);
@@ -804,6 +1041,32 @@ namespace ve {
 			return okJson(asGiven, "noise");
 		}
 
+		std::string writeGeometry(const std::string& file, const std::string& asGiven, const JsonReader& data) {
+			if (!data.has("graph"))
+				return errorJson("a geometry asset needs a 'graph' object");
+
+			NodeGraph graph;
+			std::string graphError;
+			if (!graphFromJson("geometry", data.child("graph"), graph, graphError))
+				return errorJson("graph: " + graphError);
+
+			// The evaluator needs a terminal, and a graph without one bakes to nothing;
+			// reject it here so the caller gets a reason rather than an empty mesh.
+			if (!findGeometryOutput(graph))
+				return errorJson("a geometry graph needs a MeshOutput node (the terminal the mesh is read from)");
+
+			TextArchive ar(file, ArchiveMode::write);
+			if (!ar.isGood())
+				return errorJson("cannot open '" + file + "' for writing");
+			// Header matches GeometryGraphResource's reader: token, then version.
+			ar << std::string("geometry");
+			ar << (int32_t)1;
+			serializeGeometryGraph(graph, ar);
+			// Refresh an already-loaded resource so a live geometry panel picks up the write.
+			GeometryGraphResource::refreshFromFile(file);
+			return okJson(asGiven, "geometry");
+		}
+
 		std::string writeMaterialLayer(const std::string& file, const std::string& asGiven, const JsonReader& data) {
 			// Accept the fields either nested under "layer" or at the top level.
 			JsonReader src = data.has("layer") ? data.child("layer") : data;
@@ -812,9 +1075,7 @@ namespace ve {
 			MaterialLayer& l = asset->layer;
 
 			std::string error;
-			if (!storeTexture(src, "albedoMap", l.albedoMap, error) ||
-			    !storeTexture(src, "normalMap", l.normalMap, error) ||
-			    !storeTexture(src, "roughnessMap", l.roughnessMap, error) ||
+			if (!storeMaterial(src, "material", l.material, error) ||
 			    !storeTexture(src, "heightMap", l.heightMap, error))
 				return errorJson(error);
 
@@ -894,7 +1155,7 @@ namespace ve {
 			w.set("graph_format", std::string(
 				"{\"nodes\":[{\"id\":int,\"type\":name,\"x\":float,\"y\":float,\"params\":{...}}],"
 				"\"links\":[{\"fromNode\":id,\"fromPin\":outputIndex,\"toNode\":id,\"toPin\":inputIndex}]}"));
-			if (kind == "noise") {
+			if (kind == "noise" || kind == "geometry") {
 				w.set("noise_settings_fields", std::string(
 					"type(OpenSimplex2|OpenSimplex2S|Cellular|Perlin|ValueCubic|Value), seed(int), frequency(float), "
 					"fractal(None|Fbm|Ridged|PingPong), octaves(int), lacunarity(float), gain(float), "
@@ -903,6 +1164,14 @@ namespace ve {
 					"cellularReturn(CellValue|Distance|Distance2|Distance2Add|Distance2Sub|Distance2Mul|Distance2Div), "
 					"cellularJitter(float), domainWarp(None|OpenSimplex2|OpenSimplex2Reduced|BasicGrid), "
 					"domainWarpAmp(float), outputMin(float), outputMax(float)"));
+			}
+			if (kind == "geometry") {
+				w.set("note", std::string(
+					"A geometry graph evaluates to one static mesh and needs a MeshOutput node as its "
+					"terminal (the evaluate fails without it). Icosphere -> (displace/subdivide/transform) "
+					"-> MeshOutput is the standard chain. A FieldDisplace node's 'field' param is the path "
+					"of a noise graph asset, sampled as a 3D field; a NoiseDisplace node embeds its own "
+					"NoiseSettings instead of referencing an asset."));
 			}
 
 			w.beginArray("node_types", specs.size());
@@ -929,16 +1198,17 @@ namespace ve {
 
 	std::string assetNodeTypesJson(const std::string& kind) {
 		JsonWriter w;
-		if (kind == "material" || kind == "noise") {
+		if (kind == "material" || kind == "noise" || kind == "geometry") {
 			writeCatalogue(w, kind);
 			return w.str();
 		}
 		if (kind.empty()) {
 			writeCatalogue(w, "material");
 			writeCatalogue(w, "noise");
+			writeCatalogue(w, "geometry");
 			return w.str();
 		}
-		return errorJson("unknown kind '" + kind + "' (expected 'material' or 'noise')");
+		return errorJson("unknown kind '" + kind + "' (expected 'material', 'noise' or 'geometry')");
 	}
 
 	std::string readAssetJson(const std::string& path) {
@@ -956,11 +1226,12 @@ namespace ve {
 			return errorJson("'" + file + "' is not a readable .veasset");
 
 		if (token == "noise")          return readNoise(file, path);
+		if (token == "geometry")       return readGeometry(file, path);
 		if (token == "material_layer") return readMaterialLayer(file, path);
 		if (token == "material" || token == "layered_material") return readMaterialKind(file, path, token);
 
 		return errorJson("'" + file + "' is a '" + token + "' asset; readable kinds are "
-		                 "material, layered_material, material_layer and noise");
+		                 "material, layered_material, material_layer, noise and geometry");
 	}
 
 	std::string writeAssetJson(const std::string& path, const JsonReader& data, bool overwrite) {
@@ -969,7 +1240,7 @@ namespace ve {
 
 		const std::string kind = data.getString("kind", "");
 		if (kind.empty())
-			return errorJson("'data' must carry a 'kind' (material, noise, material_layer or layered_material)");
+			return errorJson("'data' must carry a 'kind' (material, noise, geometry, material_layer or layered_material)");
 
 		std::string error;
 		const std::string file = resolveAssetPath(path, true, error);
@@ -982,11 +1253,12 @@ namespace ve {
 
 		if (kind == "material")         return announceWrite(writeMaterial(file, path, data));
 		if (kind == "noise")            return announceWrite(writeNoise(file, path, data));
+		if (kind == "geometry")         return announceWrite(writeGeometry(file, path, data));
 		if (kind == "material_layer")   return announceWrite(writeMaterialLayer(file, path, data));
 		if (kind == "layered_material") return announceWrite(writeLayeredMaterial(file, path, data));
 
 		return errorJson("unknown kind '" + kind +
-		                 "' (expected material, noise, material_layer or layered_material)");
+		                 "' (expected material, noise, geometry, material_layer or layered_material)");
 	}
 
 	std::string bakeNoiseToTexture(const std::string& source, const std::string& out,

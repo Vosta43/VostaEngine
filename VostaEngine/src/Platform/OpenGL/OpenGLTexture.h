@@ -13,6 +13,9 @@ namespace ve {
 		OpenGLTexture2D(uint32_t rendererID, uint32_t width, uint32_t height, bool ownsTexture);
 		// Creates an empty 2D texture with the given format (e.g. TextureFormat::RG16F).
 		OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format);
+		// Same, with a mip chain of `mipLevels` levels. Every level is uploaded by the
+		// caller (setData / setDataLevel); nothing generates them.
+		OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format, uint32_t mipLevels);
 		~OpenGLTexture2D();
 
 		uint32_t getWidth() const override {return m_width;}
@@ -22,9 +25,14 @@ namespace ve {
 
 		void setData(void* data,uint32_t size) override;
 		void setSubData(const void* data, uint32_t x, uint32_t y, uint32_t w, uint32_t h) override;
+		void setDataLevel(void* data, uint32_t size, uint32_t mip) override;
 
 		void bind(uint32_t slot = 0) const override;
+		void bindImage(uint32_t unit, ImageAccess access, int level = 0,
+			bool layered = false, int layer = 0) const override;
+		void unbindImage(uint32_t unit) const override;
 		uint32_t getRendererID() const override { return m_rendererId; }
+		TextureFormat getFormat() const override { return m_format; }
 	private:
 		uint32_t m_width;
 		uint32_t m_height;
@@ -56,13 +64,50 @@ namespace ve {
 		void setData(void* data, uint32_t size) override;
 
 		void bind(uint32_t slot = 0) const override;
+		void bindImage(uint32_t unit, ImageAccess access, int level = 0,
+			bool layered = false, int layer = 0) const override;
+		void unbindImage(uint32_t unit) const override;
 		uint32_t getRendererID() const override { return m_rendererId; }
+		TextureFormat getFormat() const override { return m_format; }
 	private:
 		uint32_t m_width;
 		uint32_t m_height;
 
 		std::string m_path;
 		uint32_t m_rendererId;
+		TextureFormat m_format;
+	};
+
+
+	class OpenGLTexture2DArray : public Texture2DArray {
+	public:
+		// Uploads `data` (width*height*layers values, slice-major) into a new
+		// GL_TEXTURE_2D_ARRAY. Linear filter, clamp-to-edge, no mipmaps — the weight
+		// map it backs is sampled 1:1 against the tile.
+		OpenGLTexture2DArray(uint32_t width, uint32_t height, uint32_t layers,
+			TextureFormat format, const void* data);
+		~OpenGLTexture2DArray();
+
+		uint32_t getWidth() const override { return m_width; }
+		uint32_t getHeight() const override { return m_height; }
+		uint32_t getLayers() const override { return m_layers; }
+
+		const std::string& getTextureFilePath() const override { return m_path; }
+		void setData(void* data, uint32_t size) override;
+
+		void bind(uint32_t slot = 0) const override;
+		void bindImage(uint32_t unit, ImageAccess access, int level = 0,
+			bool layered = false, int layer = 0) const override;
+		void unbindImage(uint32_t unit) const override;
+		uint32_t getRendererID() const override { return m_rendererId; }
+		TextureFormat getFormat() const override { return m_format; }
+	private:
+		uint32_t m_width;
+		uint32_t m_height;
+		uint32_t m_layers;
+		std::string m_path;
+		uint32_t m_rendererId;
+		TextureFormat m_format;
 	};
 
 
@@ -86,7 +131,11 @@ namespace ve {
 		void setData(void* data, uint32_t size) override;
 
 		void bind(uint32_t slot = 0) const override;
+		void bindImage(uint32_t unit, ImageAccess access, int level = 0,
+			bool layered = false, int layer = 0) const override;
+		void unbindImage(uint32_t unit) const override;
 		uint32_t getRendererID() const override { return m_rendererId; }
+		TextureFormat getFormat() const override { return m_format; }
 	private:
 		uint32_t m_width;
 		uint32_t m_height;

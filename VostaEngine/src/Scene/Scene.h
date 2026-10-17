@@ -80,16 +80,20 @@ namespace ve {
             m_ecsystemGraph.addSystem(system);
         }
 
+        void removeSystem(const Ref<ECSystemBase>& system) {
+            m_ecsystemGraph.removeSystem(system);
+        }
+
 
         EntityRegistry& getRegistry() { return m_entityRegistry; }
         const EntityRegistry& getRegistry() const { return m_entityRegistry; }
         
         void setCameraMatrices(const glm::mat4& view, const glm::mat4& proj);
-        void setCameraPosition(const glm::vec3& pos);
+        void setCameraPosition(const ve::Vec3& pos);
 
         const glm::mat4& getViewMatrix() {return m_viewMatrix;}
         const glm::mat4& getProjMatrix() { return m_projMatrix; }
-        const glm::vec3& getCameraPosition() {return m_cameraPosition;}
+        const ve::Vec3& getCameraPosition() {return m_cameraPosition;}
 
     private:
         // Runs the component type's init hook (if any) after it is assigned.
@@ -98,7 +102,7 @@ namespace ve {
         void onComponentAssigned(std::type_index type, Entity entity);
 
         // CameraController is at Editor exe. Intermediate variable
-        glm::vec3 m_cameraPosition;
+        ve::Vec3 m_cameraPosition{ 0.0 };
         glm::mat4 m_viewMatrix = glm::mat4(1.0f);
         glm::mat4 m_projMatrix = glm::mat4(1.0f);
 		
