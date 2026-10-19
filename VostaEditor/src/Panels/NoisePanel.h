@@ -44,7 +44,9 @@ namespace ve {
         NodeGraphPanel  m_canvas{ "NoiseCanvas" };
         NoiseEditorSchema m_schema;
 
-        static constexpr int kPreviewSize = 256;
+        // Bake resolution of the preview. A view setting, not asset data: switching
+        // it re-bakes but never dirties the file.
+        int m_previewSize = 256;
         Ref<Texture2D> m_preview;
         std::vector<uint8_t> m_pixels;
         // Hash of the graph the preview currently shows / the file holds. The two are

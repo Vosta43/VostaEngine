@@ -66,6 +66,8 @@ private:
     bool  m_showGlobe = false;
     bool  m_vsync = false;
     int   m_rvtDebug = 0;
+    // Resource residency budget in MB (0 = eviction off).
+    int   m_resourceBudgetMB = 256;
 };
 
 }

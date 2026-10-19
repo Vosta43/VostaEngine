@@ -80,6 +80,15 @@ namespace ve {
 			sub.indexCount = (uint32_t)out.indexBuffer.size();
 			out.subMeshes.push_back(std::move(sub));
 		}
+
+		// Built-ins have no file behind their key, so residency must never evict them.
+		template<typename T>
+		AssetHandle storePinned(const std::string& key, Ref<T> resource) {
+			auto& storage = ResourceManager::getStorage<T>();
+			AssetHandle handle = storage.store(key, std::move(resource));
+			storage.pin(handle);
+			return handle;
+		}
 	}
 
 	void BuiltinResources::init() {
@@ -98,7 +107,7 @@ namespace ve {
 		// compile() in PBR-fallback mode (no custom shader).
 		material->graph.addNode(CreateRef<MaterialOutputNode>());
 
-		s_defaultMaterial = ResourceManager::getStorage<Material>().store(kDefaultMaterialKey, material);
+		s_defaultMaterial = storePinned<Material>(kDefaultMaterialKey, material);
 	}
 
 	AssetHandle BuiltinResources::getDefaultMaterial() {
@@ -116,7 +125,7 @@ namespace ve {
 			white->format = TextureFormat::RGBA;
 			white->pixels = { 255, 255, 255, 255 };
 
-			s_defaultWhiteTexture = ResourceManager::getStorage<Texture2D>().store(
+			s_defaultWhiteTexture = storePinned<Texture2D>(
 				kDefaultWhiteTextureKey, Texture2D::create(white));
 		}
 		return s_defaultWhiteTexture;
@@ -132,7 +141,7 @@ namespace ve {
 			auto array = Texture2DArray::create(1, 1, (uint32_t)kMaxMaterialLayers,
 				TextureFormat::R8, zeros);
 
-			s_defaultWeightArray = ResourceManager::getStorage<Texture2DArray>().store(
+			s_defaultWeightArray = storePinned<Texture2DArray>(
 				kDefaultWeightArrayKey, array);
 		}
 		return s_defaultWeightArray;
@@ -149,8 +158,7 @@ namespace ve {
 			if (!mesh)
 				return INVALID_ASSET_HANDLE;
 
-			s_builtinSphere = ResourceManager::getStorage<StaticMesh>().store(
-				kBuiltinSphereKey, mesh);
+			s_builtinSphere = storePinned<StaticMesh>(kBuiltinSphereKey, mesh);
 		}
 		return s_builtinSphere;
 	}

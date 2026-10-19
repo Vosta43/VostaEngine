@@ -18,7 +18,6 @@ namespace ve {
 		std::vector<NoisePlanInput> inputs;
 	};
 
-	// Caller-owned, so one plan can be evaluated from many threads at once.
 	struct NoisePlanScratch {
 		std::vector<float> values;   // one per slot
 		std::vector<float> inputs;   // reused gather buffer

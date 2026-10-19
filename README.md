@@ -1,7 +1,7 @@
 # Vosta Engine
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
-![Version](https://img.shields.io/badge/version-0.2.8-blue.svg)
+![Version](https://img.shields.io/badge/version-0.2.9-blue.svg)
 
 A modern C++20 game engine built around deferred PBR rendering, a data-driven
 render pipeline, node-based material and noise graphs, quad-tree terrain, and a

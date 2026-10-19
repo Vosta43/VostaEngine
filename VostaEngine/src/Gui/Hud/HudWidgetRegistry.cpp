@@ -3,6 +3,7 @@
 
 #include "Gui/Vellum/Widgets/Button.h"
 #include "Gui/Vellum/Widgets/ColoredBox.h"
+#include "Gui/Vellum/Widgets/InputBox.h"
 #include "Gui/Vellum/Widgets/Stack.h"
 #include "Gui/Vellum/Widgets/TextBlock.h"
 
@@ -12,6 +13,7 @@ namespace ve {
 
 		using vellum::Button;
 		using vellum::ColoredBox;
+		using vellum::InputBox;
 		using vellum::Stack;
 		using vellum::TextBlock;
 		using vellum::Widget;
@@ -20,6 +22,7 @@ namespace ve {
 		Ref<Widget> createBox() { return CreateRef<ColoredBox>(glm::vec4(1.0f), glm::vec2(0.0f)); }
 		Ref<Widget> createText() { return CreateRef<TextBlock>(nullptr, std::string()); }
 		Ref<Widget> createButton() { return CreateRef<Button>(glm::vec2(0.0f)); }
+		Ref<Widget> createInputBox() { return CreateRef<InputBox>(nullptr, glm::vec2(0.0f)); }
 
 		// A Stack carries no properties of its own; its children hold their own
 		// placement (anchor/offset), read by the tree builder, not here.
@@ -48,6 +51,14 @@ namespace ve {
 				b.setPressedColor(p.getVec4("pressedColor"));
 		}
 
+		void applyInputBox(Widget& w, const JsonReader& p, const HudBuildContext& ctx) {
+			auto& in = static_cast<InputBox&>(w);
+			in.setFont(ctx.atlas(p.getFloat("fontSize", 24.0f)));
+			in.setSize(p.getVec2("size", glm::vec2(200.0f, 40.0f)));
+			in.setText(p.getString("text", std::string()));
+			in.setTextColor(p.getVec4("color", glm::vec4(0.92f, 0.93f, 0.95f, 1.0f)));
+		}
+
 	}
 
 	const std::vector<HudWidgetType>& hudWidgetTypes() {
@@ -56,6 +67,7 @@ namespace ve {
 			{ "colored_box", "size(size), color(color)",                                         createBox,    applyBox    },
 			{ "text",        "text(string), color(color), fontSize(float,min=8,max=200)",         createText,   applyText   },
 			{ "button",      "size(size), color(color), hoverColor(color), pressedColor(color)", createButton, applyButton },
+			{ "input_box",   "size(size), text(string), color(color), fontSize(float,min=8,max=200)", createInputBox, applyInputBox },
 		};
 		return types;
 	}

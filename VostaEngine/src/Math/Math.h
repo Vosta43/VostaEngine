@@ -1,19 +1,20 @@
 #pragma once
-#include <algorithm>
 
 namespace ve {
-	
-#ifndef max
-#define max(a,b)            (((a) > (b)) ? (a) : (b))
-#endif
-
-#ifndef min
-#define min(a,b)            (((a) < (b)) ? (a) : (b))
-#endif
 
 	// namespace ve math
 	namespace math {
-		
+
+		template<class T>
+		constexpr const T& min(const T& a, const T& b) {
+			return (b < a) ? b : a;
+		}
+
+		template<class T>
+		constexpr const T& max(const T& a, const T& b) {
+			return (a < b) ? b : a;
+		}
+
 		template<class T>
 		constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
 			return (v < lo) ? lo : (hi < v) ? hi : v;

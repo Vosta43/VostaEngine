@@ -53,11 +53,18 @@ namespace ve {
 			return std::clamp(JobSystem::get().threadCount(), (size_t)1, (size_t)4);
 		}
 
+		// True when submit() would take this coordinate: room left and no build
+		// already queued there. Lets callers skip snapshotting inputs they would
+		// only submit to be rejected.
+		bool canAccept(int64_t coord) const {
+			return m_entries.size() < capacity() && m_entries.count(coord) == 0;
+		}
+
 		// Queue one tile's build. `work` runs on a worker and must fill only the
 		// product it is handed. False when this coordinate is already queued or the
 		// queue is full, in which case the caller should try again next frame.
 		bool submit(int64_t coord, uint64_t key, std::function<void(TerrainMeshBuild&)> work) {
-			if (m_entries.size() >= capacity() || m_entries.count(coord) != 0)
+			if (!canAccept(coord))
 				return false;
 
 			Entry entry;

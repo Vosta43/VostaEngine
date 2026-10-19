@@ -794,9 +794,8 @@ namespace ve {
             ar >> sub.name >> firstIndex >> count >> materialPath;
             sub.firstIndex = static_cast<uint32_t>(firstIndex);
             sub.indexCount = static_cast<uint32_t>(count);
-            sub.materialHandle = materialPath.empty()
-                ? INVALID_ASSET_HANDLE
-                : ResourceManager::store<Material>(materialPath);
+            sub.materialHandle = INVALID_ASSET_HANDLE;
+            sub.materialPath = std::move(materialPath);
         }
 
         return true;

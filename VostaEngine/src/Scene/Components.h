@@ -43,7 +43,7 @@ namespace ve {
 		const std::string path = r.getString(key, std::string());
 		if (path.empty())
 			return INVALID_ASSET_HANDLE;
-		AssetHandle handle = ResourceManager::store<T>(path);
+		AssetHandle handle = ResourceManager::load<T>(path);
 		if (!handle.isValid())
 			VE_CORE_WARN_PRINT("Scene load: could not resolve asset '%s'", path.c_str());
 		return handle;

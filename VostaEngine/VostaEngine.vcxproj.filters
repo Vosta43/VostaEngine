@@ -63,6 +63,15 @@
     <ClCompile Include="src\Gui\Vellum\Widgets\ColoredBox.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Widgets\Column.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Widgets\InputBox.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Widgets\ScrollPanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Gui\Vellum\Widgets\Stack.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -252,7 +261,13 @@
     <ClCompile Include="src\Asset\TextureImporter.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Core\AssetLoadQueue.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Core\ResourceManager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Core\ResourceMemory.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderer\StaticMesh.cpp">
@@ -542,6 +557,15 @@
     <ClInclude Include="src\Gui\Vellum\Widgets\ColoredBox.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Widgets\Column.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Widgets\InputBox.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Widgets\ScrollPanel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Gui\Vellum\Widgets\Stack.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -767,7 +791,13 @@
     <ClInclude Include="src\Core\ResourceStorage.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Core\AssetLoadQueue.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Core\ResourceManager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core\ResourceMemory.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Core\AssetConfig.h">

@@ -58,6 +58,8 @@ bool iconButton(const char* id, const char* tooltip, const Ref<Texture2D>& icon)
 }
 
 void ViewportToolbar::attach() {
+    ResourceManager::setResidencyBudget((size_t)m_resourceBudgetMB << 20);
+
     m_wireframeIcon  = Texture2D::create("VostaEditor/resources/icons/cube_tri.png");
     m_groundGridIcon = Texture2D::create("VostaEditor/resources/icons/ground_grid.png");
     m_playIcon       = Texture2D::create("VostaEditor/resources/icons/run.png");
@@ -143,6 +145,25 @@ void ViewportToolbar::onGuiRender(SceneView& view, const Ref<Scene>& scene, Play
         }
 
         ImGui::PopItemWidth();
+        ImGui::EndPopup();
+    }
+
+    // Resource residency: the byte budget that drives LRU eviction (0 = off),
+    // and the live storage totals so evictions and reloads are visible.
+    ImGui::SameLine(0.0f, 12.0f);
+    if (ImGui::Button("Resources"))
+        ImGui::OpenPopup("##resourceStats");
+    if (ImGui::BeginPopup("##resourceStats")) {
+        ImGui::SetNextItemWidth(160.0f);
+        if (ImGui::DragInt("Budget (MB)", &m_resourceBudgetMB, 8.0f, 0, 16384))
+            ResourceManager::setResidencyBudget((size_t)m_resourceBudgetMB << 20);
+
+        const ResourceManager::Stats stats = ResourceManager::stats();
+        ImGui::Separator();
+        ImGui::Text("Registered: %zu", stats.registered);
+        ImGui::Text("Resident:   %zu", stats.resident);
+        ImGui::Text("Bytes:      %.1f MB", (double)stats.bytes / (1024.0 * 1024.0));
+        ImGui::Text("Wanted:     %zu", stats.wanted);
         ImGui::EndPopup();
     }
 

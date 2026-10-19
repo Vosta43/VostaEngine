@@ -16,6 +16,7 @@
 #include "Core/ResourceManager.h"
 #include "Core/JobSystem.h"
 #include "Noise/NoiseGraphResource.h"
+#include "Noise/NoiseNodes.h"
 #include "Noise/NoisePlan.h"
 #include "Terrain/RuleGraphResource.h"
 #include "Terrain/RulePlan.h"
@@ -127,6 +128,7 @@ namespace ve {
 			if (comp.generatedMeshHandle.isValid())
 				storage.remove(comp.generatedMeshHandle);
 			comp.generatedMeshHandle = storage.store(terrainMeshPath(entityId), mesh);
+			storage.pin(comp.generatedMeshHandle);
 		}
 
 		enum class TerrainSourceKind : uint32_t { Flat, HeightMap, Noise };
@@ -344,6 +346,7 @@ namespace ve {
 			const std::string key = "__terrain_weights_" + std::to_string(entityId);
 			storage.remove(key);
 			comp.weightMapHandle = storage.store(key, tex);
+			storage.pin(comp.weightMapHandle);
 			comp.bWeightsDirty = false;
 
 			return comp.weightMapHandle;
@@ -1204,6 +1207,15 @@ namespace ve {
 			return;
 		}
 
+		if (!sys->builds)
+			sys->builds = CreateRef<TerrainBuildQueue>();
+
+		// Admission before the snapshot: a queued or over-capacity tile would
+		// otherwise copy the graph and resolve the weight bake every frame only to
+		// have submit() reject them.
+		if (!sys->builds->canAccept(packCoord(comp.tileCoord)))
+			return;
+
 		auto resource = ResourceManager::get<NoiseGraphResource>(sys->noiseGraphHandle);
 		if (!resource) {
 			VE_CORE_ERROR_PRINT("Terrain: failed to load noise graph");
@@ -1211,32 +1223,28 @@ namespace ve {
 		}
 
 		// Snapshot here: the graph is only ever replaced whole, so a copy keeps the
-		// nodes the plan points at alive, and a graph with no Output is rejected
-		// before it ties up a worker every frame.
+		// nodes the worker's plan points at alive. Checking for an Output is cheap;
+		// the full plan is built on the worker.
 		NoiseGraph graph = resource->graph;
-		const NoisePlan plan = buildNoisePlan(graph);
-		if (!plan.valid()) {
+		if (!findNoiseOutput(graph)) {
 			VE_CORE_ERROR_PRINT("Terrain: noise graph has no Output");
 			return;
 		}
-
-		if (!sys->builds)
-			sys->builds = CreateRef<TerrainBuildQueue>();
 
 		// Snapshot the weight bake too, so it runs on the worker beside the mesh and
 		// the render thread only uploads the result.
 		WeightBakeInputs weights;
 		const bool hasWeights = resolveWeightBake(scene, comp, *sys, key, weights);
 
-		// Returns false when this coordinate is already queued or the queue is full;
-		// either way the tile stays pending and this runs again next frame.
 		sys->builds->submit(packCoord(comp.tileCoord), key,
-			// `graph` is captured only to keep the nodes `plan` points at alive.
-			[plan, graph = std::move(graph), coord = comp.tileCoord,
+			[graph = std::move(graph), coord = comp.tileCoord,
 			 n = std::clamp(sys->noiseResolution, 16, 4096), tileSize = sys->tileSize,
 			 heightScale = sys->heightScale, maxDepth = sys->maxDepth,
 			 segments = sys->segments, weights = std::move(weights), hasWeights]
 			(TerrainMeshBuild& out) {
+				const NoisePlan plan = buildNoisePlan(graph);
+				if (!plan.valid())
+					return;
 				buildNoiseTile(out, plan, coord, n, tileSize, heightScale, maxDepth, segments);
 				if (hasWeights)
 					bakeIntoProduct(out, weights, out.heights.data(), out.heightRes);
@@ -1431,6 +1439,7 @@ namespace ve {
 			const std::string key = "__terrain_matinst_" + std::to_string(entity);
 			storage.remove(key);
 			comp.materialInstanceHandle = storage.store(key, comp.materialInstance);
+			storage.pin(comp.materialInstanceHandle);
 			comp.materialInstanceBase = baseHandle;
 		}
 

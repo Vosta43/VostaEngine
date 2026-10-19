@@ -44,4 +44,39 @@ namespace ve::vellum {
 		return cp;
 	}
 
+	// Start byte of the codepoint preceding `i`, which must sit on a boundary (or
+	// equal size()). A malformed byte tail still produces a valid index.
+	inline std::size_t utf8Prev(const std::string& s, std::size_t i) {
+		if (i == 0 || i > s.size())
+			return 0;
+		--i;
+		while (i > 0 && (static_cast<unsigned char>(s[i]) & 0xC0) == 0x80)
+			--i;
+		return i;
+	}
+
+	// Appends `cp` as UTF-8. Values outside Unicode become U+FFFD.
+	inline void utf8Append(std::string& out, uint32_t cp) {
+		if (cp > 0x10FFFF)
+			cp = 0xFFFD;
+		if (cp < 0x80) {
+			out.push_back(static_cast<char>(cp));
+		}
+		else if (cp < 0x800) {
+			out.push_back(static_cast<char>(0xC0 | (cp >> 6)));
+			out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+		}
+		else if (cp < 0x10000) {
+			out.push_back(static_cast<char>(0xE0 | (cp >> 12)));
+			out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+			out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+		}
+		else {
+			out.push_back(static_cast<char>(0xF0 | (cp >> 18)));
+			out.push_back(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
+			out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+			out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+		}
+	}
+
 }

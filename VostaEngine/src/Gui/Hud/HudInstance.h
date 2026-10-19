@@ -6,6 +6,7 @@
 #include "Gui/Vellum/Core/Widget.h"
 #include "Gui/Vellum/Widgets/Button.h"
 #include "Gui/Vellum/Widgets/ColoredBox.h"
+#include "Gui/Vellum/Widgets/InputBox.h"
 #include "Gui/Vellum/Widgets/TextBlock.h"
 
 #include <string>
@@ -38,6 +39,7 @@ namespace ve {
 		vellum::Button* button(const std::string& name) const { return find<vellum::Button>(name); }
 		vellum::TextBlock* text(const std::string& name) const { return find<vellum::TextBlock>(name); }
 		vellum::ColoredBox* box(const std::string& name) const { return find<vellum::ColoredBox>(name); }
+		vellum::InputBox* inputBox(const std::string& name) const { return find<vellum::InputBox>(name); }
 
 	private:
 		void index(vellum::Widget* widget);

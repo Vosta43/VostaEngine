@@ -53,6 +53,14 @@ namespace ve {
 		// The underlying format is inferred from the file extension (e.g., PNG, JPEG, TGA).
 		static Ref<Texture2D> create(const std::string& path);
 
+		static Ref<TextureResource> load(const std::string& path);
+
+		static Ref<Texture2D> upload(Ref<TextureResource> textureResource);
+
+		// Stand-in stored while an async load is in flight: a 1x1 neutral white
+		// texture, so binding it never samples garbage.
+		static Ref<Texture2D> createPlaceholder();
+
 		static Ref<Texture2D> create(Ref<TextureResource> resource);
 		// Factory: creates an uninitialized 2D texture with the given dimensions.
 		// The texture data is uninitialized (garbage) — use this for render targets,

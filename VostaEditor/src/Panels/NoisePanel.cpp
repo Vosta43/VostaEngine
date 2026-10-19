@@ -117,10 +117,22 @@ namespace ve {
         }
 
         // --- Left panel: live preview + export + details ---
-        const float previewSize = (float)kPreviewSize;
+        // The on-screen box stays fixed so switching resolution doesn't reflow the
+        // panel; only the bake (and the export) follows the selection.
+        const float previewSize = 256.0f;
         ImGui::BeginChild("##noisePreview", ImVec2(previewSize + 64.0f, 0.0f));
         ImGui::Image((void*)(intptr_t)m_preview->getRendererID(), ImVec2(previewSize, previewSize));
-        ImGui::TextDisabled("%d x %d - CPU reference", kPreviewSize, kPreviewSize);
+
+        static constexpr int kPreviewSizes[] = { 256, 512, 1024 };
+        static constexpr const char* kPreviewLabels[] = { "256 x 256", "512 x 512", "1024 x 1024" };
+        int sizeIndex = m_previewSize == 1024 ? 2 : (m_previewSize == 512 ? 1 : 0);
+        ImGui::SetNextItemWidth(140.0f);
+        if (ImGui::Combo("##noisePreviewSize", &sizeIndex, kPreviewLabels, IM_ARRAYSIZE(kPreviewLabels))) {
+            m_previewSize = kPreviewSizes[sizeIndex];
+            rebuildPreview();
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("CPU reference");
 
         ImGui::BeginDisabled(m_filePath.empty());
         if (ImGui::Button("Export", ImVec2(previewSize, 0.0f)))
@@ -190,8 +202,8 @@ namespace ve {
             out = src.parent_path() / (stem + "_texture " + std::to_string(i) + ".veasset");
 
         // The same bake the preview shows and the MCP command writes, so the export
-        // is byte-identical to either.
-        TextureResource resource = bakeNoiseGraphTexture(m_graph, kPreviewSize);
+        // is byte-identical to either — at whatever resolution is selected.
+        TextureResource resource = bakeNoiseGraphTexture(m_graph, (uint32_t)m_previewSize);
         TextureImporter::serialize(resource, out.string());
         VE_CORE_SUCCESS_PRINT("Exported noise texture: %s", out.string().c_str());
     }
@@ -262,12 +274,13 @@ namespace ve {
     }
 
     void NoisePanel::rebuildPreview() {
-        if (!m_preview)
-            m_preview = Texture2D::create(kPreviewSize, kPreviewSize);
+        const uint32_t size = (uint32_t)m_previewSize;
+        if (!m_preview || m_preview->getWidth() != size)
+            m_preview = Texture2D::create(size, size);
 
         // The bake itself lives in the engine (NoiseBaker) so the preview, the export
         // and the MCP bake command are one implementation.
-        TextureResource texture = bakeNoiseGraphTexture(m_graph, kPreviewSize);
+        TextureResource texture = bakeNoiseGraphTexture(m_graph, size);
         m_pixels = std::move(texture.pixels);
 
         m_preview->setData(m_pixels.data(), (uint32_t)m_pixels.size());

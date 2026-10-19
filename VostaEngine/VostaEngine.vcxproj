@@ -74,7 +74,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;VE_BUILD_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NOMINMAX;_DEBUG;_CONSOLE;VE_BUILD_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -90,7 +90,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;VE_BUILD_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NOMINMAX;NDEBUG;_CONSOLE;VE_BUILD_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -104,7 +104,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;VE_BUILD_DLL;IMGUI_IMPL_OPENGL_LOADER_GLAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;_DEBUG;_CONSOLE;VE_BUILD_DLL;IMGUI_IMPL_OPENGL_LOADER_GLAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -127,7 +127,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;VE_BUILD_DLL;IMGUI_IMPL_OPENGL_LOADER_GLAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;NDEBUG;_CONSOLE;VE_BUILD_DLL;IMGUI_IMPL_OPENGL_LOADER_GLAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -175,7 +175,9 @@
     <ClCompile Include="src\Core\Layers\LayerStack.cpp" />
     <ClCompile Include="src\Core\Log.cpp" />
     <ClCompile Include="src\Core\Reflection.cpp" />
+    <ClCompile Include="src\Core\AssetLoadQueue.cpp" />
     <ClCompile Include="src\Core\ResourceManager.cpp" />
+    <ClCompile Include="src\Core\ResourceMemory.cpp" />
     <ClCompile Include="src\Core\test.cpp" />
     <ClCompile Include="src\Core\vepch.cpp">
       <PrecompiledHeader Condition="'$(Platform)'=='x64'">Create</PrecompiledHeader>
@@ -188,6 +190,9 @@
     <ClCompile Include="src\Gui\Vellum\Text\FontManager.cpp" />
     <ClCompile Include="src\Gui\Vellum\Widgets\Button.cpp" />
     <ClCompile Include="src\Gui\Vellum\Widgets\ColoredBox.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Widgets\Column.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Widgets\InputBox.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Widgets\ScrollPanel.cpp" />
     <ClCompile Include="src\Gui\Vellum\Widgets\Stack.cpp" />
     <ClCompile Include="src\Gui\Vellum\Widgets\TextBlock.cpp" />
     <ClCompile Include="src\Gui\Vellum\VellumRenderer.cpp" />
@@ -365,7 +370,9 @@
     <ClInclude Include="src\Core\Reflection.h" />
     <ClInclude Include="src\Core\ResourceStorage.h" />
     <ClInclude Include="src\Core\Types.h" />
+    <ClInclude Include="src\Core\AssetLoadQueue.h" />
     <ClInclude Include="src\Core\ResourceManager.h" />
+    <ClInclude Include="src\Core\ResourceMemory.h" />
     <ClInclude Include="src\Core\vepch.h" />
     <ClInclude Include="src\Core\Window.h" />
     <ClInclude Include="src\Graph\NodeGraph.h" />
@@ -381,6 +388,9 @@
     <ClInclude Include="src\Gui\Vellum\Text\Utf8.h" />
     <ClInclude Include="src\Gui\Vellum\Widgets\Button.h" />
     <ClInclude Include="src\Gui\Vellum\Widgets\ColoredBox.h" />
+    <ClInclude Include="src\Gui\Vellum\Widgets\Column.h" />
+    <ClInclude Include="src\Gui\Vellum\Widgets\InputBox.h" />
+    <ClInclude Include="src\Gui\Vellum\Widgets\ScrollPanel.h" />
     <ClInclude Include="src\Gui\Vellum\Widgets\Stack.h" />
     <ClInclude Include="src\Gui\Vellum\Widgets\TextBlock.h" />
     <ClInclude Include="thirdparty\stb_truetype\stb_truetype.h" />

@@ -27,7 +27,15 @@ static const char* kHudJson = R"JSON(
         "children": [
           { "type": "text", "name": "StartLabel",
             "props": { "text": "Start", "color": [1, 1, 1, 1], "fontSize": 28 } }
-        ] }
+        ] },
+
+      { "type": "input_box", "name": "NameInput",
+        "anchor": [0.5, 0.0], "offset": [0, 280],
+        "props": { "size": [360, 52], "text": "", "fontSize": 28 } },
+
+      { "type": "text", "name": "Echo",
+        "anchor": [0.5, 0.0], "offset": [0, 348],
+        "props": { "text": "Echo: ", "color": [0.75, 0.83, 0.95, 1], "fontSize": 28 } }
     ]
   }
 }
@@ -58,6 +66,36 @@ public:
 		// The event stays code-side; the document only carries the name it binds to.
 		if (auto* start = m_hud->button("StartButton"))
 			start->setOnClick([] { VE_CORE_INFO_PRINT("%s", "[SandBox] HUD StartButton clicked"); });
+
+		if (auto* input = m_hud->inputBox("NameInput")) {
+			input->setOnTextChanged([this](const std::string& text) {
+				if (auto* echo = m_hud->text("Echo"))
+					echo->setText("Echo: " + text);
+			});
+			input->setOnSubmit([](const std::string& text) {
+				VE_CORE_INFO_PRINT("[SandBox] submitted '%s'", text.c_str());
+			});
+		}
+
+		if (auto* root = dynamic_cast<ve::vellum::Stack*>(m_hud->rootRef().get())) {
+			auto panel = ve::CreateRef<ve::vellum::ScrollPanel>(glm::vec2(380.0f, 320.0f));
+			panel->setBackgroundColor(glm::vec4(0.08f, 0.09f, 0.12f, 0.85f));
+
+			auto list = ve::CreateRef<ve::vellum::Column>();
+			list->setSpacing(4.0f);
+
+			ve::vellum::FontAtlas* rowFont = layer->font(22.0f);
+			for (int i = 0; i < 40; ++i) {
+				auto row = ve::CreateRef<ve::vellum::TextBlock>(
+					rowFont, "Scrollable row " + std::to_string(i));
+				row->setColor(i % 2 ? glm::vec4(0.85f, 0.88f, 0.95f, 1.0f)
+				                    : glm::vec4(0.62f, 0.70f, 0.82f, 1.0f));
+				list->addChild(row);
+			}
+
+			panel->addChild(list);
+			root->add(panel, { 24.0f, 80.0f }, { 0.0f, 0.0f });
+		}
 
 		layer->setRoot(m_hud->rootRef());
 	}

@@ -55,4 +55,24 @@ Reply Widget::onMouseMove(const glm::vec2&) {
 	return Reply::unhandled();
 }
 
+Reply Widget::onMouseWheel(float) {
+	return Reply::unhandled();
+}
+
+bool Widget::canConsumeWheel() const {
+	return false;
+}
+
+bool Widget::onKeyPressed(int, int) {
+	return false;
+}
+
+bool Widget::onTextInput(uint32_t) {
+	return false;
+}
+
+void Widget::onFocus() {}
+
+void Widget::onBlur() {}
+
 }

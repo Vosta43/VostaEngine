@@ -6,6 +6,8 @@
 #include "imgui.h"
 #include "imguizmo.h"
 
+#include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <string>
 
@@ -38,6 +40,9 @@ namespace ve {
                                  "VostaEngine/resources/shaders/Texture.glsl" };
             return cfg;
         }
+
+        constexpr size_t kSceneLoadChunk = 64;
+        constexpr auto kSceneLoadBudget = std::chrono::milliseconds(8);
 
     }
 
@@ -279,6 +284,8 @@ namespace ve {
         if (!m_showTerrainBrush)
             m_terrainPainting = false;
 
+        if (m_pendingLoad)
+            renderSceneLoadOverlay();
     }
 
     void EditorLayer::renderMenuBar() {
@@ -388,35 +395,19 @@ namespace ve {
 
     bool EditorLayer::openScene(const std::filesystem::path& absolutePath)
     {
+        if (m_pendingLoad)
+            return false;
+
         if (m_playSession.isLive()) {
             VE_CORE_WARN_PRINT("%s", "Cannot open a scene while a play session is running.");
             return false;
         }
 
-        auto newScene = CreateRef<Scene>();
-
-        SceneSerializer loader(newScene);
-        if (!loader.loadFromFile(absolutePath.string())) {
-            VE_CORE_ERROR("Failed to load scene from: %s", absolutePath.string().c_str());
-            return false;
-        }
-
-        bindEditorView(newScene);
-        m_selectedEntity = UINT32_MAX;
-
-        // Persist the outgoing scene's camera before the name flips, then load
-        // the incoming scene's saved view.
+        // Persist the outgoing scene's camera before the name flips; the
+        // incoming scene's saved view is restored once it has landed.
         m_cameraStore.save(m_sceneView, m_document.currentPath());
-        m_document.setCurrent(absolutePath.filename().string(), absolutePath);
-        m_cameraStore.restore(m_sceneView, m_document.currentPath());
-        m_dialogs.setContext(m_document.currentName(), m_document.project());
 
-        // Scene load is one of the two proactive preview-bake points (the other
-        // is import), so the inspector/browser have thumbnails without a panel
-        // having to trigger the first bake itself.
-        ThumbnailRenderer::bakeAllLoaded();
-
-        VE_CORE_SUCCESS_PRINT("Scene loaded from: %s", absolutePath.string().c_str());
+        beginSceneLoad(absolutePath, absolutePath.filename().string());
         return true;
     }
 
@@ -448,6 +439,9 @@ namespace ve {
 
     void EditorLayer::applyProject(const std::string& projectDir)
     {
+        if (m_pendingLoad)
+            return;
+
         if (!m_document.apply(projectDir))
             return;
 
@@ -455,33 +449,102 @@ namespace ve {
         m_fileBrowser.setDefaultScenePath(m_document.project().defaultScene.empty()
             ? std::string() : toProjectAbsolute(m_document.project().defaultScene));
 
-        // Start on the project's default scene, or a fresh empty one.
-        auto scene = CreateRef<Scene>();
         // Save before dropping the binding: the camera sidecar hangs off the
         // absolute scene path, so this still lands next to the outgoing scene
         // even though the project root has already switched.
         m_cameraStore.save(m_sceneView, m_document.currentPath());
 
-        std::string name;
-        std::filesystem::path path;
-        if (!m_document.project().defaultScene.empty())
-        {
-            SceneSerializer loader(scene);
-            if (loader.loadFromFile(toProjectAbsolute(m_document.project().defaultScene)))
-            {
-                name = std::filesystem::path(m_document.project().defaultScene).filename().string();
-                path = toProjectAbsolute(m_document.project().defaultScene);
-                ThumbnailRenderer::bakeAllLoaded();
-            }
-        }
+        // Start on the project's default scene, or a fresh empty one.
+        const std::string& defaultScene = m_document.project().defaultScene;
+        if (defaultScene.empty())
+            finishSceneLoad(CreateRef<Scene>(), std::string(), std::filesystem::path());
+        else
+            beginSceneLoad(toProjectAbsolute(defaultScene),
+                           std::filesystem::path(defaultScene).filename().string());
 
+        VE_CORE_SUCCESS_PRINT("Project opened: %s (%s)", m_document.project().name.c_str(), projectDir.c_str());
+    }
+
+    void EditorLayer::beginSceneLoad(const std::filesystem::path& absolutePath, const std::string& name)
+    {
+        PendingSceneLoad task(CreateRef<Scene>(), name, absolutePath);
+        if (!task.loader.beginLoad(absolutePath.string())) {
+            VE_CORE_ERROR("Failed to load scene from: %s", absolutePath.string().c_str());
+            finishSceneLoad(CreateRef<Scene>(), std::string(), std::filesystem::path());
+            return;
+        }
+        m_pendingLoad = std::move(task);
+    }
+
+    void EditorLayer::stepSceneLoad()
+    {
+        if (!m_pendingLoad)
+            return;
+
+        PendingSceneLoad& task = *m_pendingLoad;
+        const auto deadline = std::chrono::steady_clock::now() + kSceneLoadBudget;
+
+        bool done = false;
+        do {
+            done = task.loader.loadChunk(kSceneLoadChunk);
+        } while (!done && std::chrono::steady_clock::now() < deadline);
+
+        if (!done)
+            return;
+
+        PendingSceneLoad completed = std::move(*m_pendingLoad);
+        m_pendingLoad.reset();
+
+        VE_CORE_SUCCESS_PRINT("Scene loaded from: %s", completed.path.string().c_str());
+        finishSceneLoad(completed.loader.scene(), std::move(completed.name), std::move(completed.path));
+
+        // Scene load is one of the two proactive preview-bake points (the other
+        // is import), so the inspector/browser have thumbnails without a panel
+        // having to trigger the first bake itself.
+        ThumbnailRenderer::bakeAllLoaded();
+    }
+
+    void EditorLayer::finishSceneLoad(Ref<Scene> scene, std::string name, std::filesystem::path path)
+    {
         m_document.setCurrent(std::move(name), std::move(path));
-        bindEditorView(scene);
+        bindEditorView(std::move(scene));
         m_selectedEntity = UINT32_MAX;
         m_cameraStore.restore(m_sceneView, m_document.currentPath());
         m_dialogs.setContext(m_document.currentName(), m_document.project());
+    }
 
-        VE_CORE_SUCCESS_PRINT("Project opened: %s (%s)", m_document.project().name.c_str(), projectDir.c_str());
+    void EditorLayer::renderSceneLoadOverlay()
+    {
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->Pos);
+        ImGui::SetNextWindowSize(viewport->Size);
+        ImGui::SetNextWindowViewport(viewport->ID);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.06f, 0.06f, 0.07f, 1.0f));
+
+        ImGui::Begin("##SceneLoad", nullptr,
+                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+                     ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus);
+        {
+            const PendingSceneLoad& task = *m_pendingLoad;
+            const size_t entityTotal = task.loader.entityCount();
+            const float fraction = entityTotal > 0
+                ? float(task.loader.loadedCount()) / float(entityTotal) : 1.0f;
+
+            const ImVec2 size = ImGui::GetWindowSize();
+            const float barWidth = std::min(420.0f, size.x - 40.0f);
+            const float x = (size.x - barWidth) * 0.5f;
+
+            ImGui::SetCursorPos(ImVec2(x, size.y * 0.45f));
+            ImGui::Text("Opening %s", task.name.c_str());
+            ImGui::SetCursorPosX(x);
+            ImGui::ProgressBar(fraction, ImVec2(barWidth, 0.0f));
+        }
+        ImGui::End();
+
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar(2);
     }
 
     void EditorLayer::onEntitySelected(uint32_t entityID) {
@@ -541,6 +604,13 @@ namespace ve {
         // Run queued tool calls here, on the render thread, BEFORE any early-out
         // below. A submitter blocked on its future has no other way to progress.
         EditorMcpTools::pump();
+
+        // A scene is being committed across frames: step it and leave the rest
+        // of the editor frozen until it lands.
+        if (m_pendingLoad) {
+            stepSceneLoad();
+            return;
+        }
 
         // A tool may have created or rewritten an asset. The library counts those
         // writes, so a moved counter means the browser's listing is stale.

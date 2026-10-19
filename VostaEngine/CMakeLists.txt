@@ -7,6 +7,7 @@ set(ENGINE_SOURCES
     src/Core/ComponentRegistry.cpp
     src/Core/GameModuleHost.cpp
     src/Core/AssetConfig.cpp
+    src/Core/AssetLoadQueue.cpp
     src/Core/EnginePaths.cpp
     src/Core/Deltatime.cpp
     src/Core/JobSystem.cpp
@@ -17,6 +18,7 @@ set(ENGINE_SOURCES
     src/Core/Project.cpp
     src/Core/Reflection.cpp
     src/Core/ResourceManager.cpp
+    src/Core/ResourceMemory.cpp
     src/Core/Window.cpp
     src/Core/vepch.cpp
 
@@ -149,6 +151,9 @@ set(ENGINE_SOURCES
     src/Gui/Vellum/Text/FontManager.cpp
     src/Gui/Vellum/Widgets/Button.cpp
     src/Gui/Vellum/Widgets/ColoredBox.cpp
+    src/Gui/Vellum/Widgets/Column.cpp
+    src/Gui/Vellum/Widgets/InputBox.cpp
+    src/Gui/Vellum/Widgets/ScrollPanel.cpp
     src/Gui/Vellum/Widgets/Stack.cpp
     src/Gui/Vellum/Widgets/TextBlock.cpp
     src/Gui/Vellum/VellumRenderer.cpp

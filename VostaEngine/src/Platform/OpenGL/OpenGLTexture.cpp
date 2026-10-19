@@ -1,10 +1,11 @@
 #include "vepch.h"
 #include "OpenGLTexture.h"
 #include "Core/Log.h"
+#include "Math/Math.h"
 #include <glad/glad.h>
 #include "stb_image.h"
 
-#include <algorithm>
+#include <cmath>
 
 namespace ve {
 
@@ -42,8 +43,12 @@ namespace ve {
             m_format = TextureFormat::RGB;
         }
 
+        // Immutable storage fixes the level count: allocate the whole chain or
+        // GenerateMipmap has nowhere to write and minification aliases.
+        const GLsizei mipLevels = 1 + (GLsizei)std::floor(std::log2((float)math::max(m_width, m_height)));
+
         glCreateTextures(GL_TEXTURE_2D, 1, &m_rendererId);
-        glTextureStorage2D(m_rendererId, 1, internalFormat, m_width, m_height);
+        glTextureStorage2D(m_rendererId, mipLevels, internalFormat, m_width, m_height);
         glTextureSubImage2D(m_rendererId, 0, 0, 0, m_width, m_height, dataFormat, GL_UNSIGNED_BYTE, data);
         glGenerateTextureMipmap(m_rendererId);
 
@@ -208,8 +213,12 @@ namespace ve {
         VE_CORE_SUCCESS_PRINT("OpenGL texture created: rendererID=%u, %dx%d, internalFormat=0x%X",
             m_rendererId, textureResource->width, textureResource->height, internalFormat);
 
+        // Immutable storage fixes the level count: allocate the whole chain or
+        // GenerateMipmap has nowhere to write and minification aliases.
+        const GLsizei mipLevels = 1 + (GLsizei)std::floor(std::log2((float)math::max(m_width, m_height)));
+
         glCreateTextures(GL_TEXTURE_2D, 1, &m_rendererId);
-        glTextureStorage2D(m_rendererId, 1, internalFormat, textureResource->width, textureResource->height);
+        glTextureStorage2D(m_rendererId, mipLevels, internalFormat, m_width, m_height);
         glTextureSubImage2D(m_rendererId, 0, 0, 0, textureResource->width, textureResource->height,
             dataFormat, isHDR ? GL_FLOAT : GL_UNSIGNED_BYTE,
             isHDR ? (const void*)textureResource->floatPixels.data() : (const void*)textureResource->pixels.data());
@@ -292,8 +301,8 @@ namespace ve {
         textureFormatToOpenGL(m_format, internalFormat, dataFormat);
         // Each level halves, floored at one texel -- the same rule glTextureStorage2D
         // allocated the chain with, so the upload always matches the level's extent.
-        const uint32_t w = (std::max)(1u, m_width  >> mip);
-        const uint32_t h = (std::max)(1u, m_height >> mip);
+        const uint32_t w = math::max(1u, m_width  >> mip);
+        const uint32_t h = math::max(1u, m_height >> mip);
         glTextureSubImage2D(m_rendererId, (GLint)mip, 0, 0, w, h,
                             dataFormat, textureFormatToOpenGLType(m_format), data);
     }

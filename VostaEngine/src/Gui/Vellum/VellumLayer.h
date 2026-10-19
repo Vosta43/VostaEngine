@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Core.h"
+#include "Core/InputFrame.h"
 #include "Core/Layers/Layers.h"
 #include "Text/FontManager.h"
 #include "WidgetTree.h"
@@ -43,6 +44,10 @@ namespace ve::vellum {
         bool m_justDown = false;
         bool m_justUp = false;
         bool m_buttonDown = false;
+        float m_wheel = 0.0f;
+
+        // Key events latched in arrival order; drained into the InputFrame each frame.
+        std::vector<KeyInput> m_keys;
     };
 
 }

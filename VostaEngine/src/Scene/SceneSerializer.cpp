@@ -20,12 +20,52 @@ namespace ve {
     }
 
     bool SceneSerializer::loadFromFile(const std::string& filepath) {
-        JsonReader reader;
-        if (!JsonReader::load(filepath, reader) || !reader.valid()) {
+        if (!beginLoad(filepath))
+            return false;
+        loadChunk(m_total);
+        return true;
+    }
+
+    bool SceneSerializer::beginLoad(const std::string& filepath) {
+        if (!JsonReader::load(filepath, m_reader) || !m_reader.valid()) {
             VE_CORE_ERROR_PRINT("SceneSerializer: could not read scene from '%s'", filepath.c_str());
             return false;
         }
-        return deserialize(reader);
+        return beginDeserialize(m_reader);
+    }
+
+    bool SceneSerializer::loadChunk(size_t maxEntities) {
+        auto& registry = m_scene->getRegistry();
+
+        size_t end = m_cursor + maxEntities;
+        if (end > m_total)
+            end = m_total;
+
+        for (; m_cursor < end; ++m_cursor) {
+            const JsonReader components = m_reader.at("entities", m_cursor).child("components");
+            auto entity = registry.create();
+
+            for (const auto& info : componentRegistry()) {
+                if (!components.has(info.typeKey))
+                    continue;
+                info.deserialize(registry, entity, components.child(info.typeKey));
+            }
+        }
+        return m_cursor >= m_total;
+    }
+
+    bool SceneSerializer::beginDeserialize(const JsonReader& r) {
+        const int version = r.getInt("version", 0);
+        if (version != kSceneVersion) {
+            VE_CORE_ERROR_PRINT("SceneSerializer: unsupported scene version %d (expected %d)",
+                                version, kSceneVersion);
+            return false;
+        }
+
+        m_total = r.arraySize("entities");
+        m_cursor = 0;
+        m_scene->getRegistry().clearAllEntity();
+        return true;
     }
 
     void SceneSerializer::serialize(JsonWriter& w) {
@@ -67,29 +107,10 @@ namespace ve {
     }
 
     bool SceneSerializer::deserialize(const JsonReader& r) {
-        auto& registry = m_scene->getRegistry();
-
-        const int version = r.getInt("version", 0);
-        if (version != kSceneVersion) {
-            VE_CORE_ERROR_PRINT("SceneSerializer: unsupported scene version %d (expected %d)",
-                                version, kSceneVersion);
+        m_reader = r;
+        if (!beginDeserialize(r))
             return false;
-        }
-
-        const size_t entityCount = r.arraySize("entities");
-        registry.clearAllEntity();
-
-        for (size_t i = 0; i < entityCount; ++i) {
-            const JsonReader components = r.at("entities", i).child("components");
-            auto entity = registry.create();
-
-            for (const auto& info : componentRegistry()) {
-                if (!components.has(info.typeKey))
-                    continue;
-                info.deserialize(registry, entity, components.child(info.typeKey));
-            }
-        }
-
+        loadChunk(m_total);
         return true;
     }
 

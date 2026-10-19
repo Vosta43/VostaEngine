@@ -15,6 +15,10 @@ namespace ve {
 		static Ref<StaticMesh> create(const std::string& path);
 		static Ref<StaticMesh> create(const Ref<StaticMeshResource>& staticMeshResource);
 
+		static Ref<StaticMeshResource> load(const std::string& path);
+		static Ref<StaticMesh> upload(Ref<StaticMeshResource> staticMeshResource);
+		static Ref<StaticMesh> createPlaceholder();
+
 		virtual void bind() const = 0;
 		virtual void unbind() const = 0;
 

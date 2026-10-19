@@ -54,7 +54,7 @@ namespace ve {
     {
         size_t needed = m_bufferPos + sizeof(T);
         if (needed > m_buffer.size()) {
-            m_buffer.resize(max(needed, m_buffer.size() * 2));
+            m_buffer.resize(math::max(needed, m_buffer.size() * 2));
         }
         memcpy(m_buffer.data() + m_bufferPos, &val, sizeof(T));
         m_bufferPos += sizeof(T);
@@ -77,7 +77,7 @@ namespace ve {
         write(len);
         size_t needed = m_bufferPos + len;
         if (needed > m_buffer.size()) {
-            m_buffer.resize(max(needed, m_buffer.size() * 2));
+            m_buffer.resize(math::max(needed, m_buffer.size() * 2));
         }
         memcpy(m_buffer.data() + m_bufferPos, str.data(), len);
         m_bufferPos += len;
@@ -138,7 +138,7 @@ namespace ve {
     {
         size_t needed = m_bufferPos + size;
         if (needed > m_buffer.size()) {
-            m_buffer.resize(max(needed, m_buffer.size() * 2));
+            m_buffer.resize(math::max(needed, m_buffer.size() * 2));
         }
         memcpy(m_buffer.data() + m_bufferPos, data, size);
         m_bufferPos += size;

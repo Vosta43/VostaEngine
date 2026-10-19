@@ -12,6 +12,8 @@
 #include "KeyCodes.h"
 #include "MouseButtonCodes.h"
 #include "Deltatime.h"
+#include "Core/AssetLoadQueue.h"
+#include "Core/ResourceManager.h"
 
 #include "Gui/Gui.h"
 #include "Gui/Vellum/VellumLayer.h"
@@ -34,7 +36,7 @@ namespace ve {
         m_dispatcher = std::make_unique<EventDispatcher>();
         VE_CORE_SUCCESS("Event dispatcher initialized");
 
-        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.8 dev", m_dispatcher.get());
+        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.9 dev", m_dispatcher.get());
         VE_CORE_SUCCESS("Window created");
 
         m_shaderLibrary = std::make_unique<ShaderLibrary>();
@@ -77,6 +79,14 @@ namespace ve {
             }
 
             DeltaTime::get().update();
+
+            // Workers finished some loads; GPU upload and storage writes must
+            // happen on this thread.
+            AssetLoadQueue::get().pump();
+            // Age LRU entries, trim over-budget resources, and refill slots
+            // whose demand outlived an unload.
+            ResourceManager::tick();
+
             onUpdate(DeltaTime::get().getDeltaTime());
 
             for (Layer* layer : m_layerStack) {

@@ -47,6 +47,7 @@
 #include "src/MCP/LlmClient.h"
 #include "src/MCP/AgentSession.h"
 
+#include "src/Core/AssetLoadQueue.h"
 #include "src/Core/ResourceManager.h"
 
 #include "src/Renderer/StaticMesh.h"
@@ -57,6 +58,9 @@
 #include "src/Gui/Vellum/VellumLayer.h"
 #include "src/Gui/Vellum/WidgetTree.h"
 #include "src/Gui/Vellum/Widgets/ColoredBox.h"
+#include "src/Gui/Vellum/Widgets/Column.h"
+#include "src/Gui/Vellum/Widgets/InputBox.h"
+#include "src/Gui/Vellum/Widgets/ScrollPanel.h"
 #include "src/Gui/Vellum/Widgets/Stack.h"
 #include "src/Gui/Vellum/Widgets/Button.h"
 #include "src/Gui/Vellum/Widgets/TextBlock.h"

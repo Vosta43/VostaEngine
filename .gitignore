@@ -6,6 +6,8 @@ SDK/
 [Dd]ebug/
 [Rr]elease/
 x64/
+# Name collision on case-insensitive filesystems: this is source, not output.
+!VostaEngine/src/Build/
 
 *.obj
 *.exe
@@ -68,6 +70,7 @@ loc_chart.png
 chinese_in_cpp.txt
 ve_build_check.bat
 import_sanmiguel.py
+migrate_scene_transform.py
 
 # ── imgui-node-editor: only the core files the engine compiles are kept ─
 VostaEngine/thirdparty/imgui-node-editor/examples/
@@ -83,7 +86,7 @@ n.veasset
 s.veasset
 fountain_taobaodianpu_CFSC194SG.veasset
 default.veasset
-__builtin_default_white
+/__builtin_*
 SandBox/e.veasset
 
 # Materials baked next to the built-in meshes on launch (engine-owned dir)

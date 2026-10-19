@@ -17,7 +17,6 @@
 #include "../Core/Events/MouseScrolledEvent.h"
 #include "../Core/Events/KeyPressedEvent.h"
 #include "../Core/Events/KeyReleasedEvent.h"
-#include "../Core/Events/KeyTypedEvent.h"
 #include "../Core/Events/WindowResizeEvent.h"
 
 #include "Renderer/CameraController.h"
@@ -65,6 +64,9 @@ namespace ve {
         dispatcher->subscribe(Event::Type::MouseScrolled, [this](Event& e) { onEvent(e); });
         dispatcher->subscribe(Event::Type::KeyPressed, [this](Event& e) { onEvent(e); });
         dispatcher->subscribe(Event::Type::KeyReleased, [this](Event& e) { onEvent(e); });
+        // Not fed into ImGui here — its GLFW backend already delivers characters.
+        // Subscribing only lets onEvent() block them from reaching Vellum while
+        // ImGui wants the keyboard.
         dispatcher->subscribe(Event::Type::KeyTyped, [this](Event& e) { onEvent(e); });
         dispatcher->subscribe(Event::Type::WindowResize, [this](Event& e) { onEvent(e); });
 
@@ -208,12 +210,6 @@ namespace ve {
                 return;
             }
             io.KeysData[e.getKeyCode()].Down = false;
-            break;
-        }
-
-        case Event::Type::KeyTyped: {
-            auto& e = static_cast<KeyTypedEvent&>(event);
-            io.AddInputCharacter(e.getKeyCode()); 
             break;
         }
 

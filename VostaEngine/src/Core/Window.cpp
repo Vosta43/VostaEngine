@@ -3,6 +3,7 @@
 #include "Events/EventDispatcher.h"
 #include "Events/KeyPressedEvent.h"
 #include "Events/KeyReleasedEvent.h"
+#include "Events/KeyTypedEvent.h"
 #include "Events/MouseMovedEvent.h"
 #include "Events/MouseScrolledEvent.h"
 #include "Events/MouseButtonPressedEvent.h"
@@ -63,6 +64,15 @@ namespace ve {
                     else if (action == GLFW_RELEASE) {
                         impl->m_dispatcher->dispatch(KeyReleasedEvent(key));
                     }
+                }
+                });
+
+            // Must be installed before ImGui initialises: its backend chains only to
+            // callbacks that were already set when it installed its own.
+            glfwSetCharCallback(m_window, [](GLFWwindow* window, unsigned int codepoint) {
+                auto* impl = static_cast<Impl*>(glfwGetWindowUserPointer(window));
+                if (impl && impl->m_dispatcher) {
+                    impl->m_dispatcher->dispatch(KeyTypedEvent(static_cast<int>(codepoint)));
                 }
                 });
 

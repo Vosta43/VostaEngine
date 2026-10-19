@@ -12,8 +12,15 @@
 namespace ve {
     Ref<Texture2D> Texture2D::create(const std::string& path) {
 
+        Ref<TextureResource> tr = load(path);
+        if (!tr) return nullptr;
+
+        // TODO: switch the graphicAPI.But it is not an important job yet
+        return upload(std::move(tr));
+    }
+    Ref<TextureResource> Texture2D::load(const std::string& path) {
         std::string resolvedPath = toAbsolute(path);
-        Ref<TextureResource> tr = nullptr;
+        Ref<TextureResource> tr;
 
         if (utils::isEngineAsset(resolvedPath)) {
             tr = TextureImporter::deserialize(resolvedPath);
@@ -26,12 +33,26 @@ namespace ve {
             return nullptr;
         }
 
-        // TODO: switch the graphicAPI.But it is not an important job yet
-        return CreateRef<OpenGLTexture2D>(tr);
+        return tr;
     }
+
+    Ref<Texture2D> Texture2D::upload(Ref<TextureResource> textureResource)
+    {
+        // TODO: switch the graphicAPI.But it is not an important job yet
+        return CreateRef<OpenGLTexture2D>(std::move(textureResource));
+    }
+
+    Ref<Texture2D> Texture2D::createPlaceholder() {
+        Ref<Texture2D> placeholder = create(1u, 1u);
+        uint8_t white[4] = { 255, 255, 255, 255 };
+        placeholder->setData(white, sizeof(white));
+        return placeholder;
+    }
+
+
     Ref<Texture2D> Texture2D::create(Ref<TextureResource> resource){
 
-        return CreateRef<OpenGLTexture2D>(resource);
+        return upload(std::move(resource));
     }
     Ref<Texture2D> Texture2D::create(uint32_t width, uint32_t height){
         // TODO: switch the graphicAPI.But it is not an important job yet

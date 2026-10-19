@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 
 #include "EditorCameraStore.h"
@@ -79,6 +80,24 @@ namespace ve {
         // callbacks to this layer's modules, then hands the scene to the viewport.
         void bindEditorView(Ref<Scene> scene);
 
+        // A scene being deserialized across frames. The serializer owns the
+        // parsed document and the entity cursor, so the task is just identity.
+        struct PendingSceneLoad {
+            PendingSceneLoad(Ref<Scene> scene, std::string name, std::filesystem::path path)
+                : loader(scene), name(std::move(name)), path(std::move(path)) {}
+
+            SceneSerializer loader;
+            std::string name;
+            std::filesystem::path path;
+        };
+
+        // beginSceneLoad parses now and returns; stepSceneLoad commits a slice
+        // per frame; finishSceneLoad binds the result and completes the switch.
+        void beginSceneLoad(const std::filesystem::path& absolutePath, const std::string& name);
+        void stepSceneLoad();
+        void finishSceneLoad(Ref<Scene> scene, std::string name, std::filesystem::path path);
+        void renderSceneLoadOverlay();
+
     private:
         FileBrowser m_fileBrowser;
         // Last AssetLibrary revision the file browser was told about. Anything that
@@ -120,6 +139,10 @@ namespace ve {
         // Viewport-relative cursor, in the space the overlays use for picking and
         // the terrain brush ring.
         glm::vec2 m_mouseViewportPos = { 0.0f, 0.0f };
+
+        // While set, the editor is busy loading: onUpdate only steps the load,
+        // and the overlay blocks input until the new scene lands.
+        std::optional<PendingSceneLoad> m_pendingLoad;
 
         // Terrain material paint brush, driven from the TerrainSystem inspector.
         // While m_showTerrainBrush is on, LMB in the viewport paints instead of

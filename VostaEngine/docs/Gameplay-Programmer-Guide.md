@@ -5,7 +5,7 @@ it is meant to get you from nothing to spawning, moving, and reacting to things
 in a scene. It is not an exhaustive reference — for the full surface, the headers
 are the reference. The *API map* at the end says which header to open for what.
 
-Applies to engine **0.2.8** (`VE_GAME_MODULE_API_VERSION` **2**).
+Applies to engine **0.2.9** (`VE_GAME_MODULE_API_VERSION` **2**).
 
 ## 1. The model in one minute
 

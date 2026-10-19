@@ -23,6 +23,7 @@ namespace ve {
 		uint32_t firstIndex;
 		uint32_t indexCount; // Continous count. For renderer.
 		AssetHandle materialHandle;
+		std::string materialPath;
 
 	};
 	// TODO: Devided into submeshes
