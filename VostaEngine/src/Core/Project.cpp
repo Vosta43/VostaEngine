@@ -187,6 +187,16 @@ namespace {
 
 namespace Project {
 
+const char* presentationName(Presentation presentation) {
+    return presentation == Presentation::Module ? "module" : "scene";
+}
+
+Presentation parsePresentation(const std::string& name) {
+    // Unknown spellings fall back to the engine-driven path, which is the shape
+    // every project had before this field existed.
+    return name == "module" ? Presentation::Module : Presentation::Scene;
+}
+
 std::string projectsDir() {
     return (getAssetRoot() / "Projects").string();
 }
@@ -237,6 +247,7 @@ bool create(const std::string& parentDir, const std::string& name,
     JsonWriter w;
     w.set("name", out.name);
     w.set("defaultScene", out.defaultScene);
+    w.set("presentation", presentationName(out.presentation));
     if (!w.writeToFile(metaPath(dir).string())) {
         VE_CORE_ERROR_PRINT("Project::create: could not write '%s'", metaPath(dir).string().c_str());
         return false;
@@ -269,6 +280,8 @@ bool open(const std::string& projectDir, ProjectInfo& out) {
     out.name         = haveMeta ? r.getString("name", dir.filename().string())
                                 : dir.filename().string();
     out.defaultScene = haveMeta ? r.getString("defaultScene", "") : "";
+    out.presentation = haveMeta ? parsePresentation(r.getString("presentation", "scene"))
+                                : Presentation::Scene;
     return true;
 }
 
@@ -280,6 +293,7 @@ bool save(const ProjectInfo& info) {
     JsonWriter w;
     w.set("name", info.name);
     w.set("defaultScene", info.defaultScene);
+    w.set("presentation", presentationName(info.presentation));
     if (!w.writeToFile(metaPath(getProjectRoot()).string())) {
         VE_CORE_ERROR_PRINT("Project::save: could not write project.json");
         return false;

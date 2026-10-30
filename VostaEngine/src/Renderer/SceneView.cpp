@@ -3,6 +3,7 @@
 
 #include "MouseButtonCodes.h"
 #include "Core/Application.h"
+#include "Core/Window.h"
 #include "Core/Events/Event.h"
 #include "Core/Events/EventDispatcher.h"
 #include "Core/Events/MouseButtonPressedEvent.h"
@@ -30,7 +31,8 @@ namespace ve {
 
             RenderCommand::init();
             RenderCommand::setDepthTesting(true);
-            RenderCommand::setCursorVisible(true);
+            if (auto* window = Application::get().getWindow())
+                window->setCursorMode(CursorMode::Normal);
             Renderer2D::init();
             Renderer3D::init();
         }
@@ -69,6 +71,9 @@ namespace ve {
         }
 
         m_cameraController.getCamera().setProjectionType(m_config.perspective);
+        // The scene camera is re-configured from the component each frame it drives;
+        // this keeps it perspective for the frames before that happens.
+        m_sceneCamera.setProjectionType(m_config.perspective);
 
         auto* dispatcher = Application::get().getDispatcher();
         dispatcher->subscribe(Event::Type::MouseScrolled,
@@ -115,8 +120,15 @@ namespace ve {
             m_viewRenderer->render(camera, m_pipeline, m_framebuffer);
     }
 
-    void SceneView::applySceneCamera(Camera& camera) {
-        if (!m_scene) return;
+    bool SceneView::isSceneDriven() const {
+        if (m_cameraSource != CameraSource::Scene)
+            return false;
+        Entity entity;
+        return resolveSceneCameraEntity(entity);
+    }
+
+    bool SceneView::resolveSceneCameraEntity(Entity& out) const {
+        if (!m_scene) return false;
 
         // The piloted entity, or the scene's primary when none was chosen. A
         // stale id (entity deleted since it was picked) falls back to primary.
@@ -124,11 +136,19 @@ namespace ve {
         if (entity.getId() == 0xFFFFFFFFu
             || m_scene->getEntity(entity.getId()).getId() == 0xFFFFFFFFu)
             entity = m_scene->getPrimaryCameraEntity();
-        if (entity.getId() == 0xFFFFFFFFu) return;
+        if (entity.getId() == 0xFFFFFFFFu) return false;
 
         auto& registry = m_scene->getRegistry();
         if (!registry.has<CameraComponent>(entity) || !registry.has<TransformComponent>(entity))
-            return;
+            return false;
+
+        out = entity;
+        return true;
+    }
+
+    void SceneView::applySceneCamera(Camera& camera) {
+        Entity entity;
+        if (!resolveSceneCameraEntity(entity)) return;
 
         const CameraComponent& cam = m_scene->getComponent<CameraComponent>(entity);
         const TransformComponent& tf = m_scene->getComponent<TransformComponent>(entity);
@@ -186,7 +206,8 @@ namespace ve {
         auto& me = static_cast<MouseButtonPressedEvent&>(e);
         if (me.getButton() == VE_MOUSE_BUTTON_RIGHT && m_inputEnabled && !isSceneDriven()) {
             m_cameraController.setActive(true);
-            RenderCommand::setCursorVisible(false);
+            if (auto* window = Application::get().getWindow())
+                window->setCursorMode(CursorMode::Disabled);
         }
     }
 
@@ -196,7 +217,8 @@ namespace ve {
         // cursor hidden or the controller stuck active.
         if (me.getButton() == VE_MOUSE_BUTTON_RIGHT) {
             m_cameraController.setActive(false);
-            RenderCommand::setCursorVisible(true);
+            if (auto* window = Application::get().getWindow())
+                window->setCursorMode(CursorMode::Normal);
         }
     }
 

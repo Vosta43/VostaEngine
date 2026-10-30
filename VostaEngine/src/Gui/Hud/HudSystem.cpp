@@ -24,6 +24,9 @@ namespace ve {
 
 		HudBuildContext ctx;
 		ctx.atlasFor = [layer](float size) { return layer->font(size); };
+		ctx.textureFor = [layer](const std::string& path, glm::vec2& sizeOut) {
+			return layer->texture(path, sizeOut);
+		};
 
 		for (uint32_t id : m_scene.getRegistry().view<HudComponent>()) {
 			if (m_instances.count(id))

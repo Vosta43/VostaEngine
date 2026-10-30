@@ -31,6 +31,11 @@ void Widget::paint(PaintContext& ctx) {
 		child->paint(ctx);
 }
 
+void Widget::tick(float dt) {
+	for (auto& child : m_children)
+		child->tick(dt);
+}
+
 void Widget::addChild(const Ref<Widget>& child) {
 	if (!child)
 		return;

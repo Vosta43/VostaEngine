@@ -60,7 +60,7 @@ namespace ve {
 
 			scene.assignComponent<AtmosphereComponent>(entity);
 			return entity;
-		} };
+		}, false };
 
 	PrefabRegistrar reg_prefabSprite{ "sprite", "Sprite", "Rendering",
 		[](Scene& scene) {
@@ -71,13 +71,30 @@ namespace ve {
 			return entity;
 		} };
 
+	PrefabRegistrar reg_prefabParticle{ "particle", "Particle", "Effects",
+		[](Scene& scene) {
+			Entity entity = scene.createEntity();
+			scene.assignComponent<NameComponent>(entity, "Particle");
+			scene.assignComponent<TransformComponent>(entity);
+			scene.assignComponent<ParticleComponent>(entity);
+			return entity;
+		} };
+
+	PrefabRegistrar reg_prefabSpaceBackground{ "space_background", "Space Background", "Environment",
+		[](Scene& scene) {
+			Entity entity = scene.createEntity();
+			scene.assignComponent<NameComponent>(entity, "Space Background");
+			scene.assignComponent<SpaceBackgroundComponent>(entity);
+			return entity;
+		} };
+
 	PrefabRegistrar reg_prefabTerrain{ "terrain", "Terrain", "Environment",
 		[](Scene& scene) {
 			// A tile only draws once the scene has a system to bake from, so make
 			// sure one exists before adding the first tile.
 			TerrainSubsystem(scene).ensureSystem();
 			return scene.getEntity(TerrainSubsystem(scene).addTile(glm::ivec2(0)));
-		} };
+		}, false };
 
 	PrefabRegistrar reg_prefabTerrainSystem{ "terrain_system", "Terrain System", "Environment",
 		[](Scene& scene) {

@@ -170,6 +170,7 @@
     <ClCompile Include="src\Panels\PropertyPanel.cpp" />
     <ClCompile Include="src\Panels\MaterialGraphPanel.cpp" />
     <ClCompile Include="src\Panels\NoisePanel.cpp" />
+    <ClCompile Include="src\Panels\ParticlePanel.cpp" />
     <ClCompile Include="src\Panels\GeometryGraphPanel.cpp" />
     <ClCompile Include="src\Panels\TerrainRulePanel.cpp" />
     <ClCompile Include="src\Panels\TerrainMapPanel.cpp" />
@@ -209,6 +210,7 @@
     <ClInclude Include="src\Panels\PropertyPanel.h" />
     <ClInclude Include="src\Panels\MaterialGraphPanel.h" />
     <ClInclude Include="src\Panels\NoisePanel.h" />
+    <ClInclude Include="src\Panels\ParticlePanel.h" />
     <ClInclude Include="src\Panels\GeometryGraphPanel.h" />
     <ClInclude Include="src\Panels\TerrainRulePanel.h" />
     <ClInclude Include="src\Panels\TerrainMapPanel.h" />

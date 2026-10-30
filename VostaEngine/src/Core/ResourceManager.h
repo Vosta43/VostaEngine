@@ -58,7 +58,7 @@ namespace ve {
         // Call once per frame on the main thread, after AssetLoadQueue::pump().
         static void tick();
 
-        // Resident byte budget across all types. 0 (the default) disables
+        // Resident byte budget across all types. Defaults to 512 MiB; 0 disables
         // eviction.
         static void setResidencyBudget(size_t bytes);
         static size_t residencyBudget();

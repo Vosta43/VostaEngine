@@ -2,6 +2,7 @@
 
 #include "Core/Core.h"
 #include "Core/Json.h"
+#include "Gui/Vellum/Core/DrawList.h"   // TextureId
 #include "Gui/Vellum/Core/Widget.h"
 
 #include <functional>
@@ -21,8 +22,16 @@ namespace ve {
 		// Resolve an atlas for a requested pixel size. Never null in a working host.
 		std::function<vellum::FontAtlas* (float)> atlasFor;
 
+		// Resolve a texture by path, registering it with the UI renderer and
+		// writing its pixel size into the second argument. 0 on failure.
+		std::function<vellum::TextureId (const std::string&, glm::vec2&)> textureFor;
+
 		vellum::FontAtlas* atlas(float size) const {
 			return atlasFor ? atlasFor(size) : nullptr;
+		}
+
+		vellum::TextureId texture(const std::string& path, glm::vec2& sizeOut) const {
+			return textureFor ? textureFor(path, sizeOut) : 0;
 		}
 	};
 

@@ -21,7 +21,7 @@ namespace {
 
     // Mirrors project() VERSION in CMakeLists.txt, recorded in build.json so a
     // shipped folder can be traced back to the engine that produced it.
-    constexpr const char* kEngineVersion = "0.2.9";
+    constexpr const char* kEngineVersion = "0.2.10";
 
     // ── Job state ───────────────────────────────────────────────────────────
     // One job at a time. The worker thread writes under the mutex; the UI reads
@@ -297,6 +297,7 @@ namespace {
             JsonWriter w;
             w.set("name", project.name);
             w.set("defaultScene", project.defaultScene);
+            w.set("presentation", Project::presentationName(project.presentation));
             if (!w.writeToFile((outRoot / "project.json").string())) {
                 fail("Could not write project.json.");
                 return;

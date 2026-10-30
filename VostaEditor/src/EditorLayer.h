@@ -80,6 +80,11 @@ namespace ve {
         // callbacks to this layer's modules, then hands the scene to the viewport.
         void bindEditorView(Ref<Scene> scene);
 
+        // Where the Create Entity menu drops a new entity: the terrain point on the
+        // view axis, else a standoff ahead of the eye so nothing spawns on top of
+        // the camera (invisible, and it would turn with the view).
+        ve::Vec3 newEntityPlacement();
+
         // A scene being deserialized across frames. The serializer owns the
         // parsed document and the entity cursor, so the task is just identity.
         struct PendingSceneLoad {

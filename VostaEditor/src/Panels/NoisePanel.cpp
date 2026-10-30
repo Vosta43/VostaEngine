@@ -134,6 +134,21 @@ namespace ve {
         ImGui::SameLine();
         ImGui::TextDisabled("CPU reference");
 
+        // Display window: stretches the selected slice of the bake to full black to
+        // white, so a narrow distribution can be inspected without touching the data.
+        bool windowChanged = false;
+        ImGui::SetNextItemWidth(148.0f);
+        windowChanged |= ImGui::DragFloat("##noiseDisplayMin", &m_displayMin,
+            0.001f, 0.0f, std::max(0.0f, m_displayMax - 1e-3f), "min %.3f");
+        ImGui::SetItemTooltip("Below this, the preview clamps to black");
+        ImGui::SameLine(0.0f, 8.0f);
+        ImGui::SetNextItemWidth(148.0f);
+        windowChanged |= ImGui::DragFloat("##noiseDisplayMax", &m_displayMax,
+            0.001f, std::min(1.0f, m_displayMin + 1e-3f), 1.0f, "max %.3f");
+        ImGui::SetItemTooltip("Above this, the preview clamps to white");
+        if (windowChanged)
+            applyDisplayWindow();
+
         ImGui::BeginDisabled(m_filePath.empty());
         if (ImGui::Button("Export", ImVec2(previewSize, 0.0f)))
             exportTexture();
@@ -281,10 +296,25 @@ namespace ve {
         // The bake itself lives in the engine (NoiseBaker) so the preview, the export
         // and the MCP bake command are one implementation.
         TextureResource texture = bakeNoiseGraphTexture(m_graph, size);
-        m_pixels = std::move(texture.pixels);
+        m_bakedPixels = std::move(texture.pixels);
+        applyDisplayWindow();
+
+        m_graphHash = hashGraph(m_graph);
+    }
+
+    void NoisePanel::applyDisplayWindow() {
+        m_pixels = m_bakedPixels;
+        const float range = m_displayMax - m_displayMin;
+        if (range > 1e-6f) {
+            const float invRange = 1.0f / range;
+            for (size_t i = 0; i < m_pixels.size(); i += 4) {
+                const float t = ((float)m_pixels[i] / 255.0f - m_displayMin) * invRange;
+                const uint8_t g = (uint8_t)std::clamp(t * 255.0f + 0.5f, 0.0f, 255.0f);
+                m_pixels[i] = m_pixels[i + 1] = m_pixels[i + 2] = g;
+            }
+        }
 
         m_preview->setData(m_pixels.data(), (uint32_t)m_pixels.size());
-        m_graphHash = hashGraph(m_graph);
     }
 
 }

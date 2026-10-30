@@ -20,6 +20,7 @@
 #include "Renderer/Shader.h"
 #include "Renderer/SplashScreen.h"
 #include "Asset/BuiltinReousrces.h"
+#include "Particle/ParticleSelfTest.h"
 
 namespace ve {
 
@@ -33,10 +34,14 @@ namespace ve {
         // or layer can ask for them.
         BuiltinResources::init();
 
+#ifdef _DEBUG
+        ParticleSelfTest::runAll();
+#endif
+
         m_dispatcher = std::make_unique<EventDispatcher>();
         VE_CORE_SUCCESS("Event dispatcher initialized");
 
-        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.9 dev", m_dispatcher.get());
+        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.10 dev", m_dispatcher.get());
         VE_CORE_SUCCESS("Window created");
 
         m_shaderLibrary = std::make_unique<ShaderLibrary>();

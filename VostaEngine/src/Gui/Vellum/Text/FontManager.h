@@ -13,8 +13,8 @@ namespace ve::vellum {
 	class VellumRenderer;
 
 	// Owns the font atlases and hands out one per (face, pixel size), creating
-	// them on demand. It is also the only place that allocates the logical
-	// TextureIds the atlases register under, so two atlases never collide.
+	// them on demand. Ids come from the renderer's allocator, so an atlas and a
+	// widget texture never collide.
 	class VE_API FontManager {
 	public:
 		// `renderer` must outlive the manager. `defaultTtfPath` is the absolute
@@ -33,7 +33,6 @@ namespace ve::vellum {
 	private:
 		VellumRenderer* m_renderer = nullptr;
 		std::string     m_defaultPath;
-		TextureId       m_nextId = 1;   // 0 is the renderer's white pixel
 
 		std::map<std::pair<std::string, float>, Ref<FontAtlas>> m_cache;
 	};

@@ -169,8 +169,11 @@ namespace ve {
         s_Data.currentTexture.reset();
     }
     void Renderer2D::drawQuad(const glm::mat4& transform, const glm::vec2& size, AssetHandle textureHandle, const glm::vec4& tint) {
+        drawQuad(transform, size, ResourceManager::get<Texture2D>(textureHandle), tint);
+    }
 
-        Ref<Texture2D> texture = ResourceManager::get<Texture2D>(textureHandle);
+    void Renderer2D::drawQuad(const glm::mat4& transform, const glm::vec2& size, const Ref<Texture2D>& texture, const glm::vec4& tint) {
+
         if (!texture) return;
 
         if (texture != s_Data.currentTexture) {
@@ -310,8 +313,8 @@ namespace ve {
         RenderCommand::setBlend(enabled);
         if (enabled) {
             RenderCommand::setBlendFunc(
-                RendererAPI::BlendFunc::SrcAlpha,
-                RendererAPI::BlendFunc::OneMinusSrcAlpha
+                BlendFactor::SrcAlpha,
+                BlendFactor::OneMinusSrcAlpha
             );
         }
     }

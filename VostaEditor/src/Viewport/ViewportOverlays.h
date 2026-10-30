@@ -44,6 +44,8 @@ public:
                       TerrainEditor& terrainEditor, const glm::vec2& mouseViewportPos);
 
     // Billboard icons (skipped while a play session is live) and the pending pick.
+    // Particle entities get no icon: the emitter is drawn by the scene renderer
+    // as the asset's own particles, the same way the particle editor shows them.
     void renderBillboards(SceneView& view, const Ref<Scene>& scene, bool sceneLive);
     // Run the picking pass at the queued point and return the entity under it, or
     // -1 when nothing was hit. Clears the pending request.

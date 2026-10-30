@@ -1,5 +1,6 @@
 #include "vepch.h"
 #include "OpenGLFramebuffer.h"
+#include "Renderer/RendererAPI.h"
 #include <glad/glad.h>
 
 namespace ve {
@@ -37,6 +38,7 @@ namespace ve {
         case TextureInternalFormat::RGBA16F: return GL_RGBA16F;
         case TextureInternalFormat::R32I:    return GL_R32I;
         case TextureInternalFormat::R16UI:   return GL_R16UI;
+        case TextureInternalFormat::R32F:    return GL_R32F;
         }
         return GL_RGBA8;
     }
@@ -45,6 +47,7 @@ namespace ve {
         switch (f) {
         case TextureDataFormat::RGBA:        return GL_RGBA;
         case TextureDataFormat::RED_INTEGER: return GL_RED_INTEGER;
+        case TextureDataFormat::RED:         return GL_RED;
         }
         return GL_RGBA;
     }
@@ -61,10 +64,27 @@ namespace ve {
 
     static GLenum toGLFilter(TextureFilter f) {
         switch (f) {
-        case TextureFilter::LINEAR:  return GL_LINEAR;
-        case TextureFilter::NEAREST: return GL_NEAREST;
+        case TextureFilter::NEAREST:                return GL_NEAREST;
+        case TextureFilter::NEAREST_MIPMAP_NEAREST: return GL_NEAREST_MIPMAP_NEAREST;
+        case TextureFilter::LINEAR_MIPMAP_NEAREST:  return GL_LINEAR_MIPMAP_NEAREST;
+        case TextureFilter::NEAREST_MIPMAP_LINEAR:  return GL_NEAREST_MIPMAP_LINEAR;
+        case TextureFilter::LINEAR_MIPMAP_LINEAR:   return GL_LINEAR_MIPMAP_LINEAR;
+        case TextureFilter::LINEAR:
+        default:                                    return GL_LINEAR;
         }
-        return GL_LINEAR;
+    }
+
+    // The asset-level format matching an attachment's internal format, for the
+    // non-owning Texture2D wrapper handed out by getColorTexture().
+    static TextureFormat toTextureFormat(TextureInternalFormat f) {
+        switch (f) {
+        case TextureInternalFormat::RGBA16F: return TextureFormat::RGBA16F;
+        case TextureInternalFormat::R32I:    return TextureFormat::R32I;
+        case TextureInternalFormat::R16UI:   return TextureFormat::R16UI;
+        case TextureInternalFormat::R32F:    return TextureFormat::R32F;
+        case TextureInternalFormat::RGBA8:
+        default:                             return TextureFormat::RGBA;
+        }
     }
 
     void OpenGLFramebuffer::createFromSpec() {
@@ -88,33 +108,44 @@ namespace ve {
                 texID, 0);
 
             m_colorData[i].textureID = texID;
-            m_colorData[i].texture = Texture2D::create(texID, m_width, m_height);
+            m_colorData[i].texture = Texture2D::create(texID, m_width, m_height,
+                                                       toTextureFormat(attachSpec.internalFormat));
 
         }
 
         if (m_spec.hasDepth) {
-            GLuint depthTexID = 0;
-            glCreateTextures(GL_TEXTURE_2D, 1, &depthTexID);
-            glTextureStorage2D(depthTexID, 1, GL_DEPTH_COMPONENT32F, m_width, m_height);
-            // Compare mode makes each tap a hardware depth test and needs bilinear
-            // filtering for the 2x2 PCF footprint; plain depth reads stay NEAREST.
-            const GLint filter = m_spec.depthCompare ? GL_LINEAR : GL_NEAREST;
-            glTextureParameteri(depthTexID, GL_TEXTURE_MIN_FILTER, filter);
-            glTextureParameteri(depthTexID, GL_TEXTURE_MAG_FILTER, filter);
-            glTextureParameteri(depthTexID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTextureParameteri(depthTexID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            if (m_spec.depthCompare) {
-                glTextureParameteri(depthTexID, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-                // GEQUAL, not LEQUAL: reverse-Z stores the near plane as 1, so a
-                // fragment is lit when its reference is at least the stored depth.
-                glTextureParameteri(depthTexID, GL_TEXTURE_COMPARE_FUNC, GL_GEQUAL);
+            const bool stencil = m_spec.depthFormat == FramebufferSpec::DepthFormat::Depth24Stencil8;
+            const GLenum attachPoint   = stencil ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT;
+            const GLenum internalFormat = stencil ? GL_DEPTH24_STENCIL8 : GL_DEPTH_COMPONENT32F;
+
+            if (m_spec.depthAsTexture) {
+                GLuint depthTexID = 0;
+                glCreateTextures(GL_TEXTURE_2D, 1, &depthTexID);
+                glTextureStorage2D(depthTexID, 1, internalFormat, m_width, m_height);
+                // Compare mode makes each tap a hardware depth test and needs bilinear
+                // filtering for the 2x2 PCF footprint; plain depth reads stay NEAREST.
+                const GLint filter = m_spec.depthCompare ? GL_LINEAR : GL_NEAREST;
+                glTextureParameteri(depthTexID, GL_TEXTURE_MIN_FILTER, filter);
+                glTextureParameteri(depthTexID, GL_TEXTURE_MAG_FILTER, filter);
+                glTextureParameteri(depthTexID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTextureParameteri(depthTexID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                if (m_spec.depthCompare) {
+                    glTextureParameteri(depthTexID, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+                    glTextureParameteri(depthTexID, GL_TEXTURE_COMPARE_FUNC,
+                                        RendererAPI::isReverseZ() ? GL_GEQUAL : GL_LEQUAL);
+                }
+
+                glNamedFramebufferTexture(m_rendererID, attachPoint, depthTexID, 0);
+
+                m_depthTexture = Texture2D::create(depthTexID, m_width, m_height,
+                    stencil ? TextureFormat::Depth24Stencil8 : TextureFormat::Depth32F);
             }
-
-            glNamedFramebufferTexture(m_rendererID,
-                GL_DEPTH_ATTACHMENT,
-                depthTexID, 0);
-
-            m_depthTexture = Texture2D::create(depthTexID, m_width, m_height);
+            else {
+                glCreateRenderbuffers(1, &m_depthAttachment);
+                glNamedRenderbufferStorage(m_depthAttachment, internalFormat, m_width, m_height);
+                glNamedFramebufferRenderbuffer(m_rendererID, attachPoint, GL_RENDERBUFFER, m_depthAttachment);
+                m_depthTexture = nullptr;
+            }
         }
         finalizeDrawBuffers();
     }
@@ -167,13 +198,15 @@ namespace ve {
         glNamedFramebufferTexture(m_rendererID, GL_COLOR_ATTACHMENT0, texID, 0);
         glNamedFramebufferTexture(m_rendererID, GL_DEPTH_ATTACHMENT, depthTexID, 0);
 
-        m_depthTexture = Texture2D::create(depthTexID, m_width, m_height);
+        m_depthTexture = Texture2D::create(depthTexID, m_width, m_height, TextureFormat::Depth32F);
 
         m_colorData.resize(1);
         std::vector<GLenum> drawBuffers = { GL_COLOR_ATTACHMENT0 };
         glNamedFramebufferDrawBuffers(m_rendererID, 1, drawBuffers.data());
         m_colorData[0].textureID = texID;
-        m_colorData[0].texture = Texture2D::create(texID, m_width, m_height);
+        m_colorData[0].texture = Texture2D::create(texID, m_width, m_height,
+                                                   m_format == Format::Picking ? TextureFormat::R32I
+                                                                               : TextureFormat::RGBA);
     }
 
     int32_t OpenGLFramebuffer::readPixel(uint32_t x, uint32_t y) const {
@@ -185,6 +218,23 @@ namespace ve {
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         return pixelData;
+    }
+
+    void OpenGLFramebuffer::readPixels(uint32_t x, uint32_t y, uint32_t w, uint32_t h, void* out) const {
+        if (!out || w == 0 || h == 0) return;
+
+        glBindFramebuffer(GL_FRAMEBUFFER, m_rendererID);
+        glReadBuffer(GL_COLOR_ATTACHMENT0);
+
+        // RGBA8 rows are a multiple of 4 bytes, but the source rectangle may start
+        // on any pixel, so read with alignment 1 and restore the previous default.
+        GLint prevAlign = 4;
+        glGetIntegerv(GL_PACK_ALIGNMENT, &prevAlign);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glReadPixels(x, y, w, h, GL_RGBA, GL_UNSIGNED_BYTE, out);
+        glPixelStorei(GL_PACK_ALIGNMENT, prevAlign);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
     void OpenGLFramebuffer::bind() {
@@ -207,6 +257,25 @@ namespace ve {
                           0, 0, static_cast<GLint>(dstWidth), static_cast<GLint>(dstHeight),
                           GL_COLOR_BUFFER_BIT, GL_NEAREST);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    void OpenGLFramebuffer::blitTo(Framebuffer* dst, const BlitRect& srcRect, const BlitRect& dstRect,
+                                   bool color, bool depth, TextureFilter filter) {
+        GLbitfield mask = 0;
+        if (color) mask |= GL_COLOR_BUFFER_BIT;
+        if (depth) mask |= GL_DEPTH_BUFFER_BIT;
+        if (mask == 0) return;
+
+        // Filtering a depth blit is illegal, so the presence of depth forces the
+        // nearest path for the whole blit.
+        const GLenum blitFilter = (filter == TextureFilter::LINEAR && !depth) ? GL_LINEAR : GL_NEAREST;
+
+        glBlitNamedFramebuffer(m_rendererID, dst ? dst->getRendererID() : 0,
+                               srcRect.x, srcRect.y,
+                               srcRect.x + srcRect.width, srcRect.y + srcRect.height,
+                               dstRect.x, dstRect.y,
+                               dstRect.x + dstRect.width, dstRect.y + dstRect.height,
+                               mask, blitFilter);
     }
 
     void OpenGLFramebuffer::resize(uint32_t width, uint32_t height) {

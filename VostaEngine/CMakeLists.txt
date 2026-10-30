@@ -30,11 +30,13 @@ set(ENGINE_SOURCES
     src/Platform/OpenGL/OpenGLContext.cpp
     src/Platform/OpenGL/OpenGLFrameBuffer.cpp
     src/Platform/OpenGL/OpenGLGpuReadback.cpp
+    src/Platform/OpenGL/OpenGLIndirectBuffer.cpp
     src/Platform/OpenGL/OpenGLRendererAPI.cpp
     src/Platform/OpenGL/OpenGLShader.cpp
     src/Platform/OpenGL/OpenGLStaticMesh.cpp
     src/Platform/OpenGL/OpenGLStorageBuffer.cpp
     src/Platform/OpenGL/OpenGLTexture.cpp
+    src/Platform/OpenGL/OpenGLUniformBuffer.cpp
     src/Platform/OpenGL/OpenGLVertexArray.cpp
 
     # Renderer
@@ -42,6 +44,7 @@ set(ENGINE_SOURCES
     src/Renderer/Camera.cpp
     src/Renderer/CameraController.cpp
     src/Renderer/GraphicsContext.cpp
+    src/Renderer/IndirectBuffer.cpp
     src/Renderer/Material.cpp
     src/Renderer/MaterialGraph.cpp
     src/Renderer/MaterialNodes.cpp
@@ -50,6 +53,7 @@ set(ENGINE_SOURCES
     src/Renderer/MaterialLayerAsset.cpp
     src/Renderer/MaterialInstance.cpp
     src/Renderer/SingleMaterial.cpp
+    src/Renderer/PipelineState.cpp
     src/Renderer/RenderCommand.cpp
     src/Renderer/Renderer.cpp
     src/Renderer/Renderer2D.cpp
@@ -69,6 +73,7 @@ set(ENGINE_SOURCES
     src/Renderer/SubTexture2D.cpp
     src/Renderer/Texture.cpp
     src/Renderer/ThumbnailRenderer.cpp
+    src/Renderer/UniformBuffer.cpp
     src/Renderer/VertexArray.cpp
     src/Renderer/RenderPass/RenderPassBase.cpp
     src/Renderer/RenderPass/GBufferPass.cpp
@@ -102,6 +107,20 @@ set(ENGINE_SOURCES
     src/Geometry/GeometryGraph.cpp
     src/Geometry/GeometryGraphResource.cpp
 
+    # Particle (module-graph emitter runtime)
+    src/Particle/AttributeRegistry.cpp
+    src/Particle/EmitterAssetIO.cpp
+    src/Particle/EmitterCompiler.cpp
+    src/Particle/Modules.cpp
+    src/Particle/ParticleAsset.cpp
+    src/Particle/ParticleBillboard.cpp
+    src/Particle/ParticleDataSet.cpp
+    src/Particle/ParticleEmitter.cpp
+    src/Particle/ParticleSelfTest.cpp
+    src/Particle/ParticleSystem.cpp
+    src/Particle/ProgramBuilder.cpp
+    src/Particle/VM.cpp
+
     # Scene / ECS
     src/Scene/Archive.cpp
     src/Scene/BuiltinPrefabs.cpp
@@ -109,6 +128,7 @@ set(ENGINE_SOURCES
     src/Scene/ECSystems/ECSystemGraph.cpp
     src/Scene/Entity.cpp
     src/Scene/EntityRegistry.cpp
+    src/Scene/ParticleComponent.cpp
     src/Scene/PrefabRegistry.cpp
     src/Scene/Scene.cpp
     src/Scene/SceneClone.cpp
@@ -152,10 +172,14 @@ set(ENGINE_SOURCES
     src/Gui/Vellum/Widgets/Button.cpp
     src/Gui/Vellum/Widgets/ColoredBox.cpp
     src/Gui/Vellum/Widgets/Column.cpp
+    src/Gui/Vellum/Widgets/Image.cpp
     src/Gui/Vellum/Widgets/InputBox.cpp
+    src/Gui/Vellum/Widgets/NineGridImage.cpp
     src/Gui/Vellum/Widgets/ScrollPanel.cpp
+    src/Gui/Vellum/Widgets/Splitter.cpp
     src/Gui/Vellum/Widgets/Stack.cpp
     src/Gui/Vellum/Widgets/TextBlock.cpp
+    src/Gui/Vellum/Widgets/TooltipBox.cpp
     src/Gui/Vellum/VellumRenderer.cpp
     src/Gui/Vellum/WidgetTree.cpp
     src/Gui/Vellum/VellumLayer.cpp
@@ -222,6 +246,7 @@ target_include_directories(VostaEngine
         ${ENGINE_ROOT}/thirdparty/stb_truetype
         ${ENGINE_ROOT}/thirdparty/ufbx
         ${ENGINE_ROOT}/thirdparty/JSON/include
+        ${ENGINE_ROOT}/thirdparty/FastNoiseLite
 )
 
 # ── GLFW (pre-built binary, vendored) ───────────────────────────────────
@@ -292,7 +317,9 @@ target_compile_definitions(VostaEngine
 
 # ── Warnings ────────────────────────────────────────────────────────────
 if(MSVC)
-    target_compile_options(VostaEngine PRIVATE /W3 /wd4251 /utf-8 /MP)
+    # /bigobj: the umbrella header and the largest translation units (SceneView,
+    # Terrain, SceneViewRenderer) exceed the default 65535-section object limit.
+    target_compile_options(VostaEngine PRIVATE /W3 /wd4251 /utf-8 /MP /bigobj)
 else()
     target_compile_options(VostaEngine PRIVATE -Wall -Wextra)
 endif()

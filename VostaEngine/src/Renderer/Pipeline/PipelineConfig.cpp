@@ -24,14 +24,17 @@ namespace ve {
 			if (s == "RGBA16F")  return TextureInternalFormat::RGBA16F;
 			if (s == "R32I")     return TextureInternalFormat::R32I;
 			if (s == "R16UI")    return TextureInternalFormat::R16UI;
+			if (s == "R32F")     return TextureInternalFormat::R32F;
 			VE_CORE_WARN_PRINT("PipelineConfig: unknown internalFormat '%s', using RGBA8", s.c_str());
 			return TextureInternalFormat::RGBA8;
 		}
 
 		TextureDataFormat defaultFormat(TextureInternalFormat f) {
-			return (f == TextureInternalFormat::R32I || f == TextureInternalFormat::R16UI)
-			           ? TextureDataFormat::RED_INTEGER
-			           : TextureDataFormat::RGBA;
+			if (f == TextureInternalFormat::R32I || f == TextureInternalFormat::R16UI)
+				return TextureDataFormat::RED_INTEGER;
+			if (f == TextureInternalFormat::R32F)
+				return TextureDataFormat::RED;
+			return TextureDataFormat::RGBA;
 		}
 
 		TextureDataType defaultType(TextureInternalFormat f) {
@@ -39,6 +42,7 @@ namespace ve {
 				case TextureInternalFormat::RGBA16F: return TextureDataType::FLOAT;
 				case TextureInternalFormat::R32I:    return TextureDataType::INT;
 				case TextureInternalFormat::R16UI:   return TextureDataType::UNSIGNED_SHORT;
+				case TextureInternalFormat::R32F:    return TextureDataType::FLOAT;
 				default:                             return TextureDataType::UNSIGNED_BYTE;
 			}
 		}
@@ -47,6 +51,7 @@ namespace ve {
 			if (s.empty()) return defaultFormat(f);
 			if (s == "RGBA")        return TextureDataFormat::RGBA;
 			if (s == "RED_INTEGER") return TextureDataFormat::RED_INTEGER;
+			if (s == "RED")         return TextureDataFormat::RED;
 			VE_CORE_WARN_PRINT("PipelineConfig: unknown format '%s', deriving from internalFormat", s.c_str());
 			return defaultFormat(f);
 		}
@@ -66,6 +71,10 @@ namespace ve {
 			const std::string l = lower(s);
 			if (l == "linear")  return TextureFilter::LINEAR;
 			if (l == "nearest") return TextureFilter::NEAREST;
+			if (l == "nearest_mipmap_nearest") return TextureFilter::NEAREST_MIPMAP_NEAREST;
+			if (l == "linear_mipmap_nearest")  return TextureFilter::LINEAR_MIPMAP_NEAREST;
+			if (l == "nearest_mipmap_linear")  return TextureFilter::NEAREST_MIPMAP_LINEAR;
+			if (l == "linear_mipmap_linear")   return TextureFilter::LINEAR_MIPMAP_LINEAR;
 			VE_CORE_WARN_PRINT("PipelineConfig: unknown filter '%s', using linear", s.c_str());
 			return TextureFilter::LINEAR;
 		}
@@ -81,13 +90,13 @@ namespace ve {
 			return def;
 		}
 
-		DepthFuncType parseDepthFunc(const std::string& s) {
+		CompareOp parseDepthFunc(const std::string& s) {
 			const std::string l = lower(s);
-			if (l.empty())  return DepthFuncType::Greater;
-			if (l == "gequal")  return DepthFuncType::Gequal;
-			if (l == "greater") return DepthFuncType::Greater;
+			if (l.empty())  return CompareOp::Greater;
+			if (l == "gequal")  return CompareOp::GEqual;
+			if (l == "greater") return CompareOp::Greater;
 			VE_CORE_WARN_PRINT("PipelineConfig: depthFunc '%s' unsupported, using greater", s.c_str());
-			return DepthFuncType::Greater;
+			return CompareOp::Greater;
 		}
 
 		UniformKind parseUniformKind(const std::string& s) {

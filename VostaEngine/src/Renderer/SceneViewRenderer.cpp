@@ -15,6 +15,7 @@
 #include "Renderer/Material.h"
 #include "Core/Deltatime.h"
 #include "Core/ResourceManager.h"
+#include "Particle/ParticleBillboard.h"
 #include "Scene/Scene.h"
 #include "Scene/Components.h"
 #include "Scene/Terrain/Terrain.h"
@@ -22,9 +23,45 @@
 #include "Terrain/GlobeWeightBaker.h"
 
 #include <algorithm>
+#include <cmath>
 #include <string>
+#include <vector>
 
 namespace ve {
+
+namespace {
+
+    // One camera-facing quad per particle, at the emitter's chart position plus
+    // the particle's asset-space offset. Runs after the sprite batch (after
+    // present), so the depth buffer is not available and every particle draws
+    // over the scene.
+    void drawParticles(const Ref<Scene>& scene, const RenderContext& ctx,
+                       const std::vector<uint32_t>& entities) {
+        // Particle assets are authored Z-up; the world is Y-up. One conversion,
+        // shared with nothing else -- the preview draws asset space directly.
+        const glm::mat3 assetToChart = ParticleBillboard::spaceToWorld();
+
+        for (uint32_t entityId : entities) {
+            const ParticleComponent& comp = scene->getComponent<ParticleComponent>(entityId);
+            const ParticleDataSet* data = comp.particleData();
+            const EmitterAsset* source = comp.emitterAsset();
+            if (!data || !source)
+                continue;
+
+            const ve::Vec3 origin = scene->getComponent<TransformComponent>(entityId).position;
+            auto toRenderSpace = [&ctx, &assetToChart, &origin](const glm::vec3& local) {
+                return toRenderSpaceChart(origin + ve::Vec3(assetToChart * local), ctx);
+            };
+
+            ParticleBillboard::draw(*source, *data, toRenderSpace,
+                                    comp.tint, comp.particleSize);
+        }
+
+        // Every emitter's quads go out in one instanced draw.
+        ParticleBillboard::flush(ctx.viewMatrix, ctx.projMatrix);
+    }
+
+}
 
 SceneViewRenderer::SceneViewRenderer(const Ref<Scene>& scene)
     : m_scene(scene)
@@ -99,6 +136,17 @@ void SceneViewRenderer::render(Camera& camera, const Ref<RenderPipeline>& pipeli
             if (radius > 0.0) {
                 ctx.planetFrame.radius = radius;
             }
+        }
+    }
+
+    // Space background is an independent environment component: no transform, no
+    // planet frame. It composes with or without an atmosphere (see HDR pass).
+    {
+        auto spaceView = m_scene->getRegistry().view<SpaceBackgroundComponent>();
+        if (!spaceView.empty()) {
+            const auto& spaceComp = m_scene->getComponent<SpaceBackgroundComponent>(*spaceView.begin());
+            ctx.spaceBackground = spaceComp.background;
+            ctx.hasSpaceBackground = spaceComp.background.enabled;
         }
     }
 
@@ -232,15 +280,31 @@ void SceneViewRenderer::render(Camera& camera, const Ref<RenderPipeline>& pipeli
     ctx.prefilteredEnvMap = BakeService::get().getPrefilteredEnvMap();
     ctx.brdfLUT           = BakeService::get().getBRDFLUT();
 
-    // Atmosphere LUTs, shadow cascades and cloud textures. The atmosphere, clouds
-    // and planet centre were copied above; only the LUTs and the frame's shadow
-    // fit are left, and they need the view the earlier block could not have had.
+    // Atmosphere LUTs, shadow cascades and cloud textures. The atmosphere and
+    // planet centre were copied above; the LUTs and the frame's shadow fit are
+    // left, and they need the view the earlier block could not have had.
+    //
+    // The scattering LUTs bake asynchronously. Until all of them have landed the
+    // atmosphere is switched OFF rather than drawn: the shaders test only
+    // topKm > bottomKm, so they would sample unbound 3D samplers, read black and
+    // leave a black sky over a sunlit ground -- then flip to a full sky the
+    // moment the background job finished. Same texture set the HDR pass binds
+    // (transmittance + scattering pair + multiple scattering), so the gate can't
+    // be satisfied by a subset.
+    // The LUT requests must be issued before the readiness gate: the scattering
+    // bakes only start when asked for, so gating the request on readiness would
+    // leave a scene whose only sky comes from the atmosphere black forever.
     if (ctx.hasAtmosphere) {
         ctx.transmittanceTexture = bake.getTransmittanceLUT(ctx.atmosphere);
         ctx.scatteringTexture = bake.getScatteringLUT(ctx.atmosphere);
         ctx.mieScatteringTexture = bake.getMieScatteringLUT(ctx.atmosphere);
         ctx.multipleScatteringTexture = bake.getMultipleScatteringLUT(ctx.atmosphere);
 
+        if (!bake.isAtmosphereReady())
+            ctx.hasAtmosphere = false;
+    }
+
+    if (ctx.hasAtmosphere) {
         // Fit this frame's shadow cascades. The map resolution comes from the shadow
         // framebuffers so it can't drift from the pipeline asset; the coverage
         // distance is a pipeline setting.
@@ -286,14 +350,21 @@ void SceneViewRenderer::render(Camera& camera, const Ref<RenderPipeline>& pipeli
         }
     }
 
-    // Diffuse ambient follows the atmosphere when one is present: the analytic
-    // sky is baked to a cubemap and convolved, so object lighting matches the
-    // visible sky (the static-skybox IBL would go stale as the sun moves).
+    // Diffuse ambient follows the sky: the analytic atmosphere (when present)
+    // plus the space background's stars and nebula are baked to a cubemap and
+    // convolved, so object lighting matches what the HDR pass draws. A scene with
+    // a space background but no atmosphere bakes that background alone — without
+    // it such a scene would have no diffuse ambient at all.
     if (ctx.hasAtmosphere) {
         ctx.irradianceMap = BakeService::get().getAtmosphereIrradianceMap(
-            ctx.atmosphere, ctx.transmittanceTexture, ctx.scatteringTexture,
+            ctx.atmosphere,
+            ctx.hasSpaceBackground ? &ctx.spaceBackground : nullptr,
+            ctx.transmittanceTexture, ctx.scatteringTexture,
             ctx.mieScatteringTexture, ctx.multipleScatteringTexture,
             ctx.planetFrame.cameraRelativeToCenter(ctx.cameraPosition));
+    }
+    else if (ctx.hasSpaceBackground) {
+        ctx.irradianceMap = BakeService::get().getSpaceIrradianceMap(ctx.spaceBackground);
     }
     else {
         ctx.irradianceMap = BakeService::get().getIrradianceMap();
@@ -318,13 +389,28 @@ void SceneViewRenderer::render(Camera& camera, const Ref<RenderPipeline>& pipeli
         Renderer3D::drawSkybox(ctx.viewMatrix, ctx.projMatrix);
     }
 
-    // Sprite quads are game content drawn on top of the PBR output.
+    // Sprite and particle quads are game content drawn on top of the PBR output.
+    // Sprites stay in the 2D batch; particles are one instanced draw of their
+    // own, which binds its own program, so the batch is flushed first.
+    const std::vector<uint32_t> particleEntities =
+        m_scene->getRegistry().group<TransformComponent, ParticleComponent>();
+
     if (!rvtDebugView && !ctx.drawSpriteCommands.empty()) {
         Renderer2D::beginScene(ctx.projMatrix * ctx.viewMatrix);
         for (auto& cmd : ctx.drawSpriteCommands) {
             Renderer2D::drawQuad(renderModelMatrix(cmd.transform, cmd.worldPosition, ctx), cmd.size, cmd.textureHandle);
         }
         Renderer2D::endScene();
+    }
+
+    if (!rvtDebugView && !particleEntities.empty()) {
+        // Only the present blit wrote this target's depth; testing particles
+        // against it would tie them to a screen-filling quad's depth.
+        RenderCommand::setDepthTesting(false);
+        Renderer2D::setBlending(true);
+        drawParticles(m_scene, ctx, particleEntities);
+        Renderer2D::setBlending(false);
+        RenderCommand::setDepthTesting(true);
     }
 
     target->unbind();

@@ -7,6 +7,7 @@
 #include "Core/PaintContext.h"
 #include "Core/Widget.h"
 #include "VellumRenderer.h"
+#include "Widgets/TooltipBox.h"
 
 #include <vector>
 
@@ -33,6 +34,12 @@ namespace ve::vellum {
 
         bool wantsWheel(const glm::vec2& pos) const;
 
+        // Tooltip support. The tree owns the bubble; leaving the font null keeps
+        // tooltips disabled. `seconds` is how long the cursor must rest first.
+        void setTooltipFont(FontAtlas* font);
+        void setTooltipDelay(float seconds);
+        float tooltipDelay() const { return m_tooltipDelay; }
+
         const DrawList& drawList() const { return m_paint.list(); }
         VellumRenderer& renderer() { return m_renderer; }
 
@@ -47,6 +54,10 @@ namespace ve::vellum {
         void updateHover();
         // Feeds this frame's key events to the focus target, in arrival order.
         void dispatchKeys(const InputFrame& input);
+        // Picks the hover path's deepest tooltip text and runs the reveal timer.
+        void updateTooltip(const InputFrame& input);
+        void paintTooltip();
+        Widget* tooltipSource() const;
 
         Ref<Widget>    m_root;
         PaintContext   m_paint;
@@ -56,6 +67,17 @@ namespace ve::vellum {
         Widget*              m_hoverTarget = nullptr;   // non-owning
         Widget*              m_captureTarget = nullptr; // non-owning, until button release
         Widget*              m_focusTarget = nullptr;   // non-owning, until blurred
+
+        // Tooltip state. The bubble lives outside the routed tree, so it has no
+        // hover/press flags of its own and cannot intercept the pointer.
+        Ref<TooltipBox> m_tooltipBox;
+        Widget*         m_tooltipSource = nullptr;      // non-owning: widget being described
+        float           m_tooltipRevealTime = 0.0f;     // host clock value that reveals it
+        float           m_tooltipDelay = 0.5f;
+        bool            m_tooltipVisible = false;
+        glm::vec2       m_tooltipAnchor{ 0.0f };        // pinned at reveal, not followed
+        glm::vec2       m_surfaceSize{ 0.0f };
+        float           m_lastTimeSeconds = 0.0f;       // previous frame's host clock
     };
 
 }

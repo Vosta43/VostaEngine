@@ -27,7 +27,12 @@ namespace ve {
 			case TextureFormat::R16F:         out = { GL_RED,         GL_FLOAT,          4 }; return true;
 			case TextureFormat::R16UI:        out = { GL_RED_INTEGER, GL_UNSIGNED_SHORT, 2 }; return true;
 			case TextureFormat::R32UI:        out = { GL_RED_INTEGER, GL_UNSIGNED_INT,   4 }; return true;
+			case TextureFormat::R32I:         out = { GL_RED_INTEGER, GL_INT,            4 }; return true;
+			case TextureFormat::R32F:         out = { GL_RED,         GL_FLOAT,          4 }; return true;
+			case TextureFormat::Depth32F:     out = { GL_DEPTH_COMPONENT, GL_FLOAT,      4 }; return true;
 			case TextureFormat::RG16F:        out = { GL_RG,          GL_FLOAT,          4 }; return true;
+			case TextureFormat::RG32F:        out = { GL_RG,          GL_FLOAT,          4 }; return true;
+			case TextureFormat::RG8:          out = { GL_RG,          GL_UNSIGNED_BYTE,  1 }; return true;
 			case TextureFormat::RGB16F:       out = { GL_RGB,         GL_FLOAT,          4 }; return true;
 			case TextureFormat::RGBA16F:      out = { GL_RGBA,        GL_FLOAT,          4 }; return true;
 			case TextureFormat::SRGB8:        out = { GL_RGB,         GL_UNSIGNED_BYTE,  1 }; return true;

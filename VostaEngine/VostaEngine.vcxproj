@@ -112,7 +112,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>vepch.h</PrecompiledHeaderFile>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
-      <AdditionalOptions>/Zc:preprocessor /utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zc:preprocessor /utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -135,7 +135,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>vepch.h</PrecompiledHeaderFile>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
-      <AdditionalOptions>/Zc:preprocessor /utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zc:preprocessor /utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -159,6 +159,18 @@
     <ClCompile Include="src\Core\Deltatime.cpp" />
     <ClCompile Include="src\Core\Project.cpp" />
     <ClCompile Include="src\Build\Packager.cpp" />
+    <ClCompile Include="src\Particle\AttributeRegistry.cpp" />
+    <ClCompile Include="src\Particle\EmitterAssetIO.cpp" />
+    <ClCompile Include="src\Particle\EmitterCompiler.cpp" />
+    <ClCompile Include="src\Particle\Modules.cpp" />
+    <ClCompile Include="src\Particle\ParticleAsset.cpp" />
+    <ClCompile Include="src\Particle\ParticleBillboard.cpp" />
+    <ClCompile Include="src\Particle\ParticleDataSet.cpp" />
+    <ClCompile Include="src\Particle\ParticleEmitter.cpp" />
+    <ClCompile Include="src\Particle\ParticleSelfTest.cpp" />
+    <ClCompile Include="src\Particle\ParticleSystem.cpp" />
+    <ClCompile Include="src\Particle\ProgramBuilder.cpp" />
+    <ClCompile Include="src\Particle\VM.cpp" />
     <ClCompile Include="src\Platform\Windows\ProcessWindows.cpp" />
     <ClCompile Include="src\Core\Events\EventDispatcher.h">
       <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
@@ -191,10 +203,14 @@
     <ClCompile Include="src\Gui\Vellum\Widgets\Button.cpp" />
     <ClCompile Include="src\Gui\Vellum\Widgets\ColoredBox.cpp" />
     <ClCompile Include="src\Gui\Vellum\Widgets\Column.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Widgets\Image.cpp" />
     <ClCompile Include="src\Gui\Vellum\Widgets\InputBox.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Widgets\NineGridImage.cpp" />
     <ClCompile Include="src\Gui\Vellum\Widgets\ScrollPanel.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Widgets\Splitter.cpp" />
     <ClCompile Include="src\Gui\Vellum\Widgets\Stack.cpp" />
     <ClCompile Include="src\Gui\Vellum\Widgets\TextBlock.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Widgets\TooltipBox.cpp" />
     <ClCompile Include="src\Gui\Vellum\VellumRenderer.cpp" />
     <ClCompile Include="src\Gui\Vellum\WidgetTree.cpp" />
     <ClCompile Include="src\Gui\Vellum\VellumLayer.cpp" />
@@ -230,15 +246,18 @@
     <ClCompile Include="src\Platform\OpenGL\OpenGLBuffer.cpp" />
     <ClCompile Include="src\Platform\OpenGL\OpenGLContext.cpp" />
     <ClCompile Include="src\Platform\OpenGL\OpenGLFrameBuffer.cpp" />
+    <ClCompile Include="src\Platform\OpenGL\OpenGLIndirectBuffer.cpp" />
     <ClCompile Include="src\Platform\OpenGL\OpenGLRendererAPI.cpp" />
     <ClCompile Include="src\Platform\OpenGL\OpenGLShader.cpp" />
     <ClCompile Include="src\Platform\OpenGL\OpenGLStaticMesh.cpp" />
     <ClCompile Include="src\Platform\OpenGL\OpenGLStorageBuffer.cpp" />
     <ClCompile Include="src\Platform\OpenGL\OpenGLTexture.cpp" />
+    <ClCompile Include="src\Platform\OpenGL\OpenGLUniformBuffer.cpp" />
     <ClCompile Include="src\Platform\OpenGL\OpenGLVertexArray.cpp" />
     <ClCompile Include="src\Platform\WindowInput.cpp" />
     <ClCompile Include="src\Renderer\Buffer.cpp" />
     <ClCompile Include="src\Renderer\GraphicsContext.cpp" />
+    <ClCompile Include="src\Renderer\IndirectBuffer.cpp" />
     <ClCompile Include="src\Renderer\Camera.cpp" />
     <ClCompile Include="src\Renderer\CameraController.cpp" />
     <ClCompile Include="src\Renderer\Material.cpp" />
@@ -283,6 +302,7 @@
     <ClCompile Include="src\Renderer\SceneRenderer.cpp" />
     <ClCompile Include="src\Renderer\SceneViewRenderer.cpp" />
     <ClCompile Include="src\Renderer\SceneView.cpp" />
+    <ClCompile Include="src\Renderer\PipelineState.cpp" />
     <ClCompile Include="src\Renderer\Shader.cpp" />
     <ClCompile Include="src\Renderer\ShaderGenerator.cpp" />
     <ClCompile Include="src\Renderer\SplashScreen.cpp" />
@@ -291,6 +311,7 @@
     <ClCompile Include="src\Renderer\SubTexture2D.cpp" />
     <ClCompile Include="src\Renderer\Texture.cpp" />
     <ClCompile Include="src\Renderer\ThumbnailRenderer.cpp" />
+    <ClCompile Include="src\Renderer\UniformBuffer.cpp" />
     <ClCompile Include="src\Renderer\VertexArray.cpp" />
     <ClCompile Include="src\Scene\Archive.cpp" />
     <ClCompile Include="src\Scene\BuiltinPrefabs.cpp" />
@@ -298,6 +319,7 @@
     <ClCompile Include="src\Scene\ECSystems\ECSystemGraph.cpp" />
     <ClCompile Include="src\Scene\Entity.cpp" />
     <ClCompile Include="src\Scene\EntityRegistry.cpp" />
+    <ClCompile Include="src\Scene\ParticleComponent.cpp" />
     <ClCompile Include="src\Scene\PrefabRegistry.cpp" />
     <ClCompile Include="src\Scene\Scene.cpp" />
     <ClCompile Include="src\Scene\SceneClone.cpp" />
@@ -329,6 +351,22 @@
   <ItemGroup>
     <ClInclude Include="src\Asset\AssetAuthoring.h" />
     <ClInclude Include="src\Build\Packager.h" />
+    <ClInclude Include="src\Particle\AttributeRegistry.h" />
+    <ClInclude Include="src\Particle\EmitterAsset.h" />
+    <ClInclude Include="src\Particle\EmitterAssetIO.h" />
+    <ClInclude Include="src\Particle\EmitterCompiler.h" />
+    <ClInclude Include="src\Particle\ModuleAsset.h" />
+    <ClInclude Include="src\Particle\Modules.h" />
+    <ClInclude Include="src\Particle\ParticleAsset.h" />
+    <ClInclude Include="src\Particle\ParticleBillboard.h" />
+    <ClInclude Include="src\Particle\ParticleDataSet.h" />
+    <ClInclude Include="src\Particle\ParticleEmitter.h" />
+    <ClInclude Include="src\Particle\ParticleSelfTest.h" />
+    <ClInclude Include="src\Particle\ParticleSystem.h" />
+    <ClInclude Include="src\Particle\ParticleTypes.h" />
+    <ClInclude Include="src\Particle\Program.h" />
+    <ClInclude Include="src\Particle\ProgramBuilder.h" />
+    <ClInclude Include="src\Particle\VM.h" />
     <ClInclude Include="src\Platform\Process.h" />
     <ClInclude Include="src\Asset\AssetLibrary.h" />
     <ClInclude Include="src\Asset\BuiltinReousrces.h" />
@@ -377,6 +415,7 @@
     <ClInclude Include="src\Core\Window.h" />
     <ClInclude Include="src\Graph\NodeGraph.h" />
     <ClInclude Include="src\Gui\Gui.h" />
+    <ClInclude Include="src\Gui\Vellum\Core\Animated.h" />
     <ClInclude Include="src\Gui\Vellum\Core\DrawList.h" />
     <ClInclude Include="src\Gui\Vellum\Core\InputFrame.h" />
     <ClInclude Include="src\Gui\Vellum\Core\Layout.h" />
@@ -389,10 +428,14 @@
     <ClInclude Include="src\Gui\Vellum\Widgets\Button.h" />
     <ClInclude Include="src\Gui\Vellum\Widgets\ColoredBox.h" />
     <ClInclude Include="src\Gui\Vellum\Widgets\Column.h" />
+    <ClInclude Include="src\Gui\Vellum\Widgets\Image.h" />
     <ClInclude Include="src\Gui\Vellum\Widgets\InputBox.h" />
+    <ClInclude Include="src\Gui\Vellum\Widgets\NineGridImage.h" />
     <ClInclude Include="src\Gui\Vellum\Widgets\ScrollPanel.h" />
+    <ClInclude Include="src\Gui\Vellum\Widgets\Splitter.h" />
     <ClInclude Include="src\Gui\Vellum\Widgets\Stack.h" />
     <ClInclude Include="src\Gui\Vellum\Widgets\TextBlock.h" />
+    <ClInclude Include="src\Gui\Vellum\Widgets\TooltipBox.h" />
     <ClInclude Include="thirdparty\stb_truetype\stb_truetype.h" />
     <ClInclude Include="src\Gui\Vellum\VellumRenderer.h" />
     <ClInclude Include="src\Gui\Vellum\WidgetTree.h" />
@@ -436,11 +479,13 @@
     <ClInclude Include="src\Platform\OpenGL\OpenGLBuffer.h" />
     <ClInclude Include="src\Platform\OpenGL\OpenGLContext.h" />
     <ClInclude Include="src\Platform\OpenGL\OpenGLFrameBuffer.h" />
+    <ClInclude Include="src\Platform\OpenGL\OpenGLIndirectBuffer.h" />
     <ClInclude Include="src\Platform\OpenGL\OpenGLRendererAPI.h" />
     <ClInclude Include="src\Platform\OpenGL\OpenGLShader.h" />
     <ClInclude Include="src\Platform\OpenGL\OpenGLStaticMesh.h" />
     <ClInclude Include="src\Platform\OpenGL\OpenGLStorageBuffer.h" />
     <ClInclude Include="src\Platform\OpenGL\OpenGLTexture.h" />
+    <ClInclude Include="src\Platform\OpenGL\OpenGLUniformBuffer.h" />
     <ClInclude Include="src\Platform\OpenGL\OpenGLVertexArray.h" />
     <ClInclude Include="src\Platform\WindowInput.h" />
     <ClInclude Include="src\Renderer\Atmosphere.h" />
@@ -449,6 +494,7 @@
     <ClInclude Include="src\Renderer\VolumetricLight.h" />
     <ClInclude Include="src\Renderer\FrameBuffer.h" />
     <ClInclude Include="src\Renderer\GraphicsContext.h" />
+    <ClInclude Include="src\Renderer\IndirectBuffer.h" />
     <ClInclude Include="src\Renderer\Camera.h" />
     <ClInclude Include="src\Renderer\CameraController.h" />
     <ClInclude Include="src\Renderer\Projection.h" />
@@ -499,15 +545,18 @@
     <ClInclude Include="src\Renderer\Pipeline\SettingsRegistry.h" />
     <ClInclude Include="src\Renderer\SceneRenderer.h" />
     <ClInclude Include="src\Renderer\SceneViewRenderer.h" />
+    <ClInclude Include="src\Renderer\PipelineState.h" />
     <ClInclude Include="src\Renderer\SceneView.h" />
     <ClInclude Include="src\Renderer\Shader.h" />
     <ClInclude Include="src\Renderer\ShaderGenerator.h" />
     <ClInclude Include="src\Renderer\SplashScreen.h" />
+    <ClInclude Include="src\Renderer\SpaceBackgroundUniforms.h" />
     <ClInclude Include="src\Renderer\StaticMesh.h" />
     <ClInclude Include="src\Renderer\StorageBuffer.h" />
     <ClInclude Include="src\Renderer\SubTexture2D.h" />
     <ClInclude Include="src\Renderer\Texture.h" />
     <ClInclude Include="src\Renderer\ThumbnailRenderer.h" />
+    <ClInclude Include="src\Renderer\UniformBuffer.h" />
     <ClInclude Include="src\Renderer\VertexArray.h" />
     <ClInclude Include="src\Scene\Archive.h" />
     <ClInclude Include="src\Scene\Components.h" />
@@ -519,6 +568,7 @@
     <ClInclude Include="src\Scene\Scene.h" />
     <ClInclude Include="src\Scene\SceneClone.h" />
     <ClInclude Include="src\Scene\SceneSerializer.h" />
+    <ClInclude Include="src\Scene\SpaceBackground.h" />
     <ClInclude Include="src\Scene\Terrain\QuadTreeTerrain.h" />
     <ClInclude Include="src\Scene\Terrain\Terrain.h" />
     <ClInclude Include="src\Scene\Terrain\TerrainBuildQueue.h" />

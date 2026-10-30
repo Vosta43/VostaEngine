@@ -96,6 +96,16 @@ void main() {
         if (texture) m_textures[id] = texture;
     }
 
+    TextureId VellumRenderer::acquireTextureId() {
+        return m_nextTextureId++;
+    }
+
+    TextureId VellumRenderer::addTexture(const Ref<Texture2D>& texture) {
+        const TextureId id = acquireTextureId();
+        registerTexture(id, texture);
+        return id;
+    }
+
     void VellumRenderer::render(const DrawList& list, const glm::vec2& surfaceSize) {
         init();
         if (!m_shader || list.commands.empty()) return;
@@ -121,7 +131,7 @@ void main() {
 
         RenderCommand::setDepthTesting(false);
         RenderCommand::setBlend(true);
-        RenderCommand::setBlendFunc(RendererAPI::BlendFunc::SrcAlpha, RendererAPI::BlendFunc::OneMinusSrcAlpha);
+        RenderCommand::setBlendFunc(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha);
         RenderCommand::setScissorTest(true);
 
         TextureId boundTexture = ~static_cast<TextureId>(0);

@@ -29,9 +29,22 @@ void main()
     // Pass texture coordinates
     v_TexCoord = a_TexCoord;
     
-    // Transform normals and tangents to world space (assuming uniform scale)
+    // Transform normals and tangents to world space (assuming uniform scale).
+    //
+    // The tangent is re-orthogonalised, and rebuilt from scratch when it is
+    // degenerate: imported meshes can arrive with no UVs, or with degenerate UV
+    // gradients that leave the importer's fallback tangent parallel to the
+    // normal. normalize() of a zero vector is NaN, and a NaN tangent poisons the
+    // TBN -- and with it every shaded normal, which makes the whole surface
+    // ignore lighting.
     v_Normal = normalize(mat3(u_Model) * a_Normal);
-    v_Tangent = normalize(mat3(u_Model) * a_Tangent);
+    vec3 tangent = mat3(u_Model) * a_Tangent;
+    tangent = tangent - dot(tangent, v_Normal) * v_Normal;
+    if (dot(tangent, tangent) < 1e-12) {
+        vec3 helper = (abs(v_Normal.y) < 0.99) ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+        tangent = cross(helper, v_Normal);
+    }
+    v_Tangent = normalize(tangent);
     v_Bitangent = cross(v_Normal, v_Tangent);
 }
 

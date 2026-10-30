@@ -154,7 +154,11 @@ namespace ve {
             auto& transform = m_scene->getComponent<TransformComponent>(et);
             auto& lightComp = m_scene->getComponent<LightComponent>(et);
             DrawLightCommand cmd;
-            cmd.position = ve::Vec3f(transform.position);
+            // The transform places the light; the component's own `position` is
+            // an offset from it. That field is serialized and drawn in the
+            // inspector, but nothing ever read it, so setting it did nothing at
+            // all while the light stayed where the entity was.
+            cmd.position = ve::Vec3f(transform.position) + lightComp.light.position;
             cmd.light = lightComp.light;
             ctx.drawLightCommands.push_back(cmd);
         }

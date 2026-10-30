@@ -30,9 +30,19 @@ void main() {
     v_WorldPos = worldPos.xyz + u_WorldOrigin;
     v_TexCoord = a_TexCoord;
 
-    vec3 T = normalize(mat3(u_Model) * a_Tangent);
     vec3 N = normalize(mat3(u_Model) * a_Normal);
-    T = normalize(T - dot(T, N) * N);
+    // Rebuild the tangent when it is degenerate: a mesh with no UVs (or with
+    // degenerate UV gradients) leaves the importer's fallback tangent parallel
+    // to N, Gram-Schmidt collapses to zero, and normalize(0) is NaN -- which
+    // poisons v_TBN and every normal this shader writes to the GBuffer, so the
+    // surface ignores all lighting.
+    vec3 T = mat3(u_Model) * a_Tangent;
+    T = T - dot(T, N) * N;
+    if (dot(T, T) < 1e-12) {
+        vec3 helper = (abs(N.y) < 0.99) ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+        T = cross(helper, N);
+    }
+    T = normalize(T);
     vec3 B = cross(N, T);
     v_TBN = mat3(T, B, N);
 

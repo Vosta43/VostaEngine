@@ -11,6 +11,7 @@
 #include "Renderer/MaterialLayerAsset.h"
 #include "Scene/Terrain/TerrainDataResource.h"
 #include "Gui/Hud/HudAsset.h"
+#include "Particle/ParticleAsset.h"
 
 #include <cstdint>
 
@@ -29,8 +30,14 @@ namespace ve {
 				case TextureFormat::SRGB8_ALPHA8: return 4;
 				case TextureFormat::RG16F:        return 4;
 				case TextureFormat::R32UI:        return 4;
+				case TextureFormat::R32I:         return 4;
+				case TextureFormat::R32F:         return 4;
+				case TextureFormat::Depth32F:     return 4;
+				case TextureFormat::Depth24Stencil8: return 4;
 				case TextureFormat::RGB16F:       return 6;
 				case TextureFormat::RGBA16F:      return 8;
+				case TextureFormat::RG8:          return 2;
+				case TextureFormat::RG32F:        return 8;
 				default:                          return 4;   // NONE: assume RGBA8
 			}
 		}
@@ -39,6 +46,7 @@ namespace ve {
 		constexpr size_t kMaterialBytes  = 8 * 1024;
 		constexpr size_t kLayerBytes     = 4 * 1024;
 		constexpr size_t kHudBytes       = 4 * 1024;
+		constexpr size_t kParticleBytes  = 4 * 1024;
 	}
 
 	size_t estimateBytes(const Texture2D& texture) {
@@ -106,5 +114,13 @@ namespace ve {
 
 	size_t estimateBytes(const HudAsset&) {
 		return kHudBytes;
+	}
+
+	size_t estimateBytes(const ParticleAsset& particle) {
+		// Module stacks plus their compiled bytecode; tiny next to any texture.
+		size_t entries = 0;
+		for (const auto& stage : particle.emitter.stages)
+			entries += stage.size();
+		return kParticleBytes + entries * 512;
 	}
 }

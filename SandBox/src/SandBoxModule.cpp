@@ -35,7 +35,35 @@ static const char* kHudJson = R"JSON(
 
       { "type": "text", "name": "Echo",
         "anchor": [0.5, 0.0], "offset": [0, 348],
-        "props": { "text": "Echo: ", "color": [0.75, 0.83, 0.95, 1], "fontSize": 28 } }
+        "props": { "text": "Echo: ", "color": [0.75, 0.83, 0.95, 1], "fontSize": 28 } },
+
+      { "type": "nine_grid_image", "name": "NineNative",
+        "anchor": [1, 0], "offset": [-100, 40],
+        "props": { "source": "content/textures/ninegrid_test.png", "cellSize": 72, "size": [216, 216] } },
+
+      { "type": "text", "name": "NineNativeLabel",
+        "anchor": [1, 0], "offset": [-100, 262],
+        "props": { "text": "cell 72 - 3x3 blocks - 216x216", "color": [0.85, 0.88, 0.95, 1], "fontSize": 16 } },
+
+      { "type": "nine_grid_image", "name": "NineTiled",
+        "anchor": [1, 0], "offset": [-100, 300],
+        "props": { "source": "content/textures/ninegrid_test.png", "cellSize": 72, "size": [300, 140] } },
+
+      { "type": "text", "name": "NineTiledLabel",
+        "anchor": [1, 0], "offset": [-40, 524],
+        "props": { "text": "size 300x140 -> 360x216", "color": [0.85, 0.88, 0.95, 1], "fontSize": 16 } },
+
+      { "type": "nine_grid_image", "name": "NineCell48",
+        "anchor": [1, 0], "offset": [-100, 560],
+        "props": { "source": "content/textures/ninegrid_test.png", "cellSize": 48, "size": [300, 140] } },
+
+      { "type": "text", "name": "NineCell48Label",
+        "anchor": [0, 0], "offset": [530, 570],
+        "props": { "text": "cell 48 - size 300x140 -> 336x144", "color": [0.85, 0.88, 0.95, 1], "fontSize": 16 } },
+
+      { "type": "image", "name": "ImageStretch",
+        "anchor": [0.5, 1], "offset": [30, -30],
+        "props": { "source": "content/textures/ninegrid_test.png", "size": [300, 90] } }
     ]
   }
 }
@@ -58,14 +86,23 @@ public:
 
 		ve::HudBuildContext ctx;
 		ctx.atlasFor = [layer](float size) { return layer->font(size); };
+		ctx.textureFor = [layer](const std::string& path, glm::vec2& sizeOut) {
+			return layer->texture(path, sizeOut);
+		};
 
 		m_hud = ve::HudInstance::create(asset, ctx);
 		if (!m_hud)
 			return;
 
 		// The event stays code-side; the document only carries the name it binds to.
-		if (auto* start = m_hud->button("StartButton"))
+		if (auto* start = m_hud->button("StartButton")) {
 			start->setOnClick([] { VE_CORE_INFO_PRINT("%s", "[SandBox] HUD StartButton clicked"); });
+			start->setTooltip("Fires the Start handler in the game module");
+		}
+		if (auto* title = m_hud->text("Title"))
+			title->setTooltip("Pushed from SandBoxModule::onUpdate every frame");
+		if (auto* img = m_hud->image("ImageStretch"))
+			img->setTooltip("Image: a 344x216 source stretched into a 300x90 slot");
 
 		if (auto* input = m_hud->inputBox("NameInput")) {
 			input->setOnTextChanged([this](const std::string& text) {
@@ -94,7 +131,33 @@ public:
 			}
 
 			panel->addChild(list);
+			panel->setTooltip("A ScrollPanel: wheel over it, then hover its rows");
 			root->add(panel, { 24.0f, 80.0f }, { 0.0f, 0.0f });
+
+			// Splitter demo: horizontal split, with a nested vertical split on the
+			// left. Drag either bar; minimums are enforced on both sides.
+			auto makeBox = [](const glm::vec4& color, const glm::vec2& size,
+			                  const char* tooltip) {
+				auto box = ve::CreateRef<ve::vellum::ColoredBox>(color, size);
+				box->setTooltip(tooltip);
+				return box;
+			};
+
+			auto left = ve::CreateRef<ve::vellum::Splitter>(
+				ve::vellum::Splitter::Orientation::Vertical);
+			left->addSlot(makeBox({ 0.20f, 0.32f, 0.55f, 1.0f }, { 280.0f, 110.0f },
+			                      "Left top. Drag the bar below me."), 1.0f, 40.0f);
+			left->addSlot(makeBox({ 0.15f, 0.23f, 0.40f, 1.0f }, { 280.0f, 110.0f },
+			                      "Left bottom"), 1.0f, 40.0f);
+
+			auto split = ve::CreateRef<ve::vellum::Splitter>(
+				ve::vellum::Splitter::Orientation::Horizontal);
+			split->setHandleThickness(8.0f);
+			split->addSlot(left, 1.0f, 80.0f);
+			split->addSlot(makeBox({ 0.55f, 0.26f, 0.18f, 1.0f }, { 200.0f, 220.0f },
+			                      "Right slot. Drag the vertical bar to resize both sides."),
+			               1.0f, 60.0f);
+			root->add(split, { 24.0f, 424.0f }, { 0.0f, 0.0f });
 		}
 
 		layer->setRoot(m_hud->rootRef());
@@ -107,6 +170,24 @@ public:
 		m_elapsed += deltaTime;
 		if (auto* title = m_hud->text("Title"))
 			title->setText("Vosta HUD  " + std::to_string(static_cast<int>(m_elapsed)));
+
+		// One shot, once the tree has arranged: proves ceiling of the block grid.
+		if (!m_layoutLogged) {
+			if (auto* native = m_hud->nineGridImage("NineNative");
+				native && native->drawnSize().x > 0.0f) {
+				m_layoutLogged = true;
+				for (const char* name : { "NineNative", "NineTiled", "NineCell48" }) {
+					auto* img = m_hud->nineGridImage(name);
+					if (!img)
+						continue;
+					VE_CORE_INFO_PRINT("[SandBox] %s cell=%.0f drawn=%.0fx%.0f", name,
+					                   img->cellSize(), img->drawnSize().x, img->drawnSize().y);
+				}
+				if (auto* img = m_hud->image("ImageStretch"))
+					VE_CORE_INFO_PRINT("[SandBox] ImageStretch drawn=%.0fx%.0f",
+					                   img->bounds().size.x, img->bounds().size.y);
+			}
+		}
 	}
 
 	void onEnd(ve::Scene& scene) override {
@@ -120,6 +201,7 @@ public:
 private:
 	ve::Ref<ve::HudInstance> m_hud;
 	float m_elapsed = 0.0f;
+	bool m_layoutLogged = false;
 };
 
 VE_GAME_MODULE(SandBoxModule)

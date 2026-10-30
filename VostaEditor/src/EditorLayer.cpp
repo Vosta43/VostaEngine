@@ -44,6 +44,10 @@ namespace ve {
         constexpr size_t kSceneLoadChunk = 64;
         constexpr auto kSceneLoadBudget = std::chrono::milliseconds(8);
 
+        // Chart-space distance ahead of the eye that a new entity lands at when the
+        // view axis misses the terrain.
+        constexpr float kSpawnStandoff = 10.0f;
+
     }
 
     EditorLayer::EditorLayer()
@@ -54,6 +58,8 @@ namespace ve {
                        [this]() { m_showTerrainMap = true; })
         , m_sceneView(m_editorView.getScene(), editorViewConfig())
     {
+        m_editorView.setSpawnPlacement([this]() { return newEntityPlacement(); });
+
         m_toolbar.setCallbacks({
             [this]() { startPlay(); },
             [this]() { stopPlay(); }
@@ -72,7 +78,9 @@ namespace ve {
     void EditorLayer::onAttach() {
 
         bootstrapProject();
-        m_fileBrowser.setRootPath(toProjectAbsolute("content"));
+        // Root at the project folder so content/'s parent is reachable; open on
+        // content/ so the panel looks unchanged until the user goes up.
+        m_fileBrowser.setRootPath(getProjectRoot().string(), toProjectAbsolute("content"));
         m_fileBrowser.setOnFileSelect([this](const std::string& path) { openFile(path); });
         m_fileBrowser.setOnSetDefaultScene([this](const std::string& path) {
             m_document.project().defaultScene = toProjectRelative(path);
@@ -445,7 +453,7 @@ namespace ve {
         if (!m_document.apply(projectDir))
             return;
 
-        m_fileBrowser.setRootPath(toProjectAbsolute("content"));
+        m_fileBrowser.setRootPath(getProjectRoot().string(), toProjectAbsolute("content"));
         m_fileBrowser.setDefaultScenePath(m_document.project().defaultScene.empty()
             ? std::string() : toProjectAbsolute(m_document.project().defaultScene));
 
@@ -560,6 +568,25 @@ namespace ve {
                                 m_mouseViewportPos, viewportSize, *m_editorView.getScene());
     }
 
+    ve::Vec3 EditorLayer::newEntityPlacement() {
+        auto& camera = m_sceneView.getCamera();
+        const glm::vec2 viewportSize = Application::get().getGuiLayer()->getViewportBounds().second;
+
+        // Reuse the terrain brush's raycast: the point a stroke would land on is
+        // also the point the user is looking at.
+        glm::vec3 hit, normal;
+        if (m_terrainEditor.hoverPoint(camera.getViewMatrix(), camera.getProjectionMatrix(),
+                                       viewportSize * 0.5f, viewportSize,
+                                       *m_editorView.getScene(), hit, normal))
+            return ve::Vec3(hit);
+
+        // Open sky, or a scene with no terrain: stand off the eye. The look axis
+        // comes from the inverse view so a piloted scene camera works too -- its
+        // yaw/pitch are stale, only the matrix is authoritative.
+        const glm::vec3 front = -glm::vec3(glm::inverse(camera.getViewMatrix())[2]);
+        return camera.getPosition() + ve::Vec3(front * kSpawnStandoff);
+    }
+
     void EditorLayer::startPlay() {
         if (m_playSession.isLive())
             return;
@@ -624,6 +651,13 @@ namespace ve {
         // Drive the runtime scene while a play session is live. Runs before the
         // view renders so this frame shows the tick's result.
         m_playSession.tick(DeltaTime::get().getDeltaTime());
+
+        // Particles preview on the authored scene while editing. A live session
+        // ticks its own cloned scene, so the two never advance twice.
+        if (!m_playSession.isLive()) {
+            if (Ref<Scene> scene = m_editorView.getScene())
+                scene->tickParticles(DeltaTime::get().getDeltaTime());
+        }
 
         // Camera update + aspect/viewport + scene render, all owned by the view.
         // The fly-speed boost scales the speed for just this update, then the base

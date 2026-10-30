@@ -22,6 +22,9 @@ namespace ve {
         void bind() override;
         void unbind() override;
         void blitToDefault(uint32_t dstWidth, uint32_t dstHeight) override;
+        void blitTo(Framebuffer* dst, const BlitRect& srcRect, const BlitRect& dstRect,
+                    bool color, bool depth, TextureFilter filter = TextureFilter::NEAREST) override;
+        uint32_t getRendererID() const override { return m_rendererID; }
 
         void resize(uint32_t width, uint32_t height) override;
 
@@ -42,11 +45,13 @@ namespace ve {
         uint32_t getHeight() const override { return m_height; }
 
         int32_t readPixel(uint32_t x, uint32_t y) const override;
+        void readPixels(uint32_t x, uint32_t y, uint32_t w, uint32_t h, void* out) const override;
 
     private:
         void createBuffers();
 
         uint32_t m_rendererID = 0;
+        // Renderbuffer used when the spec asks for depth without a texture.
         uint32_t m_depthAttachment = 0;
 
         uint32_t m_width;

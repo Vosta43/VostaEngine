@@ -6,6 +6,9 @@
 #include "Text/FontManager.h"
 #include "WidgetTree.h"
 
+#include <string>
+#include <unordered_map>
+
 namespace ve {
     class EventDispatcher;
 }
@@ -33,6 +36,11 @@ namespace ve::vellum {
         // The default face at an arbitrary pixel size, created on first request.
         FontAtlas* font(float pixelSize) { return m_fonts.font(pixelSize); }
 
+        // Loads `path` as a UI texture on first request and registers it with the
+        // renderer; `sizeOut` receives its pixel size. Returns 0 when the file does
+        // not load. Paths resolve against the engine/project roots like any asset.
+        TextureId texture(const std::string& path, glm::vec2& sizeOut);
+
         void onUIRender() override;
 
     private:
@@ -48,6 +56,14 @@ namespace ve::vellum {
 
         // Key events latched in arrival order; drained into the InputFrame each frame.
         std::vector<KeyInput> m_keys;
+
+        // Loaded UI textures, keyed by the path they were requested with. The size
+        // is cached alongside the id so a repeat request never touches the GPU.
+        struct UiTexture {
+            TextureId id = 0;
+            glm::vec2 size{ 0.0f };
+        };
+        std::unordered_map<std::string, UiTexture> m_textures;
     };
 
 }

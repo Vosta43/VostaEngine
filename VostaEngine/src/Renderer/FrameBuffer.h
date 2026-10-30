@@ -14,12 +14,16 @@ namespace ve {
         // Single-channel 16-bit unsigned integer. The RVT page table: each texel
         // holds a tile-cache array-layer index, which needs exact integers over the
         // full range, not float precision.
-        R16UI
+        R16UI,
+        // Single-channel 32-bit float, for passes that write one value per texel
+        // (a Hi-Z pyramid) and have it read back as floats.
+        R32F
     };
 
     enum class TextureDataFormat : uint8_t {
         RGBA,
-        RED_INTEGER
+        RED_INTEGER,
+        RED
     };
 
     enum class TextureDataType : uint8_t {
@@ -27,11 +31,6 @@ namespace ve {
         FLOAT,
         INT,
         UNSIGNED_SHORT
-    };
-
-    enum class TextureFilter : uint8_t {
-        LINEAR,
-        NEAREST
     };
 
     struct FramebufferAttachmentSpec {
@@ -44,13 +43,23 @@ namespace ve {
 
     struct FramebufferSpec
     {
+        // Float32 depth is the engine's choice: reverse-Z relies on the exponent's
+        // log distribution matching depth's, which only a float format has. A
+        // consumer on standard depth that wants stencil in the same attachment
+        // asks for Depth24Stencil8 instead.
+        enum class DepthFormat : uint8_t {
+            Depth32F,
+            Depth24Stencil8
+        };
+
         uint32_t width;
         uint32_t height;
         std::vector<FramebufferAttachmentSpec> colorAttachments;
-        // Float32 depth, not D24S8: reverse-Z relies on the exponent's log
-        // distribution matching depth's, which only a floating-point format has.
-        // Nothing in the engine uses stencil, so the attachment is depth-only.
         bool hasDepth = true;
+        DepthFormat depthFormat = DepthFormat::Depth32F;
+        // False stores depth in a renderbuffer: cheaper, but the depth cannot be
+        // sampled or read back (getDepthTexture() returns null).
+        bool depthAsTexture = true;
         // Put the depth attachment in compare mode so it can be sampled as a
         // sampler2DShadow (hardware depth test on each tap). Used by shadow maps.
         bool depthCompare = false;
@@ -66,6 +75,14 @@ namespace ve {
     public:
         virtual ~Framebuffer() = default;
 
+        // A rectangle in framebuffer pixels, origin bottom-left.
+        struct BlitRect {
+            int32_t x = 0;
+            int32_t y = 0;
+            int32_t width = 0;
+            int32_t height = 0;
+        };
+
         virtual void bind() = 0;
         virtual void unbind() = 0;
 
@@ -73,6 +90,15 @@ namespace ve {
         // scaling to the destination size. Presents an offscreen view to the
         // screen; the depth attachment is not copied.
         virtual void blitToDefault(uint32_t dstWidth, uint32_t dstHeight) = 0;
+
+        // Copy a rectangle of this target into `dst` (null = the default
+        // framebuffer). A depth blit always resolves with nearest filtering --
+        // the API forbids filtering depth -- and requires both targets to carry
+        // the same depth format.
+        virtual void blitTo(Framebuffer* dst, const BlitRect& srcRect, const BlitRect& dstRect,
+                            bool color, bool depth, TextureFilter filter = TextureFilter::NEAREST) = 0;
+
+        virtual uint32_t getRendererID() const = 0;
 
         virtual void resize(uint32_t width, uint32_t height) = 0;
 
@@ -97,6 +123,12 @@ namespace ve {
         virtual uint32_t getHeight() const = 0;
 
         virtual int32_t readPixel(uint32_t x, uint32_t y) const = 0;
+
+        // Synchronously reads a rectangle of color attachment 0 as tightly packed
+        // RGBA8 into `out` (w*h*4 bytes). Meant for byte-format targets
+        // (screenshots, icon thumbnails): an integer attachment cannot be read
+        // this way, and a float target is converted on read.
+        virtual void readPixels(uint32_t x, uint32_t y, uint32_t w, uint32_t h, void* out) const = 0;
 
         static Ref<Framebuffer> create(uint32_t width, uint32_t height);
         static Ref<Framebuffer> create(uint32_t width, uint32_t height, Format format);

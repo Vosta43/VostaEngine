@@ -24,13 +24,24 @@ out vec4 FragColor;
 uniform vec3 u_PlanetRelOrigin;
 
 #include "atmosphere.glsl"
+// The star field and nebula are part of the sky, so the cubemap that feeds the
+// irradiance convolution must contain them too.
+#include "space_background.glsl"
 
 void main()
 {
+    vec3 dir = normalize(v_Direction);
+
     // Scattered sky only. The sun disk is deliberately excluded (the direct sun
     // is added analytically in the lighting pass) and no exposure is applied, so
     // the convolved result lives in the same pre-exposure radiance space as the
     // HDR lighting pass.
-    vec3 sky = computeAtmosphereLUT(u_PlanetRelOrigin, normalize(v_Direction));
+    vec3 sky = computeAtmosphereLUT(u_PlanetRelOrigin, dir);
+
+    // Space background sits behind the atmosphere, exactly as in the HDR pass:
+    // attenuated by the transmittance LUT and occluded by the planet. With no
+    // atmosphere present (u_PlanetRadius == 0) both are skipped.
+    sky += veSpaceRadiance(u_PlanetRelOrigin, dir);
+
     FragColor = vec4(sky, 1.0);
 }

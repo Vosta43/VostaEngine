@@ -11,12 +11,24 @@ namespace ve {
 		OpenGLTexture2D(uint32_t width, uint32_t height);
 		OpenGLTexture2D(Ref<TextureResource> textureResource);
 		OpenGLTexture2D(uint32_t rendererID, uint32_t width, uint32_t height, bool ownsTexture);
+		// Non-owning wrapper that also records the storage format, so getFormat()
+		// (readback, memory accounting) matches what the owner allocated.
+		OpenGLTexture2D(uint32_t rendererID, uint32_t width, uint32_t height, TextureFormat format,
+			bool ownsTexture = false);
 		// Creates an empty 2D texture with the given format (e.g. TextureFormat::RG16F).
 		OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format);
 		// Same, with a mip chain of `mipLevels` levels. Every level is uploaded by the
 		// caller (setData / setDataLevel); nothing generates them.
 		OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format, uint32_t mipLevels);
+		// Empty texture with explicit sampling state; sampler.mipmaps allocates the
+		// full chain (call genMipmaps() after uploading level 0).
+		OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format,
+			const SamplerDesc& sampler);
+		OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format,
+			uint32_t mipLevels, const SamplerDesc& sampler);
 		~OpenGLTexture2D();
+
+		void genMipmaps() override;
 
 		uint32_t getWidth() const override {return m_width;}
 		uint32_t getHeight() const override { return m_height; }
@@ -24,7 +36,8 @@ namespace ve {
 		const std::string& getTextureFilePath() const override {return m_path;}
 
 		void setData(void* data,uint32_t size) override;
-		void setSubData(const void* data, uint32_t x, uint32_t y, uint32_t w, uint32_t h) override;
+		void setSubData(const void* data, uint32_t x, uint32_t y, uint32_t w, uint32_t h,
+			int32_t rowPitchTexels = 0) override;
 		void setDataLevel(void* data, uint32_t size, uint32_t mip) override;
 
 		void bind(uint32_t slot = 0) const override;
@@ -86,7 +99,11 @@ namespace ve {
 		// map it backs is sampled 1:1 against the tile.
 		OpenGLTexture2DArray(uint32_t width, uint32_t height, uint32_t layers,
 			TextureFormat format, const void* data);
+		OpenGLTexture2DArray(uint32_t width, uint32_t height, uint32_t layers,
+			TextureFormat format, const void* data, const SamplerDesc& sampler);
 		~OpenGLTexture2DArray();
+
+		void genMipmaps() override;
 
 		uint32_t getWidth() const override { return m_width; }
 		uint32_t getHeight() const override { return m_height; }
@@ -94,6 +111,7 @@ namespace ve {
 
 		const std::string& getTextureFilePath() const override { return m_path; }
 		void setData(void* data, uint32_t size) override;
+		void setDataLevel(void* data, uint32_t size, uint32_t mip) override;
 
 		void bind(uint32_t slot = 0) const override;
 		void bindImage(uint32_t unit, ImageAccess access, int level = 0,

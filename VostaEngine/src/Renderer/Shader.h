@@ -22,7 +22,19 @@ namespace ve {
 
 		virtual void bind() const = 0;
 		virtual void unbind() const = 0;
-		
+
+		// Program uniform location, or -1 when the name is absent. Cache the
+		// result: the location is fixed once the program links.
+		virtual int getUniformLocation(const std::string& name) { return -1; }
+
+		// The same uploads addressed by a cached location instead of a name, for
+		// callers that resolved their uniforms once at setup.
+		virtual void setFloat(int location, float value) {}
+		virtual void setFloat2(int location, const glm::vec2& value) {}
+		virtual void setFloat3(int location, const glm::vec3& value) {}
+		virtual void setFloat4(int location, const glm::vec4& value) {}
+		virtual void setMat4(int location, const glm::mat4& value) {}
+		virtual void setInt(int location, int value) {}
 		virtual void setFloat(const std::string& name, float value) {};
 		virtual void setFloat2(const std::string& name,const glm::vec2& value) {};
 		virtual void setFloat3(const std::string& name, const glm::vec3& value) {};
@@ -36,6 +48,10 @@ namespace ve {
 		// Binds `texture` to image `unit` and points the uimage* uniform `name` at
 		// it, so the shader can imageLoad / imageStore it.
 		virtual void setImage(const std::string& name, const Ref<Texture>& texture, uint32_t unit, ImageAccess access) {};
+		// Points uniform block `blockName` at `bindingPoint`, where a UniformBuffer
+		// created with that same point supplies its values. No-op if the block is
+		// absent (optimized out, or a different stage's shader).
+		virtual void bindUniformBlock(const std::string& blockName, uint32_t bindingPoint) {};
 		static Ref<Shader> create(const std::string& name,const std::string& vertexSrc, const std::string& fragmentSrc);
 		static Ref<Shader> create(const std::string& filePath);
 

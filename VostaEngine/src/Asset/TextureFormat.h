@@ -22,7 +22,23 @@ namespace ve {
 		R16UI = 10,
 		// Single-channel 32-bit unsigned integer; backs the RVT feedback counter
 		// image (one texel per pyramid page, bumped once per sampling fragment).
-		R32UI = 11
+		R32UI = 11,
+		// Two-channel byte and float formats. Appended so existing on-disk values
+		// keep their meaning.
+		RG8 = 12,
+		RG32F = 13,
+		// Single-channel 32-bit signed integer (the picking target) and 32-bit
+		// float depth (a framebuffer's depth attachment, read back as floats).
+		// Appended so existing on-disk values keep their meaning.
+		R32I = 14,
+		Depth32F = 15,
+		// Single-channel 32-bit float. Render target for single-value passes (a
+		// Hi-Z pyramid's depth pyramid) and the format whose texels are read back
+		// as floats. Appended so existing on-disk values keep their meaning.
+		R32F = 16,
+		// Depth packed with stencil in one attachment. Only meaningful as a
+		// framebuffer depth attachment; sampling it yields the depth only.
+		Depth24Stencil8 = 17
 	};
 
 	// Number of logical channels a texture format carries. Single source of truth
@@ -32,8 +48,14 @@ namespace ve {
 			case TextureFormat::R8:
 			case TextureFormat::R16F:
 			case TextureFormat::R16UI:
-			case TextureFormat::R32UI:       return 1;
-			case TextureFormat::RG16F:       return 2;
+			case TextureFormat::R32UI:
+			case TextureFormat::R32I:
+			case TextureFormat::R32F:
+			case TextureFormat::Depth32F:
+			case TextureFormat::Depth24Stencil8: return 1;
+			case TextureFormat::RG16F:
+			case TextureFormat::RG8:
+			case TextureFormat::RG32F:       return 2;
 			case TextureFormat::RGB:
 			case TextureFormat::RGB16F:
 			case TextureFormat::SRGB8:       return 3;

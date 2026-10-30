@@ -23,7 +23,7 @@ namespace ve {
 	public:
 		SceneRenderer(const Ref<Scene>& scene);
 
-			void collectAllMesh(RenderContext& ctx);
+		void collectAllMesh(RenderContext& ctx);
 		void collectAllLight(RenderContext& ctx);
 		void collectAllSprites(RenderContext& ctx);
 

@@ -3,6 +3,7 @@
 
 #include "FontAtlas.h"
 #include "Core/Log.h"
+#include "Gui/Vellum/VellumRenderer.h"
 
 namespace ve::vellum {
 
@@ -22,11 +23,11 @@ namespace ve::vellum {
 		if (found != m_cache.end())
 			return found->second.get();
 
-		Ref<FontAtlas> atlas = FontAtlas::create(m_defaultPath, pixelSize, m_nextId, *m_renderer);
+		Ref<FontAtlas> atlas = FontAtlas::create(m_defaultPath, pixelSize,
+		                                         m_renderer->acquireTextureId(), *m_renderer);
 		if (!atlas)
 			return nullptr;
 
-		++m_nextId;
 		return m_cache.emplace(key, std::move(atlas)).first->second.get();
 	}
 

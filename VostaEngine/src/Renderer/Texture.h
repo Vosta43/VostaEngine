@@ -16,6 +16,38 @@ namespace ve {
 		ReadWrite
 	};
 
+	// GL's filter modes. The four mipmap variants only take effect when the
+	// texture was allocated with a mip chain (SamplerDesc::mipmaps or an explicit
+	// level count); otherwise they fall back to their non-mip counterpart.
+	enum class TextureFilter : uint8_t {
+		LINEAR,
+		NEAREST,
+		NEAREST_MIPMAP_NEAREST,
+		LINEAR_MIPMAP_NEAREST,
+		NEAREST_MIPMAP_LINEAR,
+		LINEAR_MIPMAP_LINEAR
+	};
+
+	enum class TextureWrap : uint8_t {
+		ClampToEdge,
+		Repeat,
+		MirrorRepeat
+	};
+
+	// Sampling state fixed on the texture at creation. Integer formats ignore the
+	// filters and always sample NEAREST, since GL has no linear filter for them.
+	struct SamplerDesc {
+		TextureFilter minFilter = TextureFilter::LINEAR;
+		TextureFilter magFilter = TextureFilter::LINEAR;
+		TextureWrap wrapS = TextureWrap::ClampToEdge;
+		TextureWrap wrapT = TextureWrap::ClampToEdge;
+		TextureWrap wrapR = TextureWrap::ClampToEdge;
+		// Allocates the full mip chain and samples across levels with the min
+		// filter. The chain itself is only written by genMipmaps(), so callers
+		// upload level 0 first and then generate.
+		bool mipmaps = false;
+	};
+
 	class VE_API Texture {
 	public:
 		virtual ~Texture() = default;
@@ -68,17 +100,33 @@ namespace ve {
 		static Ref<Texture2D> create(uint32_t width, uint32_t height);
 
 		static Ref<Texture2D> create(uint32_t rendererID, uint32_t width, uint32_t height);
+		// Wraps an existing GL texture without taking ownership; the format must
+		// match the storage, since getFormat drives readback and memory accounting.
+		static Ref<Texture2D> create(uint32_t rendererID, uint32_t width, uint32_t height,
+			TextureFormat format);
 		// Creates an empty 2D texture with the given format (RGBA, RGB, R8, RG16F, etc.).
 		static Ref<Texture2D> create(uint32_t width, uint32_t height, TextureFormat format);
 		// Same, but with a mip chain of `mipLevels` levels allocated up front. Nothing
 		// generates them: every level is uploaded by the caller, because a page table's
 		// levels are independent data, not a filtered pyramid of level 0.
 		static Ref<Texture2D> create(uint32_t width, uint32_t height, TextureFormat format, uint32_t mipLevels);
+		// Empty texture with explicit sampling state. With sampler.mipmaps the whole
+		// chain is allocated; call genMipmaps() after uploading level 0.
+		static Ref<Texture2D> create(uint32_t width, uint32_t height, TextureFormat format,
+			const SamplerDesc& sampler);
+		static Ref<Texture2D> create(uint32_t width, uint32_t height, TextureFormat format,
+			uint32_t mipLevels, const SamplerDesc& sampler);
 
-		// Uploads a w×h block of tightly-packed pixels into the (x, y) corner of the
-		// texture, leaving the rest untouched. Lets a dynamic atlas grow a glyph at a
-		// time instead of re-uploading the whole surface.
-		virtual void setSubData(const void* data, uint32_t x, uint32_t y, uint32_t w, uint32_t h) = 0;
+		// Rebuilds the chain from level 0. The texture must have been allocated with
+		// room for it (sampler.mipmaps or an explicit mipLevels).
+		virtual void genMipmaps() = 0;
+
+		// Uploads a w×h block of pixels into the (x, y) corner of the texture,
+		// leaving the rest untouched. Lets a dynamic atlas grow a glyph at a time
+		// instead of re-uploading the whole surface. rowPitchTexels is the stride
+		// between source rows; 0 means tightly packed.
+		virtual void setSubData(const void* data, uint32_t x, uint32_t y, uint32_t w, uint32_t h,
+			int32_t rowPitchTexels = 0) = 0;
 		// Uploads `data` (that level's tightly-packed pixels) into mip level `mip`.
 		// Level 0 is equivalent to setData().
 		virtual void setDataLevel(void* data, uint32_t size, uint32_t mip) = 0;
@@ -101,8 +149,19 @@ namespace ve {
 		// after another; upload it with setData otherwise.
 		static Ref<Texture2DArray> create(uint32_t width, uint32_t height, uint32_t layers,
 			TextureFormat format, const void* data);
+		// Same, with explicit sampling state; see Texture2D's SamplerDesc overloads.
+		static Ref<Texture2DArray> create(uint32_t width, uint32_t height, uint32_t layers,
+			TextureFormat format, const void* data, const SamplerDesc& sampler);
 
 		virtual uint32_t getLayers() const = 0;
+
+		// Uploads `data` (that level's pixels for every slice, slice-major) into
+		// mip level `mip`. For hand-built chains: allocate with sampler.mipmaps
+		// and upload every level, since a filtered pyramid is wrong for atlases.
+		virtual void setDataLevel(void* data, uint32_t size, uint32_t mip) = 0;
+
+		// Rebuilds the chain from level 0 across every layer.
+		virtual void genMipmaps() = 0;
 	};
 
 	class VE_API Texture3D : public Texture {

@@ -31,10 +31,17 @@ void Button::arrange(const Rect& slot) {
 	}
 }
 
+void Button::tick(float dt) {
+	m_hoverAnim.to(isHovered() ? 1.0f : 0.0f);
+	m_pressAnim.to(isPressed() ? 1.0f : 0.0f);
+	m_hoverAnim.tick(dt);
+	m_pressAnim.tick(dt);
+	Widget::tick(dt);
+}
+
 void Button::paint(PaintContext& ctx) {
-	const glm::vec4& color = isPressed() ? m_pressedColor
-	                      : isHovered()  ? m_hoverColor
-	                      :                m_color;
+	glm::vec4 color = glm::mix(m_color, m_hoverColor, m_hoverAnim.value);
+	color = glm::mix(color, m_pressedColor, m_pressAnim.value);
 	ctx.fillRect(m_rect, color);
 	Widget::paint(ctx);
 }

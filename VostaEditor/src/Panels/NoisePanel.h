@@ -32,6 +32,9 @@ namespace ve {
         // external write.
         void loadGraphFromDisk();
         void rebuildPreview();
+        // Re-maps the baked pixels through the display window into m_pixels and
+        // uploads. View-only: never touches the file, the export, or the MCP bake.
+        void applyDisplayWindow();
         void saveToFile();
         // Registers a self-contained saver (path + graph snapshot) with the dirty
         // registry, so the global Save covers the interval before the deferred
@@ -47,7 +50,13 @@ namespace ve {
         // Bake resolution of the preview. A view setting, not asset data: switching
         // it re-bakes but never dirties the file.
         int m_previewSize = 256;
+        // Display window in the bake's normalized [0,1] space; view-only.
+        float m_displayMin = 0.0f;
+        float m_displayMax = 1.0f;
         Ref<Texture2D> m_preview;
+        // The bake as produced, kept so moving the display window re-maps without
+        // re-evaluating the graph; m_pixels is what gets uploaded.
+        std::vector<uint8_t> m_bakedPixels;
         std::vector<uint8_t> m_pixels;
         // Hash of the graph the preview currently shows / the file holds. The two are
         // tracked apart so a deferred save can lag the live preview.

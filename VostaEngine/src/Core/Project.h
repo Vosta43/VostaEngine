@@ -6,15 +6,28 @@
 
 namespace ve {
 
+// Who draws the window backbuffer each frame: the engine's SceneView (Scene), or
+// the gameplay module through its own renderer (Module). Only the host decides
+// whether to create a SceneView at all; the Scene object exists either way.
+enum class Presentation {
+    Scene,
+    Module,
+};
+
 // Metadata for one project, persisted as project.json at the project folder
 // root. A project folder also holds content/ (scenes + imported assets) and
 // Saved/ (session state).
 struct VE_API ProjectInfo {
     std::string name;
     std::string defaultScene;   // project-relative, may be empty
+    Presentation presentation = Presentation::Scene;
 };
 
 namespace Project {
+
+    // "scene" / "module", the spelling used in project.json.
+    VE_API const char* presentationName(Presentation presentation);
+    VE_API Presentation parsePresentation(const std::string& name);
 
     // Absolute path to the folder holding every project: <assetRoot>/Projects.
     VE_API std::string projectsDir();

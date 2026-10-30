@@ -8,6 +8,7 @@
 #include "Renderer/LayeredMaterial.h"
 #include "Renderer/Material.h"
 #include "Renderer/MaterialLayerAsset.h"
+#include "Particle/ParticleAsset.h"
 
 #include <filesystem>
 
@@ -104,6 +105,15 @@ void AssetEditorHost::openTerrainRule(const std::string& path) {
     m_showTerrainRuleEditor = true;
 }
 
+void AssetEditorHost::openParticle(const std::string& path) {
+    // Register with ResourceManager so the particle component's asset combo can
+    // list it; ParticlePanel keeps its own copy for editing.
+    if (!ResourceManager::find<ParticleAsset>(path).isValid())
+        ResourceManager::store<ParticleAsset>(path);
+    m_particlePanel.openFile(path);
+    m_showParticleEditor = true;
+}
+
 void AssetEditorHost::openTexture(const std::string& path) {
     AssetHandle handle = ResourceManager::find<Texture2D>(path);
     if (!handle.isValid())
@@ -161,6 +171,11 @@ bool AssetEditorHost::openFile(const std::string& path) {
             return true;
         }
 
+        if (token == "particle") {
+            openParticle(path);
+            return true;
+        }
+
         if (token == "texture") {
             openTexture(path);
             return true;
@@ -199,6 +214,10 @@ void AssetEditorHost::onGuiRender() {
 
     if (m_showTerrainRuleEditor) {
         m_terrainRulePanel.onGuiRender(&m_showTerrainRuleEditor);
+    }
+
+    if (m_showParticleEditor) {
+        m_particlePanel.onGuiRender(&m_showParticleEditor);
     }
 
     if (m_showMaterialLayerEditor) {

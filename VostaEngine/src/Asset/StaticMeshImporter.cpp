@@ -116,8 +116,19 @@ namespace ve {
             if (glm::length(v.tangent) > 1e-8f) {
                 v.tangent = glm::normalize(v.tangent);
             } else {
-                // Fallback: local +X direction (perpendicular to normal).
-                v.tangent = glm::vec3(1.0f, 0.0f, 0.0f);
+                // No usable UV gradient (missing or degenerate UVs). Build any
+                // basis perpendicular to the normal rather than a fixed +X: on
+                // surfaces facing +/-X that vector is parallel to the normal,
+                // Gram-Schmidt in the shader then collapses to zero and the
+                // tangent -- and every shaded normal with it -- becomes NaN.
+                glm::vec3 n = v.normal;
+                float nLen = glm::length(n);
+                n = (nLen > 1e-8f) ? n / nLen : glm::vec3(0.0f, 1.0f, 0.0f);
+                const glm::vec3 helper = (std::abs(n.y) < 0.99f) ? glm::vec3(0.0f, 1.0f, 0.0f)
+                                                                 : glm::vec3(1.0f, 0.0f, 0.0f);
+                v.tangent = glm::cross(helper, n);
+                const float tLen = glm::length(v.tangent);
+                v.tangent = (tLen > 1e-8f) ? v.tangent / tLen : glm::vec3(1.0f, 0.0f, 0.0f);
             }
         }
 

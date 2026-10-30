@@ -114,7 +114,7 @@ void ViewportOverlays::drawOverlays(SceneView& view, const Ref<Scene>& scene, ui
         if (!cameraView.empty()) {
             // The piloted camera IS the viewport camera, so its own frustum would
             // be drawn at the eye -- skip it.
-            const bool sceneDriven = view.getCameraSource() == SceneView::CameraSource::Scene;
+            const bool sceneDriven = view.isSceneDriven();
             uint32_t activeCam = view.getSceneCameraEntity().getId();
             if (activeCam == 0xFFFFFFFFu) activeCam = scene->getPrimaryCameraEntity().getId();
 
@@ -254,6 +254,27 @@ int32_t ViewportOverlays::performPick(SceneView& view, const Ref<Scene>& scene) 
         }
     }
 
+    {
+        // The emitter has no visible icon, but it still needs a click target of
+        // its own: the particles themselves are not pickable.
+        auto particleView = scene->getRegistry().group<TransformComponent, ParticleComponent>();
+        if (!particleView.empty()) {
+            const auto& viewMatrix = view.getCamera().getViewMatrix();
+            const glm::vec3 cameraPos = glm::vec3(view.getCamera().getPosition());
+
+            for (uint32_t entity : particleView) {
+                const auto& transform = scene->getComponent<TransformComponent>(entity);
+                glm::vec3 emitterOrigin = glm::vec3(transform.position);
+
+                float dist = glm::length(emitterOrigin - cameraPos);
+                float scale = glm::clamp(dist * 0.08f, 0.3f, 3.0f) * 0.5f;
+
+                glm::mat4 billboardMat = makeBillboard(emitterOrigin, viewMatrix);
+                Renderer2D::drawPickingQuad(billboardMat, glm::vec2(scale), entity);
+            }
+        }
+    }
+
     Renderer2D::endPickingScene();
     Renderer3D::endPickingScene();
 
@@ -266,11 +287,23 @@ int32_t ViewportOverlays::performPick(SceneView& view, const Ref<Scene>& scene) 
 glm::mat4 ViewportOverlays::makeBillboard(const glm::vec3& position, const glm::mat4& viewMatrix) {
     glm::vec3 cameraPos = glm::vec3(glm::inverse(viewMatrix)[3]);
 
-    glm::vec3 forward = glm::normalize(cameraPos - position);
+    // An icon sitting on the eye has no facing to derive: normalize(0) would put
+    // NaN in the vertex data.
+    const glm::vec3 toCamera = cameraPos - position;
+    const float distance = glm::length(toCamera);
+    if (distance < 1e-4f) {
+        glm::mat4 atEye(1.0f);
+        atEye[3] = glm::vec4(position, 1.0f);
+        return atEye;
+    }
+    const glm::vec3 forward = toCamera / distance;
 
-    glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    glm::vec3 right = glm::normalize(glm::cross(worldUp, forward));
-    glm::vec3 up = glm::normalize(glm::cross(forward, right));
+    // A straight-down view makes the world-up basis degenerate; reuse the terrain
+    // ring's fallback so the quad stays drawable.
+    const glm::vec3 worldUp = std::abs(forward.y) < 0.99f
+        ? glm::vec3(0.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
+    const glm::vec3 right = glm::normalize(glm::cross(worldUp, forward));
+    const glm::vec3 up = glm::normalize(glm::cross(forward, right));
 
     glm::mat4 billboard(1.0f);
     billboard[0] = glm::vec4(right, 0.0f);

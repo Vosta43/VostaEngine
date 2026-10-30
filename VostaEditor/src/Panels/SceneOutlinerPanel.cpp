@@ -84,7 +84,9 @@ void SceneOutliner::onGuiRender(uint32_t& selectedEntity)
             ImGui::BeginChild("##prefabs");
             for (const PrefabInfo& prefab : PrefabRegistry::get().list()) {
                 if (ImGui::Button(prefab.displayName.c_str(), ImVec2(-1.0f, 0.0f))) {
-                    Entity spawned = PrefabRegistry::get().spawn(prefab.key, *m_sceneContext);
+                    Entity spawned = m_spawnPlacement
+                        ? PrefabRegistry::get().spawnAt(prefab.key, *m_sceneContext, m_spawnPlacement())
+                        : PrefabRegistry::get().spawn(prefab.key, *m_sceneContext);
                     if (spawned.getId() != 0xFFFFFFFFu)
                         selectedEntity = spawned.getId();
                 }

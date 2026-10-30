@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="源文件">
@@ -66,16 +66,28 @@
     <ClCompile Include="src\Gui\Vellum\Widgets\Column.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Widgets\Image.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Gui\Vellum\Widgets\InputBox.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Widgets\NineGridImage.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Gui\Vellum\Widgets\ScrollPanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Widgets\Splitter.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Gui\Vellum\Widgets\Stack.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Gui\Vellum\Widgets\TextBlock.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Widgets\TooltipBox.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Gui\Vellum\VellumRenderer.cpp">
@@ -231,6 +243,9 @@
     <ClCompile Include="thirdparty\IMGUI\backends\imgui_impl_glfw.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Scene\ParticleComponent.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Scene\Scene.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -340,6 +355,21 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Platform\OpenGL\OpenGLStorageBuffer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\IndirectBuffer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Platform\OpenGL\OpenGLIndirectBuffer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\UniformBuffer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Platform\OpenGL\OpenGLUniformBuffer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\PipelineState.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Asset\ImportManager.cpp">
@@ -495,6 +525,42 @@
     <ClCompile Include="src\Geometry\CubeSphereLod.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Particle\ParticleAsset.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Particle\ParticleBillboard.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Particle\ParticleSystem.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Particle\AttributeRegistry.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Particle\EmitterCompiler.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Particle\EmitterAssetIO.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Particle\ParticleEmitter.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Particle\ParticleSelfTest.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Particle\ProgramBuilder.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Particle\VM.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Particle\Modules.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Particle\ParticleDataSet.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Core\Window.h">
@@ -522,6 +588,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Gui\Gui.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Core\Animated.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Gui\Vellum\Core\DrawList.h">
@@ -560,16 +629,28 @@
     <ClInclude Include="src\Gui\Vellum\Widgets\Column.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Widgets\Image.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Gui\Vellum\Widgets\InputBox.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Widgets\NineGridImage.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Gui\Vellum\Widgets\ScrollPanel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Widgets\Splitter.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Gui\Vellum\Widgets\Stack.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Gui\Vellum\Widgets\TextBlock.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Widgets\TooltipBox.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Gui\Vellum\VellumRenderer.h">
@@ -779,6 +860,12 @@
     <ClInclude Include="src\Scene\SceneSerializer.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Scene\SpaceBackground.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\SpaceBackgroundUniforms.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Scene\Archive.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -947,6 +1034,21 @@
     <ClInclude Include="src\Platform\OpenGL\OpenGLStorageBuffer.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Renderer\IndirectBuffer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Platform\OpenGL\OpenGLIndirectBuffer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\UniformBuffer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Platform\OpenGL\OpenGLUniformBuffer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\PipelineState.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Asset\ImportManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -1104,6 +1206,54 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Sdf\SdfNodes.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\ParticleAsset.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\ParticleBillboard.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\ParticleEmitter.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\ParticleSystem.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\ParticleDataSet.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\AttributeRegistry.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\EmitterAsset.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\EmitterCompiler.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\EmitterAssetIO.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\ModuleAsset.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\ProgramBuilder.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\ParticleSelfTest.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\ParticleTypes.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\Program.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\VM.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle\Modules.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

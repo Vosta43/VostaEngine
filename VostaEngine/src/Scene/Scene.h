@@ -19,6 +19,10 @@ namespace ve {
 
 		void onUpdate(float deltaTime);
 
+        // Advances particle components only. The editor calls this for the authored
+        // scene while editing, where the ECS graph must not run.
+        void tickParticles(float deltaTime);
+
         void onPickingRender();
 
         Entity createEntity();

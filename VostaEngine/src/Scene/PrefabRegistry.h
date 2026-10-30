@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Core.h"
+#include "Core/Types.h"
 #include "Scene/Entity.h"
 
 #include <functional>
@@ -20,6 +21,10 @@ namespace ve {
 		// Builds the entity in `scene` and returns it. Ensure-style prefabs (the
 		// terrain system) may return an existing entity rather than a new one.
 		std::function<Entity(Scene&)> spawn;
+		// Whether spawnAt() may move the result. False for prefabs whose transform
+		// is semantic -- the atmosphere's planet centre, a terrain tile's grid slot
+		// (tile (0,0) legitimately sits at the origin).
+		bool placeable = true;
 	};
 
 	// The named entity templates the editor's Create menu and the agent both build
@@ -41,6 +46,11 @@ namespace ve {
 		// an unknown key.
 		Entity spawn(const std::string& key, Scene& scene) const;
 
+		// Spawns like spawn(), then moves the result to `position` (chart space),
+		// unless the prefab is not placeable (see PrefabInfo) or placed its own
+		// transform.
+		Entity spawnAt(const std::string& key, Scene& scene, const Vec3& position) const;
+
 	private:
 		std::vector<PrefabInfo> m_prefabs;
 	};
@@ -49,8 +59,8 @@ namespace ve {
 	// ToolRegistrar / VECOMPONENT.
 	struct PrefabRegistrar {
 		PrefabRegistrar(const char* key, const char* displayName, const char* category,
-						std::function<Entity(Scene&)> spawn) {
-			PrefabRegistry::get().add({ key, displayName, category, std::move(spawn) });
+						std::function<Entity(Scene&)> spawn, bool placeable = true) {
+			PrefabRegistry::get().add({ key, displayName, category, std::move(spawn), placeable });
 		}
 	};
 

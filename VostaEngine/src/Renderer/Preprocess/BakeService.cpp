@@ -50,6 +50,7 @@ namespace ve {
 
     Ref<TextureCubeMap> BakeService::getAtmosphereIrradianceMap(
         const AtmosphereParams& params,
+        const SpaceBackgroundParams* space,
         const Ref<Texture2D>& transmittance,
         const Ref<Texture3D>& scattering,
         const Ref<Texture3D>& mieScattering,
@@ -67,15 +68,25 @@ namespace ve {
         key.sunDirection = glm::vec3(0.0f);
         key.exposure = 0.0f;
 
+        // A disabled component is the same sky as no component at all.
+        const SpaceBackgroundParams* activeSpace =
+            (space && space->enabled) ? space : nullptr;
+
+        const bool spaceDirty = activeSpace
+            ? (!m_hasCachedAtmSpace
+               || memcmp(activeSpace, &m_cachedAtmSpaceParams, sizeof(SpaceBackgroundParams)) != 0)
+            : m_hasCachedAtmSpace;
+
         constexpr float kSunCosEpsilon = 0.9999619f;  // ~0.5 degrees
         bool dirty = !m_hasCachedAtmIrradiance
             || memcmp(&key, &m_cachedAtmIrradianceParams, sizeof(AtmosphereParams)) != 0
-            || glm::dot(sunDir, m_cachedAtmIrradianceSunDir) < kSunCosEpsilon;
+            || glm::dot(sunDir, m_cachedAtmIrradianceSunDir) < kSunCosEpsilon
+            || spaceDirty;
         if (!dirty) return m_atmIrradiance;
 
         Ref<TextureCubeMap> sky = AtmosphereSkyBaker::bakeSkyCubemap(
             params, transmittance, scattering, mieScattering, multipleScattering,
-            cameraPlanetRel);
+            activeSpace, cameraPlanetRel);
         if (!sky) return m_atmIrradiance;
 
         Ref<TextureCubeMap> irradiance = IBLBaker::bakeIrradianceMap(sky);
@@ -85,9 +96,36 @@ namespace ve {
         m_cachedAtmIrradianceParams = key;
         m_cachedAtmIrradianceSunDir = sunDir;
         m_hasCachedAtmIrradiance = true;
+        if (activeSpace) {
+            m_cachedAtmSpaceParams = *activeSpace;
+            m_hasCachedAtmSpace = true;
+        } else {
+            m_hasCachedAtmSpace = false;
+        }
 
-        VE_CORE_SUCCESS_PRINT("%s", "BakeService: atmosphere irradiance re-baked");
+        VE_CORE_SUCCESS_PRINT("BakeService: atmosphere irradiance re-baked%s",
+            activeSpace ? " (with space background)" : "");
         return m_atmIrradiance;
+    }
+
+    Ref<TextureCubeMap> BakeService::getSpaceIrradianceMap(const SpaceBackgroundParams& space) {
+
+        bool dirty = !m_hasCachedSpaceIrradiance
+            || memcmp(&space, &m_cachedSpaceParams, sizeof(SpaceBackgroundParams)) != 0;
+        if (!dirty) return m_spaceIrradiance;
+
+        Ref<TextureCubeMap> sky = AtmosphereSkyBaker::bakeSpaceSkyCubemap(space);
+        if (!sky) return m_spaceIrradiance;
+
+        Ref<TextureCubeMap> irradiance = IBLBaker::bakeIrradianceMap(sky);
+        if (!irradiance) return m_spaceIrradiance;
+
+        m_spaceIrradiance = irradiance;
+        m_cachedSpaceParams = space;
+        m_hasCachedSpaceIrradiance = true;
+
+        VE_CORE_SUCCESS_PRINT("%s", "BakeService: space irradiance re-baked");
+        return m_spaceIrradiance;
     }
 
     Ref<Texture2D> BakeService::getTransmittanceLUT(const AtmosphereParams& params) {
@@ -101,26 +139,50 @@ namespace ve {
     }
 
     Ref<Texture3D> BakeService::getScatteringLUT(const AtmosphereParams& params) {
-        if (m_scatteringTexture) return m_scatteringTexture;
-        if (m_pendingScattering.task) return nullptr;
+        // The sun direction and exposure do not reach the LUT (the bake uses a
+        // fixed mu_s range), so they are excluded from the key -- otherwise a
+        // moving sun would re-bake the sky continuously.
+        AtmosphereParams key = params;
+        key.sunDirection = glm::vec3(0.0f);
+        key.exposure = 0.0f;
+
+        const bool matches =
+            m_scatteringTexture && memcmp(&key, &m_cachedScatteringParams, sizeof(AtmosphereParams)) == 0;
+        if (matches) return m_scatteringTexture;
+
+        // A bake is already in flight: keep serving the previous sky rather than
+        // returning null and rendering black while it lands.
+        if (m_pendingScattering.task) return m_scatteringTexture;
+
+        m_cachedScatteringParams = key;
         m_pendingScattering = JobSystem::get().schedule([params] {
             return AtmosphereBaker::computeScatteringData(params);
         }, {});
-        return nullptr;
+        return m_scatteringTexture;
     }
 
     Ref<Texture3D> BakeService::getMieScatteringLUT(const AtmosphereParams& params) {
+        // Both textures come out of the same bake; asking for the Rayleigh pair
+        // is what drives it.
         getScatteringLUT(params);
         return m_mieScatteringTexture;
     }
 
     Ref<Texture3D> BakeService::getMultipleScatteringLUT(const AtmosphereParams& params) {
-        if (m_multipleScatteringTexture) return m_multipleScatteringTexture;
-        if (m_pendingMultipleScattering.task) return nullptr;
+        AtmosphereParams key = params;
+        key.sunDirection = glm::vec3(0.0f);
+        key.exposure = 0.0f;
+
+        const bool matches =
+            m_multipleScatteringTexture && memcmp(&key, &m_cachedMultipleParams, sizeof(AtmosphereParams)) == 0;
+        if (matches) return m_multipleScatteringTexture;
+        if (m_pendingMultipleScattering.task) return m_multipleScatteringTexture;
+
+        m_cachedMultipleParams = key;
         m_pendingMultipleScattering = JobSystem::get().schedule([params] {
             return AtmosphereBaker::computeMultipleScatteringData(params);
         }, {});
-        return nullptr;
+        return m_multipleScatteringTexture;
     }
 
     bool BakeService::hasAtmosphereLUTs() const {
@@ -145,6 +207,11 @@ namespace ve {
                 return WeatherMapBaker::compute(512, 4, 3);
             }, {});
         return m_clouds;
+    }
+
+    bool BakeService::isAtmosphereReady() {
+        return m_transmittanceTexture && m_scatteringTexture
+            && m_mieScatteringTexture && m_multipleScatteringTexture;
     }
 
     void BakeService::update() {

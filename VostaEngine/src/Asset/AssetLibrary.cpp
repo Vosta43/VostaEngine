@@ -86,6 +86,7 @@ namespace ve {
 			{ "layered_material", "Layered Material", "Material", "layered_material", {} },
 			{ "material_layer",   "Material Layer",   "Material", "material_layer",   {} },
 			{ "noise",            "Noise",            "Texture",  "noise",            {} },
+			{ "particle",         "Particle",         "Effects",  "particle",         {} },
 			{ "geometry",         "Geometry Graph",   "Mesh",     "geometry",         {} },
 			{ "terrain_data",     "Terrain Data",     "Terrain",  "terrain_data",     {} },
 			{ "terrain_rule",     "Terrain Rule Graph", "Terrain", "terrain_rule",    {} },

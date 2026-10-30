@@ -11,12 +11,19 @@
 #include "Renderer/MaterialLayerAsset.h"
 #include "Scene/Terrain/TerrainDataResource.h"
 #include "Gui/Hud/HudAsset.h"
+#include "Particle/ParticleAsset.h"
 
 
 namespace ve {
     namespace {
         bool s_asyncLoadingEnabled = true;
-        size_t s_residencyBudget = 0;
+
+        // Resident budget across all resource types. 512 MiB by default: big
+        // enough that a normal scene never evicts, small enough to bound a
+        // streaming session on a mid-range card. 0 would disable eviction
+        // entirely.
+        constexpr size_t kDefaultResidencyBudget = 512ull * 1024ull * 1024ull;
+        size_t s_residencyBudget = kDefaultResidencyBudget;
     }
 
     void ResourceManager::setAsyncLoadingEnabled(bool enabled) {
@@ -132,6 +139,7 @@ namespace ve {
     VE_DEFINE_RESOURCE_STORAGE(MaterialLayerAsset)
     VE_DEFINE_RESOURCE_STORAGE(TerrainDataResource)
     VE_DEFINE_RESOURCE_STORAGE(HudAsset)
+    VE_DEFINE_RESOURCE_STORAGE(ParticleAsset)
 
     template VE_API AssetHandle ResourceManager::requestAsync<Texture2D>(const std::string&);
     template VE_API AssetHandle ResourceManager::requestAsync<StaticMesh>(const std::string&);

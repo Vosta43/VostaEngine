@@ -86,7 +86,10 @@ public:
     enum class CameraSource { Editor, Scene };
     void setCameraSource(CameraSource source) { m_cameraSource = source; }
     CameraSource getCameraSource() const { return m_cameraSource; }
-    bool isSceneDriven() const { return m_cameraSource == CameraSource::Scene; }
+    // True only when the Scene source actually has a camera to pilot. A scene
+    // without one (the usual case for a bare level during Play) keeps the free
+    // camera, so the viewport stays navigable instead of freezing on a stale pose.
+    bool isSceneDriven() const;
 
     // Which scene camera to pilot. Invalid (id 0xFFFFFFFF) = the scene's primary.
     void setSceneCameraEntity(const Entity& entity) { m_sceneCameraEntity = entity; }
@@ -121,6 +124,10 @@ private:
     // the scene has no camera, so the last pose stays rather than snapping to
     // origin.
     void applySceneCamera(Camera& camera);
+
+    // The entity the Scene source would pilot (explicit choice, else the scene's
+    // primary), false when the scene has no camera entity with a transform.
+    bool resolveSceneCameraEntity(Entity& out) const;
 
     Ref<Scene>             m_scene;
     Ref<SceneViewRenderer> m_viewRenderer;

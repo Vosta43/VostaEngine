@@ -1,5 +1,6 @@
 #include "vepch.h"
 #include "Window.h"
+#include "Log.h"
 #include "Events/EventDispatcher.h"
 #include "Events/KeyPressedEvent.h"
 #include "Events/KeyReleasedEvent.h"
@@ -145,12 +146,50 @@ namespace ve {
             return m_height;
         }
 
+        void setCursorMode(CursorMode mode) {
+            m_cursorMode = mode;
+            glfwSetInputMode(m_window, GLFW_CURSOR,
+                mode == CursorMode::Normal ? GLFW_CURSOR_NORMAL
+                : mode == CursorMode::Hidden ? GLFW_CURSOR_HIDDEN
+                : GLFW_CURSOR_DISABLED);
+            applyRawMouseMotion();
+        }
+
+        CursorMode getCursorMode() const {
+            return m_cursorMode;
+        }
+
+        bool setRawMouseMotion(bool enabled) {
+            if (enabled && !glfwRawMouseMotionSupported()) {
+                VE_CORE_WARN_PRINT("%s", "Window: raw mouse motion is not supported on this platform");
+                return false;
+            }
+            m_rawMouseMotionWanted = enabled;
+            applyRawMouseMotion();
+            return true;
+        }
+
+        bool isRawMouseMotionEnabled() const {
+            return glfwGetInputMode(m_window, GLFW_RAW_MOUSE_MOTION) == GLFW_TRUE;
+        }
+
     private:
+        // Raw motion is inert unless the cursor is Disabled; keep the request
+        // remembered so entering Disabled later turns it on without a second call.
+        void applyRawMouseMotion() {
+            const bool enabled = m_rawMouseMotionWanted
+                && m_cursorMode == CursorMode::Disabled
+                && glfwRawMouseMotionSupported();
+            glfwSetInputMode(m_window, GLFW_RAW_MOUSE_MOTION, enabled ? GLFW_TRUE : GLFW_FALSE);
+        }
+
         int m_width;
         int m_height;
         GLFWwindow* m_window;
         GraphicsContext* m_context;
         EventDispatcher* m_dispatcher;
+        CursorMode m_cursorMode = CursorMode::Normal;
+        bool m_rawMouseMotionWanted = false;
     };
 
     Window::Window(int width, int height, const char* title, EventDispatcher* dispatcher)
@@ -192,6 +231,22 @@ namespace ve {
 
     int Window::getHeight() const {
         return m_impl->getHeight();
+    }
+
+    void Window::setCursorMode(CursorMode mode) {
+        m_impl->setCursorMode(mode);
+    }
+
+    CursorMode Window::getCursorMode() const {
+        return m_impl->getCursorMode();
+    }
+
+    bool Window::setRawMouseMotion(bool enabled) {
+        return m_impl->setRawMouseMotion(enabled);
+    }
+
+    bool Window::isRawMouseMotionEnabled() const {
+        return m_impl->isRawMouseMotionEnabled();
     }
 
 }

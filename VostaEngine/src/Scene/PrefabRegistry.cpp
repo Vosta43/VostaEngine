@@ -1,6 +1,9 @@
 #include "vepch.h"
 #include "Scene/PrefabRegistry.h"
 
+#include "Scene/Components.h"
+#include "Scene/Scene.h"
+
 namespace ve {
 
 	PrefabRegistry& PrefabRegistry::get() {
@@ -28,6 +31,23 @@ namespace ve {
 		if (!prefab)
 			return Entity{};
 		return prefab->spawn(scene);
+	}
+
+	Entity PrefabRegistry::spawnAt(const std::string& key, Scene& scene, const Vec3& position) const {
+		const PrefabInfo* prefab = find(key);
+		if (!prefab)
+			return Entity{};
+
+		Entity entity = prefab->spawn(scene);
+		if (!prefab->placeable || entity.getId() == 0xFFFFFFFFu
+			|| !scene.getRegistry().has<TransformComponent>(entity))
+			return entity;
+
+		TransformComponent& transform = scene.getComponent<TransformComponent>(entity);
+		if (transform.position != Vec3(0.0))
+			return entity;
+		transform.position = position;
+		return entity;
 	}
 
 }

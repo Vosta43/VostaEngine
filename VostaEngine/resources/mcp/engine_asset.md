@@ -20,7 +20,7 @@ There are also **two different encodings** behind the same extension:
 
 | Encoding | Used by | On disk |
 |---|---|---|
-| `TextArchive` | `material`, `layered_material`, `material_layer`, `noise`, `geometry` | ASCII, whitespace-delimited, human-readable |
+| `TextArchive` | `material`, `layered_material`, `material_layer`, `noise`, `geometry`, `particle` | ASCII, whitespace-delimited, human-readable |
 | `BinaryArchive` | `texture`, `staticmesh` | opaque host-endian byte blobs |
 
 `utils::isEngineAsset(path)` is literally just "extension == `.veasset`"

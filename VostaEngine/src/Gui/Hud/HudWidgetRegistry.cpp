@@ -3,7 +3,9 @@
 
 #include "Gui/Vellum/Widgets/Button.h"
 #include "Gui/Vellum/Widgets/ColoredBox.h"
+#include "Gui/Vellum/Widgets/Image.h"
 #include "Gui/Vellum/Widgets/InputBox.h"
+#include "Gui/Vellum/Widgets/NineGridImage.h"
 #include "Gui/Vellum/Widgets/Stack.h"
 #include "Gui/Vellum/Widgets/TextBlock.h"
 
@@ -13,7 +15,9 @@ namespace ve {
 
 		using vellum::Button;
 		using vellum::ColoredBox;
+		using vellum::Image;
 		using vellum::InputBox;
+		using vellum::NineGridImage;
 		using vellum::Stack;
 		using vellum::TextBlock;
 		using vellum::Widget;
@@ -23,6 +27,8 @@ namespace ve {
 		Ref<Widget> createText() { return CreateRef<TextBlock>(nullptr, std::string()); }
 		Ref<Widget> createButton() { return CreateRef<Button>(glm::vec2(0.0f)); }
 		Ref<Widget> createInputBox() { return CreateRef<InputBox>(nullptr, glm::vec2(0.0f)); }
+		Ref<Widget> createNineGridImage() { return CreateRef<NineGridImage>(); }
+		Ref<Widget> createImage() { return CreateRef<Image>(); }
 
 		// A Stack carries no properties of its own; its children hold their own
 		// placement (anchor/offset), read by the tree builder, not here.
@@ -51,6 +57,36 @@ namespace ve {
 				b.setPressedColor(p.getVec4("pressedColor"));
 		}
 
+		void applyImage(Widget& w, const JsonReader& p, const HudBuildContext& ctx) {
+			auto& img = static_cast<Image&>(w);
+
+			const std::string source = p.getString("source", std::string());
+			glm::vec2 sourceSize{ 0.0f };
+			if (!source.empty()) {
+				if (const vellum::TextureId tex = ctx.texture(source, sourceSize); tex != 0)
+					img.setTexture(tex, sourceSize);
+			}
+
+			img.setSize(p.getVec2("size", glm::vec2(0.0f)));
+			img.setTint(p.getVec4("tint", glm::vec4(1.0f)));
+		}
+
+		void applyNineGridImage(Widget& w, const JsonReader& p, const HudBuildContext& ctx) {
+			auto& img = static_cast<NineGridImage&>(w);
+
+			const std::string source = p.getString("source", std::string());
+			glm::vec2 sourceSize{ 0.0f };
+			if (!source.empty()) {
+				if (const vellum::TextureId tex = ctx.texture(source, sourceSize); tex != 0)
+					img.setTexture(tex, sourceSize);
+			}
+
+			if (p.has("cellSize"))
+				img.setCellSize(p.getFloat("cellSize", 0.0f));
+			img.setSize(p.getVec2("size", glm::vec2(0.0f)));
+			img.setTint(p.getVec4("tint", glm::vec4(1.0f)));
+		}
+
 		void applyInputBox(Widget& w, const JsonReader& p, const HudBuildContext& ctx) {
 			auto& in = static_cast<InputBox&>(w);
 			in.setFont(ctx.atlas(p.getFloat("fontSize", 24.0f)));
@@ -68,6 +104,8 @@ namespace ve {
 			{ "text",        "text(string), color(color), fontSize(float,min=8,max=200)",         createText,   applyText   },
 			{ "button",      "size(size), color(color), hoverColor(color), pressedColor(color)", createButton, applyButton },
 			{ "input_box",   "size(size), text(string), color(color), fontSize(float,min=8,max=200)", createInputBox, applyInputBox },
+			{ "image",       "source(string), size(size), tint(color)",                          createImage,  applyImage  },
+			{ "nine_grid_image", "source(string), cellSize(float,min=1), size(size), tint(color)", createNineGridImage, applyNineGridImage },
 		};
 		return types;
 	}

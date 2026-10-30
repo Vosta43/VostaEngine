@@ -16,6 +16,7 @@ namespace ve {
 	struct MaterialLayerAsset;
 	struct TerrainDataResource;
 	class HudAsset;
+	struct ParticleAsset;
 
 	// Approximate resident cost of one resource, in bytes. Only drives eviction
 	// pressure and the stats view, so counts x stride is enough: no walking of
@@ -32,4 +33,5 @@ namespace ve {
 	size_t estimateBytes(const MaterialLayerAsset& layer);
 	size_t estimateBytes(const TerrainDataResource& resource);
 	size_t estimateBytes(const HudAsset& hud);
+	size_t estimateBytes(const ParticleAsset& particle);
 }

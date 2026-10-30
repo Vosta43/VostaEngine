@@ -60,6 +60,9 @@
     <ClCompile Include="src\Panels\NoisePanel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Panels\ParticlePanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Panels\GeometryGraphPanel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -147,6 +150,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Panels\NoisePanel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Panels\ParticlePanel.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Panels\GeometryGraphPanel.h">

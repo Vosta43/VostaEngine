@@ -18,6 +18,10 @@ namespace ve {
 
 	private:
 		Ref<VertexArray> m_fullscreenQuad;
+
+		// Last reported dynamic light count, so the log fires once per change
+		// instead of every frame.
+		int m_lastLightCount = -1;
 	};
 
 }

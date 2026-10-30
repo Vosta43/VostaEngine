@@ -24,7 +24,10 @@ namespace ve {
 
         std::shared_ptr<Texture2D> getIconForFile(const std::string& path, bool isDirectory);
 
-        void setRootPath(const std::string& path);
+        // The panel never navigates above `path`. `initialPath` is where browsing
+        // starts; empty (or missing) means `path` itself. Falls back to `path`
+        // so a project without content/ still opens somewhere navigable.
+        void setRootPath(const std::string& path, const std::string& initialPath = {});
         void render();
 
         // Ask for a rescan on the next render(). Callers that change assets
@@ -83,6 +86,7 @@ namespace ve {
         std::shared_ptr<Texture2D> m_staticMeshIcon;
         std::shared_ptr<Texture2D> m_terrainIcon;
         std::shared_ptr<Texture2D> m_noiseIcon;
+        std::shared_ptr<Texture2D> m_particleIcon;
         std::shared_ptr<Texture2D> m_terrainDataIcon;
         std::shared_ptr<Texture2D> m_notImportedIcon;
 

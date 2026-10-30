@@ -105,8 +105,32 @@ namespace ve {
             outInternalFormat = GL_R32UI;
             outDataFormat = GL_RED_INTEGER;
             break;
+        case TextureFormat::R32I:
+            outInternalFormat = GL_R32I;
+            outDataFormat = GL_RED_INTEGER;
+            break;
+        case TextureFormat::Depth32F:
+            outInternalFormat = GL_DEPTH_COMPONENT32F;
+            outDataFormat = GL_DEPTH_COMPONENT;
+            break;
+        case TextureFormat::Depth24Stencil8:
+            outInternalFormat = GL_DEPTH24_STENCIL8;
+            outDataFormat = GL_DEPTH_STENCIL;
+            break;
+        case TextureFormat::R32F:
+            outInternalFormat = GL_R32F;
+            outDataFormat = GL_RED;
+            break;
         case TextureFormat::RG16F:
             outInternalFormat = GL_RG16F;
+            outDataFormat = GL_RG;
+            break;
+        case TextureFormat::RG8:
+            outInternalFormat = GL_RG8;
+            outDataFormat = GL_RG;
+            break;
+        case TextureFormat::RG32F:
+            outInternalFormat = GL_RG32F;
             outDataFormat = GL_RG;
             break;
         case TextureFormat::RGB16F:
@@ -137,12 +161,19 @@ namespace ve {
         case TextureFormat::RG16F:
         case TextureFormat::RGB16F:
         case TextureFormat::RGBA16F:
+        case TextureFormat::RG32F:
         case TextureFormat::R16F:
+        case TextureFormat::R32F:
+        case TextureFormat::Depth32F:
             return GL_FLOAT;
+        case TextureFormat::Depth24Stencil8:
+            return GL_UNSIGNED_INT_24_8;
         case TextureFormat::R16UI:
             return GL_UNSIGNED_SHORT;
         case TextureFormat::R32UI:
             return GL_UNSIGNED_INT;
+        case TextureFormat::R32I:
+            return GL_INT;
         default:
             return GL_UNSIGNED_BYTE;
         }
@@ -157,7 +188,12 @@ namespace ve {
         case TextureFormat::R16F:         return GL_R16F;
         case TextureFormat::R16UI:        return GL_R16UI;
         case TextureFormat::R32UI:        return GL_R32UI;
+        case TextureFormat::R32I:         return GL_R32I;
+        case TextureFormat::R32F:         return GL_R32F;
+        case TextureFormat::Depth32F:     return GL_DEPTH_COMPONENT32F;
         case TextureFormat::RG16F:        return GL_RG16F;
+        case TextureFormat::RG8:          return GL_RG8;
+        case TextureFormat::RG32F:        return GL_RG32F;
         case TextureFormat::RGB16F:       return GL_RGB16F;
         case TextureFormat::RGBA16F:      return GL_RGBA16F;
         case TextureFormat::SRGB8:        return GL_SRGB8;
@@ -188,6 +224,92 @@ namespace ve {
         glBindImageTexture(unit, 0, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
     }
 
+    // 1 + floor(log2(max)) levels: the same rule Texture2D's setDataLevel uses to
+    // locate a level's extent.
+    static uint32_t textureFullMipCount(uint32_t width, uint32_t height) {
+        return 1 + (uint32_t)std::floor(std::log2((float)math::max(width, height)));
+    }
+
+    static GLenum toGLWrap(TextureWrap wrap) {
+        switch (wrap) {
+        case TextureWrap::Repeat:       return GL_REPEAT;
+        case TextureWrap::MirrorRepeat: return GL_MIRRORED_REPEAT;
+        case TextureWrap::ClampToEdge:
+        default:                        return GL_CLAMP_TO_EDGE;
+        }
+    }
+
+    static GLenum toGLFilter(TextureFilter filter) {
+        switch (filter) {
+        case TextureFilter::NEAREST:                return GL_NEAREST;
+        case TextureFilter::NEAREST_MIPMAP_NEAREST: return GL_NEAREST_MIPMAP_NEAREST;
+        case TextureFilter::LINEAR_MIPMAP_NEAREST:  return GL_LINEAR_MIPMAP_NEAREST;
+        case TextureFilter::NEAREST_MIPMAP_LINEAR:  return GL_NEAREST_MIPMAP_LINEAR;
+        case TextureFilter::LINEAR_MIPMAP_LINEAR:   return GL_LINEAR_MIPMAP_LINEAR;
+        case TextureFilter::LINEAR:
+        default:                                    return GL_LINEAR;
+        }
+    }
+
+    static bool isMipFilter(TextureFilter filter) {
+        return filter == TextureFilter::NEAREST_MIPMAP_NEAREST
+            || filter == TextureFilter::LINEAR_MIPMAP_NEAREST
+            || filter == TextureFilter::NEAREST_MIPMAP_LINEAR
+            || filter == TextureFilter::LINEAR_MIPMAP_LINEAR;
+    }
+
+    static GLenum baseFilterOf(TextureFilter filter) {
+        switch (filter) {
+        case TextureFilter::NEAREST:
+        case TextureFilter::NEAREST_MIPMAP_NEAREST:
+        case TextureFilter::NEAREST_MIPMAP_LINEAR:
+            return GL_NEAREST;
+        default:
+            return GL_LINEAR;
+        }
+    }
+
+    // `hasMips` = the storage was allocated with more than one level. The filter
+    // only samples across levels when the caller also asked for generated mips,
+    // otherwise a hand-uploaded chain keeps plain per-level filtering.
+    static void applySampler(uint32_t textureId, TextureFormat format, const SamplerDesc& sampler,
+                             bool hasMips, bool hasWrapR) {
+        // Integer formats (R16UI / R32UI / R32I) have no linear filter in GL;
+        // asking for one is an error. They are read as exact indices, so nearest
+        // is also what the sampler wants.
+        const bool integerFormat = (format == TextureFormat::R16UI || format == TextureFormat::R32UI
+                                    || format == TextureFormat::R32I);
+
+        GLint minFilter = GL_LINEAR;
+        if (integerFormat) {
+            minFilter = (hasMips && sampler.mipmaps) ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST;
+        }
+        else if (isMipFilter(sampler.minFilter)) {
+            // A mip filter needs the chain; without one only the base level exists.
+            minFilter = hasMips ? toGLFilter(sampler.minFilter) : baseFilterOf(sampler.minFilter);
+        }
+        else if (hasMips && sampler.mipmaps) {
+            minFilter = baseFilterOf(sampler.minFilter) == GL_NEAREST
+                            ? GL_NEAREST_MIPMAP_NEAREST : GL_LINEAR_MIPMAP_LINEAR;
+        }
+        else {
+            minFilter = baseFilterOf(sampler.minFilter);
+        }
+
+        GLint magFilter = (integerFormat || baseFilterOf(sampler.magFilter) == GL_NEAREST)
+                              ? GL_NEAREST : GL_LINEAR;
+
+        glTextureParameteri(textureId, GL_TEXTURE_MIN_FILTER, minFilter);
+        glTextureParameteri(textureId, GL_TEXTURE_MAG_FILTER, magFilter);
+        glTextureParameteri(textureId, GL_TEXTURE_WRAP_S, toGLWrap(sampler.wrapS));
+        glTextureParameteri(textureId, GL_TEXTURE_WRAP_T, toGLWrap(sampler.wrapT));
+        if (hasWrapR)
+            glTextureParameteri(textureId, GL_TEXTURE_WRAP_R, toGLWrap(sampler.wrapR));
+        // Pin anisotropic filtering to 1 (the spec default): a driver force-enabling
+        // AF on "data" textures would make the filter path driver-dependent.
+        glTextureParameterf(textureId, GL_TEXTURE_MAX_ANISOTROPY, 1.0f);
+    }
+
     OpenGLTexture2D::OpenGLTexture2D(Ref<TextureResource> textureResource)
         : m_width(0)
         , m_height(0)
@@ -208,7 +330,8 @@ namespace ve {
 
         bool isHDR = (textureResource->format == TextureFormat::RGB16F ||
                       textureResource->format == TextureFormat::RGBA16F ||
-                      textureResource->format == TextureFormat::RG16F);
+                      textureResource->format == TextureFormat::RG16F ||
+                      textureResource->format == TextureFormat::R32F);
 
         VE_CORE_SUCCESS_PRINT("OpenGL texture created: rendererID=%u, %dx%d, internalFormat=0x%X",
             m_rendererId, textureResource->width, textureResource->height, internalFormat);
@@ -232,11 +355,16 @@ namespace ve {
     }
 
     OpenGLTexture2D::OpenGLTexture2D(uint32_t rendererID, uint32_t width, uint32_t height, bool ownsTexture)
+        : OpenGLTexture2D(rendererID, width, height, TextureFormat::RGBA, ownsTexture) {
+    }
+
+    OpenGLTexture2D::OpenGLTexture2D(uint32_t rendererID, uint32_t width, uint32_t height,
+                                     TextureFormat format, bool ownsTexture)
         : m_width(width)
         , m_height(height)
         , m_rendererId(rendererID)
         , m_ownsTexture(ownsTexture)
-        , m_format(TextureFormat::RGBA)
+        , m_format(format)
     {
     }
 
@@ -245,6 +373,17 @@ namespace ve {
     }
 
     OpenGLTexture2D::OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format, uint32_t mipLevels)
+        : OpenGLTexture2D(width, height, format, mipLevels, SamplerDesc{}) {
+    }
+
+    OpenGLTexture2D::OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format,
+                                     const SamplerDesc& sampler)
+        : OpenGLTexture2D(width, height, format,
+                          sampler.mipmaps ? textureFullMipCount(width, height) : 1, sampler) {
+    }
+
+    OpenGLTexture2D::OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format,
+                                     uint32_t mipLevels, const SamplerDesc& sampler)
         : m_width(width)
         , m_height(height)
         , m_ownsTexture(true)
@@ -256,20 +395,7 @@ namespace ve {
         glCreateTextures(GL_TEXTURE_2D, 1, &m_rendererId);
         glTextureStorage2D(m_rendererId, mipLevels ? (GLsizei)mipLevels : 1, internalFormat, m_width, m_height);
 
-        // Integer formats (R16UI) have no linear filter in GL; asking for one is an
-        // error. The page table is read as an exact index, so nearest is also what
-        // the sampler wants.
-        const bool integerFormat = (format == TextureFormat::R16UI || format == TextureFormat::R32UI);
-        glTextureParameteri(m_rendererId, GL_TEXTURE_MIN_FILTER, integerFormat ? GL_NEAREST : GL_LINEAR);
-        glTextureParameteri(m_rendererId, GL_TEXTURE_MAG_FILTER, integerFormat ? GL_NEAREST : GL_LINEAR);
-        glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        // Pin anisotropic filtering to 1 (the spec default). The R16F weather map
-        // is 1:1-ish and gains nothing from AF; a driver that force-enables AF on
-        // textures it deems "data", or the driver's forced-AF override, would make
-        // the filter state on this texture driver-dependent. Stating 1.0 keeps the
-        // sample path identical across GPUs.
-        glTextureParameterf(m_rendererId, GL_TEXTURE_MAX_ANISOTROPY, 1.0f);
+        applySampler(m_rendererId, format, sampler, mipLevels > 1, false);
     }
 
     OpenGLTexture2D::~OpenGLTexture2D() {
@@ -289,11 +415,14 @@ namespace ve {
                             dataFormat, textureFormatToOpenGLType(m_format), data);
     }
 
-    void OpenGLTexture2D::setSubData(const void* data, uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
+    void OpenGLTexture2D::setSubData(const void* data, uint32_t x, uint32_t y, uint32_t w, uint32_t h,
+                                     int32_t rowPitchTexels) {
         GLenum internalFormat, dataFormat;
         textureFormatToOpenGL(m_format, internalFormat, dataFormat);
+        if (rowPitchTexels > 0) glPixelStorei(GL_UNPACK_ROW_LENGTH, rowPitchTexels);
         glTextureSubImage2D(m_rendererId, 0, x, y, w, h,
                             dataFormat, textureFormatToOpenGLType(m_format), data);
+        if (rowPitchTexels > 0) glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     }
 
     void OpenGLTexture2D::setDataLevel(void* data, uint32_t size, uint32_t mip) {
@@ -305,6 +434,10 @@ namespace ve {
         const uint32_t h = math::max(1u, m_height >> mip);
         glTextureSubImage2D(m_rendererId, (GLint)mip, 0, 0, w, h,
                             dataFormat, textureFormatToOpenGLType(m_format), data);
+    }
+
+    void OpenGLTexture2D::genMipmaps() {
+        glGenerateTextureMipmap(m_rendererId);
     }
 
     void OpenGLTexture2D::bind(uint32_t slot) const {
@@ -419,6 +552,11 @@ namespace ve {
 
     OpenGLTexture2DArray::OpenGLTexture2DArray(uint32_t width, uint32_t height, uint32_t layers,
         TextureFormat format, const void* data)
+        : OpenGLTexture2DArray(width, height, layers, format, data, SamplerDesc{}) {
+    }
+
+    OpenGLTexture2DArray::OpenGLTexture2DArray(uint32_t width, uint32_t height, uint32_t layers,
+        TextureFormat format, const void* data, const SamplerDesc& sampler)
         : m_width(width)
         , m_height(height)
         , m_layers(layers)
@@ -428,19 +566,19 @@ namespace ve {
         GLenum internalFormat, dataFormat;
         textureFormatToOpenGL(format, internalFormat, dataFormat);
 
+        const uint32_t mipLevels = sampler.mipmaps ? textureFullMipCount(width, height) : 1;
         glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &m_rendererId);
-        glTextureStorage3D(m_rendererId, 1, internalFormat, m_width, m_height, m_layers);
+        glTextureStorage3D(m_rendererId, (GLsizei)mipLevels, internalFormat, m_width, m_height, m_layers);
         if (data) {
             glTextureSubImage3D(m_rendererId, 0, 0, 0, 0, m_width, m_height, m_layers,
                                 dataFormat, textureFormatToOpenGLType(format), data);
         }
 
-        glTextureParameteri(m_rendererId, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTextureParameteri(m_rendererId, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTextureParameteri(m_rendererId, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        // Explicit AF=1, the spec default: see the R16F Texture2D ctor.
-        glTextureParameterf(m_rendererId, GL_TEXTURE_MAX_ANISOTROPY, 1.0f);
+        applySampler(m_rendererId, format, sampler, mipLevels > 1, false);
+    }
+
+    void OpenGLTexture2DArray::genMipmaps() {
+        glGenerateTextureMipmap(m_rendererId);
     }
 
     OpenGLTexture2DArray::~OpenGLTexture2DArray() {
@@ -453,6 +591,15 @@ namespace ve {
         GLenum internalFormat, dataFormat;
         textureFormatToOpenGL(m_format, internalFormat, dataFormat);
         glTextureSubImage3D(m_rendererId, 0, 0, 0, 0, m_width, m_height, m_layers,
+                            dataFormat, textureFormatToOpenGLType(m_format), data);
+    }
+
+    void OpenGLTexture2DArray::setDataLevel(void* data, uint32_t size, uint32_t mip) {
+        GLenum internalFormat, dataFormat;
+        textureFormatToOpenGL(m_format, internalFormat, dataFormat);
+        const uint32_t w = math::max(1u, m_width >> mip);
+        const uint32_t h = math::max(1u, m_height >> mip);
+        glTextureSubImage3D(m_rendererId, (GLint)mip, 0, 0, 0, w, h, m_layers,
                             dataFormat, textureFormatToOpenGLType(m_format), data);
     }
 

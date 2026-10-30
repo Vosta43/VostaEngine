@@ -190,8 +190,9 @@ namespace ve {
 			// Route through the "empty" prefab so an entity the model creates starts
 			// from the same baseline (a TransformComponent) as one made from the
 			// editor's Create menu — a component-less entity is what used to crash
-			// the gizmo.
-			Entity entity = PrefabRegistry::get().spawn("empty", *scene);
+			// the gizmo. An absent position leaves it at the origin.
+			Entity entity = PrefabRegistry::get().spawnAt("empty", *scene,
+				ve::Vec3(args.getVec3d("position", glm::dvec3(0.0))));
 			if (entity.getId() == 0xFFFFFFFFu)
 				return toolError("internal: the 'empty' prefab is not registered");
 
@@ -210,7 +211,8 @@ namespace ve {
 			if (!prefab)
 				return toolError("unknown prefab '" + key + "' (call list_prefabs for the keys)");
 
-			Entity entity = prefab->spawn(*scene);
+			Entity entity = PrefabRegistry::get().spawnAt(key, *scene,
+				ve::Vec3(args.getVec3d("position", glm::dvec3(0.0))));
 			if (entity.getId() == 0xFFFFFFFFu)
 				return toolError("prefab '" + key + "' produced no entity");
 
@@ -281,14 +283,14 @@ namespace ve {
 		ToolRegistrar reg_createEntity{
 			"create_entity",
 			"Create a bare entity that has only a TransformComponent, and return its id. For a ready-to-use object (light, mesh, atmosphere, terrain, ...) prefer spawn_prefab. Add more components with set_component.",
-			R"({"type":"object","properties":{"name":{"type":"string","description":"optional NameComponent value"}}})",
+			R"({"type":"object","properties":{"name":{"type":"string","description":"optional NameComponent value"},"position":{"type":"array","items":{"type":"number"},"minItems":3,"maxItems":3,"description":"optional [x,y,z] world position; the origin when omitted"}}})",
 			createEntity
 		};
 
 		ToolRegistrar reg_spawnPrefab{
 			"spawn_prefab",
 			"Create an entity from a named prefab — the same templates the editor's Create Entity menu offers, so the result is complete (its transform plus whatever the template implies). Prefer this over create_entity. Get keys from list_prefabs.",
-			R"({"type":"object","properties":{"prefab":{"type":"string","description":"prefab key from list_prefabs, e.g. 'light'"},"name":{"type":"string","description":"optional NameComponent value"}},"required":["prefab"]})",
+			R"({"type":"object","properties":{"prefab":{"type":"string","description":"prefab key from list_prefabs, e.g. 'light'"},"name":{"type":"string","description":"optional NameComponent value"},"position":{"type":"array","items":{"type":"number"},"minItems":3,"maxItems":3,"description":"optional [x,y,z] world position; the origin when omitted. A prefab that places itself (atmosphere, terrain) ignores it"}},"required":["prefab"]})",
 			spawnPrefab
 		};
 

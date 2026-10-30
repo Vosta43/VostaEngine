@@ -21,6 +21,9 @@ namespace ve {
 		static void flush();
 
 		static void drawQuad(const glm::mat4& transform, const glm::vec2& size, AssetHandle textureHandle, const glm::vec4& tint = glm::vec4(1.0f));
+		// Same, for a texture that is not backed by a ResourceManager asset (e.g. a
+		// procedurally generated sprite).
+		static void drawQuad(const glm::mat4& transform, const glm::vec2& size, const Ref<Texture2D>& texture, const glm::vec4& tint = glm::vec4(1.0f));
 
 		static void drawQuad(const glm::vec3& position, const glm::vec2& size, const Ref<SubTexture2D>& subTexture, const glm::vec4& color);
 		static void drawQuad(const glm::vec3& position, const glm::vec2& size, AssetHandle textureHandle, const glm::vec4& color);

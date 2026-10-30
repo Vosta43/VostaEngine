@@ -1,7 +1,8 @@
-// VostaPlayer: the standalone runtime host. It opens a project, renders its
-// default scene and drives the project's gameplay module
-// (<projectRoot>/Binaries/game.dll) through the same GameModuleHost the editor's
-// Play-in-Editor uses -- same DLL, same code path.
+// VostaPlayer: the standalone runtime host. It opens a project, drives its
+// gameplay module (<projectRoot>/Binaries/game.dll) through the same
+// GameModuleHost the editor's Play-in-Editor uses -- same DLL, same code path --
+// and either renders the default scene itself or hands the window to the module,
+// as project.json's "presentation" asks.
 
 #include <VostaEngine.h>
 
@@ -14,6 +15,15 @@
 #include <Renderer/SceneView.h>
 
 #include <filesystem>
+
+// Hybrid laptops send this process to the discrete GPU. OpenGL ignores the
+// Windows per-app graphics preference under some driver combinations -- the
+// context silently lands on the integrated adapter -- and both vendors honour
+// these exports instead.
+extern "C" {
+    __declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
+    __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+}
 
 namespace {
 
@@ -30,19 +40,17 @@ namespace {
         return cfg;
     }
 
-    // The host layer: owns the scene view and the module host. A module is
-    // optional -- absent, the scene still loads and renders.
+    // The host layer: owns the scene, the optional scene view and the module
+    // host. The view is built after Project::open, since presentation decides
+    // whether there is one at all.
     class PlayerLayer : public ve::Layer {
     public:
         explicit PlayerLayer(std::filesystem::path projectDir)
             : m_projectDir(std::move(projectDir))
-            , m_scene(ve::CreateRef<ve::Scene>())
-            , m_sceneView(m_scene, playerViewConfig()) {
+            , m_scene(ve::CreateRef<ve::Scene>()) {
         }
 
         void onAttach() override {
-            m_sceneView.onAttach();
-
             ve::ProjectInfo project;
             const std::string dir = m_projectDir.string();
             if (!ve::Project::open(dir, project))
@@ -55,17 +63,26 @@ namespace {
             ve::BuiltinResources::getBuiltinSphere();
             ve::BuiltinResources::getDefaultWhiteTexture();
 
-            if (project.defaultScene.empty()) {
-                VE_CORE_ERROR_PRINT("%s", "Player: no default scene set in project.json");
-            } else {
-                ve::SceneSerializer loader(m_scene);
-                if (loader.loadFromFile(ve::toProjectAbsolute(project.defaultScene)))
-                    VE_CORE_SUCCESS_PRINT("Player: loaded default scene '%s'", project.defaultScene.c_str());
-                else
-                    VE_CORE_ERROR_PRINT("Player: could not load default scene '%s'", project.defaultScene.c_str());
-            }
+            // A module that presents itself owns the window: no view, no scene
+            // file, and the depth convention is the module's to pick. The Scene
+            // object still exists, because the module API is expressed in terms
+            // of it.
+            if (project.presentation == ve::Presentation::Scene) {
+                m_sceneView = ve::CreateRef<ve::SceneView>(m_scene, playerViewConfig());
+                m_sceneView->onAttach();
 
-            m_sceneView.setCameraSource(ve::SceneView::CameraSource::Scene);
+                if (project.defaultScene.empty()) {
+                    VE_CORE_ERROR_PRINT("%s", "Player: no default scene set in project.json");
+                } else {
+                    ve::SceneSerializer loader(m_scene);
+                    if (loader.loadFromFile(ve::toProjectAbsolute(project.defaultScene)))
+                        VE_CORE_SUCCESS_PRINT("Player: loaded default scene '%s'", project.defaultScene.c_str());
+                    else
+                        VE_CORE_ERROR_PRINT("Player: could not load default scene '%s'", project.defaultScene.c_str());
+                }
+
+                m_sceneView->setCameraSource(ve::SceneView::CameraSource::Scene);
+            }
 
             const std::string dllPath = (ve::getProjectRoot() / "Binaries" / "game.dll").string();
             if (m_host.load(ve::Application::get(), dllPath)) {
@@ -81,29 +98,32 @@ namespace {
                 m_host.stop(*m_scene);
                 m_host.unload();
             }
+            m_sceneView = nullptr;
         }
 
         void onUpdate() override {
+            // Tick gameplay before rendering so this frame shows its result.
+            m_scene->onUpdate(ve::DeltaTime::get().getDeltaTime());
+
+            if (!m_sceneView) return;
+
             auto* win = ve::Application::get().getWindow();
             const uint32_t width  = static_cast<uint32_t>(win->getWidth());
             const uint32_t height = static_cast<uint32_t>(win->getHeight());
 
-            // Tick gameplay before rendering so this frame shows its result.
-            m_scene->onUpdate(ve::DeltaTime::get().getDeltaTime());
-
-            m_sceneView.setSize(width, height);
-            m_sceneView.onUpdate(ve::DeltaTime::get().getDeltaTime());
+            m_sceneView->setSize(width, height);
+            m_sceneView->onUpdate(ve::DeltaTime::get().getDeltaTime());
 
             // The view renders offscreen; present it to the window backbuffer.
-            if (auto framebuffer = m_sceneView.getFramebuffer())
+            if (auto framebuffer = m_sceneView->getFramebuffer())
                 framebuffer->blitToDefault(width, height);
         }
 
     private:
-        std::filesystem::path m_projectDir;
-        ve::Ref<ve::Scene>    m_scene;
-        ve::SceneView         m_sceneView;
-        ve::GameModuleHost    m_host;
+        std::filesystem::path     m_projectDir;
+        ve::Ref<ve::Scene>        m_scene;
+        ve::Ref<ve::SceneView>    m_sceneView;
+        ve::GameModuleHost        m_host;
     };
 
     class VostaPlayerApp : public ve::Application {

@@ -24,6 +24,9 @@
 #include "Renderer/MaterialInstance.h"
 #include "Core/ComponentRegistry.h"
 #include "Scene/Terrain/Terrain.h"
+#include "Scene/SpaceBackground.h"
+#include "Particle/ParticleAsset.h"
+#include "Particle/ParticleSystem.h"
 #include "Noise/NoiseGraphResource.h"
 #include "Terrain/RuleGraphResource.h"
 #include "Gui/Hud/HudAsset.h"
@@ -383,6 +386,116 @@ namespace ve {
 		}
 	};
 	VECOMPONENT(VolumetricLightComponent, "Volumetric Light", "Environment")
+
+	// Direction-only space background (star field), composited behind the
+	// atmosphere in the HDR pass. No transform: the sky is infinitely far away.
+	VESTRUCT(SpaceBackgroundComponent)
+	struct SpaceBackgroundComponent {
+		VEPROPERTY(SpaceBackgroundComponent, SpaceBackgroundParams, background, "background", "type=drag")
+		SpaceBackgroundParams background;
+
+		void serialize(JsonWriter& w) const {
+			w.beginObject("background");
+			background.serialize(w);
+			w.end();
+		}
+
+		void deserialize(const JsonReader& r) {
+			background.deserialize(r.child("background"));
+		}
+	};
+	VECOMPONENT(SpaceBackgroundComponent, "Space Background", "Environment")
+
+// Plays one particle effect at the entity's position. The simulation instance is
+// runtime-only: it is built on the first tick, rebuilt when the asset changes, and
+// deliberately NOT copied — duplicating an entity starts a fresh emitter instead
+// of aliasing the source's state.
+VESTRUCT(ParticleComponent)
+	struct ParticleComponent {
+		// Empty plays the built-in default stack, so a freshly created particle
+		// entity emits something before an asset is assigned.
+		VEPROPERTY(ParticleComponent, AssetHandle, assetHandle, "Particle Asset", "type=particle")
+		AssetHandle assetHandle;
+
+		VEPROPERTY(ParticleComponent, bool, playing, "Playing", "type=bool")
+		bool playing = true;
+
+		VEPROPERTY(ParticleComponent, float, timeScale, "Time Scale", "type=drag,minValue=0,maxValue=10,speed=0.01")
+		float timeScale = 1.0f;
+
+		VEPROPERTY(ParticleComponent, glm::vec4, tint, "Tint", "type=drag")
+		glm::vec4 tint = glm::vec4(0.55f, 0.75f, 1.0f, 1.0f);
+
+		// World units; billboards are camera-facing quads of this edge length.
+		VEPROPERTY(ParticleComponent, float, particleSize, "Particle Size", "type=drag,minValue=0.01,maxValue=1000,speed=0.5")
+		float particleSize = 30.0f;
+
+		ParticleComponent() = default;
+		ParticleComponent(const ParticleComponent& other) { copyAuthored(other); }
+		ParticleComponent& operator=(const ParticleComponent& other) {
+			if (this != &other) {
+				resetRuntime();
+				copyAuthored(other);
+			}
+			return *this;
+		}
+		ParticleComponent(ParticleComponent&&) = default;
+		ParticleComponent& operator=(ParticleComponent&&) = default;
+
+		void tick(float dt);
+		// Drops the simulation; the next tick restarts it.
+		void reset() { resetRuntime(); }
+
+		// Null until the first tick, or while the asset is unavailable.
+		const EmitterAsset* emitterAsset() const;
+		const ParticleDataSet* particleData() const;
+
+		void serialize(JsonWriter& w) const {
+			writeAssetPath<ParticleAsset>(w, "particle", assetHandle);
+			w.set("playing", playing);
+			w.set("timeScale", timeScale);
+			w.set("tint", tint);
+			w.set("particleSize", particleSize);
+		}
+
+		void deserialize(const JsonReader& r) {
+			assetHandle = readAssetPath<ParticleAsset>(r, "particle");
+			playing = r.getBool("playing", playing);
+			timeScale = r.getFloat("timeScale", timeScale);
+			tint = r.getVec4("tint", tint);
+			particleSize = r.getFloat("particleSize", particleSize);
+			resetRuntime();
+		}
+
+	private:
+		void copyAuthored(const ParticleComponent& other) {
+			assetHandle = other.assetHandle;
+			playing = other.playing;
+			timeScale = other.timeScale;
+			tint = other.tint;
+			particleSize = other.particleSize;
+		}
+
+		void resetRuntime() {
+			m_system.reset();
+			m_asset.reset();
+			m_builtHandle = AssetHandle();
+			m_builtRevision = 0;
+			m_builtFallback = false;
+		}
+
+		void rebuild();
+
+		Scope<ParticleSystemInstance> m_system;
+		// Held so a residency eviction cannot drop the program under a live sim.
+		Ref<ParticleAsset> m_asset;
+		AssetHandle m_builtHandle;
+		uint64_t m_builtRevision = 0;
+		// The system runs the built-in emitter because the assigned asset was not
+		// available; tick() keeps retrying it.
+		bool m_builtFallback = false;
+	};
+VECOMPONENT(ParticleComponent, "Particle", "Effects")
 
 	// Screen-space HUD: one authored Vellum widget tree, referenced as a
 	// .veasset and drawn over the scene while a play session is live.

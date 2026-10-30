@@ -14,6 +14,7 @@
 #include "Renderer/ThumbnailRenderer.h"
 #include "Noise/NoiseSettings.h"
 #include "Noise/NoiseNodes.h"
+#include "Particle/EmitterAssetIO.h"
 #include "Geometry/GeometryNodes.h"
 #include "Terrain/RuleGraph.h"
 #include "Terrain/RuleNodes.h"
@@ -85,9 +86,11 @@ namespace ve {
 
     FileBrowser::~FileBrowser() {};
 
-    void FileBrowser::setRootPath(const std::string& path) {
+    void FileBrowser::setRootPath(const std::string& path, const std::string& initialPath) {
         m_rootPath = path;
-        m_currentPath = path;
+        m_currentPath = initialPath.empty() ? path : initialPath;
+        if (!std::filesystem::exists(m_currentPath))
+            m_currentPath = path;
         refreshFiles();
     }
 
@@ -278,6 +281,7 @@ namespace ve {
         m_staticMeshIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/static_mesh.png"));
         m_terrainIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/terrain.png"));
         m_noiseIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/noise_resource_2.png"));
+        m_particleIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/particle.png"));
         m_terrainDataIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/terrain_data.png"));
         m_notImportedIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/not_imported_file.png"));
     }
@@ -324,6 +328,7 @@ namespace ve {
         const ImU32 kShader  = IM_COL32(170, 125, 240, 255);
         const ImU32 kSource  = IM_COL32(55, 90, 200, 255);
         const ImU32 kNoise   = IM_COL32(90, 200, 170, 255);
+        const ImU32 kParticle = IM_COL32(255, 175, 70, 255);
 
         if (isDirectory)
             return kFolder;
@@ -340,6 +345,7 @@ namespace ve {
             if (type == "staticmesh") return kMesh;
             if (type == "texture")    return kTexture;
             if (type == "noise")      return kNoise;
+            if (type == "particle")   return kParticle;
         }
         return kDefault;
     }
@@ -479,6 +485,9 @@ namespace ve {
             }
             if (assetType == "noise") {
                 return m_noiseIcon;
+            }
+            if (assetType == "particle") {
+                return m_particleIcon;
             }
             if (assetType == "terrain_data") {
                 return m_terrainDataIcon;
@@ -868,6 +877,17 @@ namespace ve {
                 }
                 refreshFiles();
                 beginRename(nz.string(), displayName(nz.filename().string()));
+            }
+            else if (ImGui::MenuItem("Particle")) {
+                std::error_code ec;
+                std::filesystem::path pa(m_currentPath + "/New Particle.veasset");
+                for (int i = 1; std::filesystem::exists(pa, ec); ++i)
+                    pa = std::filesystem::path(m_currentPath + "/New Particle " + std::to_string(i) + ".veasset");
+
+                if (!writeDefaultEmitterAsset(pa.string()))
+                    VE_CORE_WARN_PRINT("New Particle failed: %s", pa.string().c_str());
+                refreshFiles();
+                beginRename(pa.string(), displayName(pa.filename().string()));
             }
             else if (ImGui::MenuItem("Geometry Graph")) {
                 std::error_code ec;

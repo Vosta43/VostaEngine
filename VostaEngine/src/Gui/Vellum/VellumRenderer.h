@@ -33,6 +33,14 @@ namespace ve::vellum {
         // and is always registered.
         void registerTexture(TextureId id, const Ref<Texture2D>& texture);
 
+        // Reserves a fresh id for a texture that does not exist yet. The sole
+        // allocator of UI texture ids, so a font atlas and a widget image can never
+        // collide; the caller registers the texture once it has one.
+        TextureId acquireTextureId();
+
+        // Reserves an id and registers `texture` under it in one step.
+        TextureId addTexture(const Ref<Texture2D>& texture);
+
     private:
         // One quad per four vertices / six indices is the DrawList contract, so the
         // index buffer is a fixed pattern and only the vertices stream per frame.
@@ -44,6 +52,7 @@ namespace ve::vellum {
         Ref<Texture2D>    m_whiteTexture;
 
         std::unordered_map<TextureId, Ref<Texture2D>> m_textures;
+        TextureId m_nextTextureId = 1;   // 0 is the white pixel
         bool m_initialized = false;
     };
 

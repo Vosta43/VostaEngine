@@ -8,7 +8,15 @@ struct GLFWwindow;
 
 namespace ve {
 
-    class EventDispatcher; 
+    class EventDispatcher;
+
+    // Hidden keeps the OS cursor position valid (hover still works); Disabled
+    // makes it virtual and unbounded -- the mode a first-person camera needs.
+    enum class CursorMode {
+        Normal,
+        Hidden,
+        Disabled
+    };
 
     class VE_API Window {
     public:
@@ -25,6 +33,14 @@ namespace ve {
         void swapBuffers();
         void setVSync(bool enabled);
         bool shouldClose() const;
+
+        void setCursorMode(CursorMode mode);
+        CursorMode getCursorMode() const;
+
+        // Raw motion bypasses OS pointer acceleration and only takes effect while
+        // the cursor is Disabled. Returns false if the platform cannot provide it.
+        bool setRawMouseMotion(bool enabled);
+        bool isRawMouseMotionEnabled() const;
 
         int getWidth() const;
         int getHeight() const;

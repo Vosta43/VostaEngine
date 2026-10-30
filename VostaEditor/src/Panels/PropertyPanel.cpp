@@ -11,6 +11,7 @@
 #include "Asset/StaticMeshImporter.h"
 #include "Noise/NoiseGraphResource.h"
 #include "Terrain/RuleGraphResource.h"
+#include "Particle/ParticleAsset.h"
 
 #include "imgui.h"
 
@@ -195,7 +196,8 @@ void PropertyPanel::drawProperty(const std::string& typeName, void* compPtr, con
     // Asset-handle kinds with no bespoke preview: one generic row each, so a
     // component that declares one of these is editable without a custom drawer.
     else if (prop.uiType == "mesh" || prop.uiType == "noise" ||
-             prop.uiType == "terrain_rule" || prop.uiType == "hud") {
+             prop.uiType == "terrain_rule" || prop.uiType == "hud" ||
+             prop.uiType == "particle") {
         drawAssetHandleProperty(ptr, prop);
     } else {
         ImGui::Text("%s", prop.name.c_str());
@@ -478,6 +480,9 @@ void PropertyPanel::drawAssetHandleProperty(void* ptr, const ReflectionProperty&
             [](AssetHandle, float size) { ImGui::Button("?", ImVec2(size, size)); }, 24.0f);
     } else if (prop.uiType == "hud") {
         AssetBrowser::ResourceCombo<HudAsset>("##combo", *handle,
+            [](AssetHandle, float size) { ImGui::Button("?", ImVec2(size, size)); }, 24.0f);
+    } else if (prop.uiType == "particle") {
+        AssetBrowser::ResourceCombo<ParticleAsset>("##combo", *handle,
             [](AssetHandle, float size) { ImGui::Button("?", ImVec2(size, size)); }, 24.0f);
     }
 

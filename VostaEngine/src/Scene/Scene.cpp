@@ -32,6 +32,12 @@ namespace ve {
 	void Scene::onUpdate(float deltaTime){
 
 		m_ecsystemGraph.onUpdate(deltaTime);
+		tickParticles(deltaTime);
+	}
+
+	void Scene::tickParticles(float deltaTime) {
+		for (uint32_t entityId : m_entityRegistry.view<ParticleComponent>())
+			m_entityRegistry.get<ParticleComponent>(entityId).tick(deltaTime);
 	}
 
 	//void Scene::onUpdate(float deltaTime) {

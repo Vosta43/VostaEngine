@@ -9,6 +9,7 @@
 #include "Atmosphere.h"
 #include "Clouds.h"
 #include "VolumetricLight.h"
+#include "Scene/SpaceBackground.h"
 #include "Texture.h"
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
@@ -260,6 +261,11 @@ class Material;
 	// the height gradient to position the cloud band; G/B unused. Null when not
 	// baked.
 	Ref<Texture2D> cloudWeatherMap;
+
+	// Star field, from the scene's SpaceBackgroundComponent. Direction-only:
+	// it is never placed by the planet frame and does not rotate with it.
+	SpaceBackgroundParams spaceBackground;
+	bool hasSpaceBackground = false;
 
 	// Sun god-ray parameters, from the scene's VolumetricLightComponent. The
 	// pass needs an atmosphere's shadow cascades to be meaningful, so

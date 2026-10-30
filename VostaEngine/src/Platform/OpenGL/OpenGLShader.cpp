@@ -213,66 +213,190 @@ namespace ve {
         setInt(name, unit);
     }
 
+    void OpenGLShader::bindUniformBlock(const std::string& blockName, uint32_t bindingPoint)
+    {
+        if (shaderId == 0) return;
+
+        auto it = m_uniformBlockIndex.find(blockName);
+        if (it == m_uniformBlockIndex.end()) {
+            GLuint blockIndex = glGetUniformBlockIndex(shaderId, blockName.c_str());
+            it = m_uniformBlockIndex.emplace(blockName, blockIndex).first;
+        }
+        // GL_INVALID_INDEX: the block was never declared or the linker dropped it.
+        if (it->second == GL_INVALID_INDEX) return;
+
+        glUniformBlockBinding(shaderId, it->second, bindingPoint);
+    }
+
     void OpenGLShader::uploadUniformFloat(const std::string& name, float values)
     {
-        GLint location = glGetUniformLocation(shaderId, name.c_str());
+        const GLint location = uniformLocation(name);
+        if (location < 0) return;
         glUniform1f(location, values);
     }
 
     void OpenGLShader::uploadUniformFloat2(const std::string& name, const glm::vec2& values)
     {
-        GLint location = glGetUniformLocation(shaderId, name.c_str());
+        const GLint location = uniformLocation(name);
+        if (location < 0) return;
         glUniform2f(location, values.x,values.y);
     }
 
     void OpenGLShader::uploadUniformFloat3(const std::string& name, const glm::vec3& values)
     {
-        GLint location = glGetUniformLocation(shaderId, name.c_str());
+        const GLint location = uniformLocation(name);
+        if (location < 0) return;
         glUniform3f(location, values.x, values.y,values.z);
     }
 
     void OpenGLShader::uploadUniformFloat4(const std::string& name, const glm::vec4& values){
-        
-        GLuint location = glGetUniformLocation(shaderId, name.c_str());
+
+        const GLint location = uniformLocation(name);
+        if (location < 0) return;
         glUniform4f(location, values.x, values.y, values.z, values.w);
     }
 
     void OpenGLShader::uploadUniformMat4(const std::string& name, const glm::mat4& matrix){
 
-        GLuint location = glGetUniformLocation(shaderId, name.c_str());
+        const GLint location = uniformLocation(name);
+        if (location < 0) return;
         glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(matrix));
     }
 
     void OpenGLShader::uploadUniformInt(const std::string& name, int value){
 
-        GLuint location = glGetUniformLocation(shaderId, name.c_str());
+        const GLint location = uniformLocation(name);
+        if (location < 0) return;
         glUniform1i(location, value);
+    }
+
+    int OpenGLShader::getUniformLocation(const std::string& name) {
+        return uniformLocation(name);
+    }
+
+    void OpenGLShader::setFloat(int location, float value) {
+        if (location < 0) return;
+        glUniform1f(location, value);
+    }
+
+    void OpenGLShader::setFloat2(int location, const glm::vec2& value) {
+        if (location < 0) return;
+        glUniform2f(location, value.x, value.y);
+    }
+
+    void OpenGLShader::setFloat3(int location, const glm::vec3& value) {
+        if (location < 0) return;
+        glUniform3f(location, value.x, value.y, value.z);
+    }
+
+    void OpenGLShader::setFloat4(int location, const glm::vec4& value) {
+        if (location < 0) return;
+        glUniform4f(location, value.x, value.y, value.z, value.w);
+    }
+
+    void OpenGLShader::setMat4(int location, const glm::mat4& value) {
+        if (location < 0) return;
+        glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
+    }
+
+    void OpenGLShader::setInt(int location, int value) {
+        if (location < 0) return;
+        glUniform1i(location, value);
+    }
+
+    void OpenGLShader::cacheUniformLocations()
+    {
+        m_uniformLocations.clear();
+        m_uniformBlockIndex.clear();
+        if (shaderId == 0) return;
+
+        GLint activeBlockCount = 0;
+        glGetProgramiv(shaderId, GL_ACTIVE_UNIFORM_BLOCKS, &activeBlockCount);
+        for (GLint i = 0; i < activeBlockCount; ++i) {
+            GLint nameLength = 0;
+            glGetActiveUniformBlockiv(shaderId, static_cast<GLuint>(i), GL_UNIFORM_BLOCK_NAME_LENGTH, &nameLength);
+            if (nameLength <= 0) continue;
+            std::string blockName(static_cast<size_t>(nameLength), '\0');
+            GLsizei written = 0;
+            glGetActiveUniformBlockName(shaderId, static_cast<GLuint>(i), nameLength, &written, blockName.data());
+            if (written <= 0) continue;
+            // The reported length includes the terminating NUL.
+            blockName.resize(static_cast<size_t>(written - 1));
+            m_uniformBlockIndex.emplace(blockName, static_cast<uint32_t>(i));
+        }
+
+        GLint activeCount = 0;
+        glGetProgramiv(shaderId, GL_ACTIVE_UNIFORMS, &activeCount);
+        if (activeCount <= 0) return;
+
+        GLint maxNameLength = 0;
+        glGetProgramiv(shaderId, GL_ACTIVE_UNIFORM_MAX_LENGTH, &maxNameLength);
+        std::string name(static_cast<size_t>(maxNameLength > 0 ? maxNameLength : 1), '\0');
+
+        for (GLint i = 0; i < activeCount; ++i) {
+            GLsizei nameLength = 0;
+            GLint arraySize = 0;
+            GLenum type = 0;
+            glGetActiveUniform(shaderId, static_cast<GLuint>(i), static_cast<GLsizei>(name.size()),
+                               &nameLength, &arraySize, &type, name.data());
+            if (nameLength <= 0) continue;
+
+            std::string baseName(name.data(), static_cast<size_t>(nameLength));
+            const GLint location = glGetUniformLocation(shaderId, baseName.c_str());
+            if (location < 0) continue;
+            m_uniformLocations.emplace(baseName, static_cast<int>(location));
+
+            // Arrays report "foo[0]"; the element-0 location is also valid for the
+            // bare name, which is how most callers spell it.
+            if (arraySize > 1) {
+                const size_t bracket = baseName.find('[');
+                if (bracket != std::string::npos)
+                    m_uniformLocations.emplace(baseName.substr(0, bracket), static_cast<int>(location));
+            }
+        }
+    }
+
+    int OpenGLShader::uniformLocation(const std::string& name)
+    {
+        auto it = m_uniformLocations.find(name);
+        if (it != m_uniformLocations.end()) return it->second;
+
+        // Misses are remembered too: a name the linker dropped should cost one
+        // query over the shader's lifetime, not one per frame.
+        const GLint location = shaderId ? glGetUniformLocation(shaderId, name.c_str()) : -1;
+        m_uniformLocations.emplace(name, static_cast<int>(location));
+        return static_cast<int>(location);
     }
 
     void OpenGLShader::setLightSSBO(const std::vector<GpuLightData>& lights) {
         if (lights.empty()) return;
 
-        size_t neededSize = lights.size() * sizeof(GpuLightData);
+        const GLsizeiptr size = (GLsizeiptr)(lights.size() * sizeof(GpuLightData));
 
-        if (!m_lightSSBO || m_lightSSBO->getSize() < neededSize) {
-            m_lightSSBO = StorageBuffer::create(neededSize, lights.data());
+        if (m_lightSSBOId == 0) {
+            glGenBuffers(1, &m_lightSSBOId);
         }
-        else {
-            m_lightSSBO->setData(lights.data(), neededSize);
-        }
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_lightSSBOId);
+        // glBufferData re-specifies the store: the old contents are orphaned and
+        // a new block is handed to this upload, so the driver never has to
+        // serialize against a draw still reading the previous frame's lights.
+        // It also grows the buffer to any light count.
+        glBufferData(GL_SHADER_STORAGE_BUFFER, size, lights.data(), GL_DYNAMIC_DRAW);
+        m_lightSSBOBytes = (size_t)size;
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
         setInt("u_LightCount", static_cast<int>(lights.size()));
     }
 
     void OpenGLShader::bindLightSSBO(size_t bindingPoint) {
-        if (m_lightSSBO) {
-            m_lightSSBO->bind(bindingPoint);
+        if (m_lightSSBOId) {
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<GLuint>(bindingPoint), m_lightSSBOId);
         }
     }
 
     void OpenGLShader::unbindLightSSBO(size_t bindingPoint) {
-        if (m_lightSSBO) {
-            m_lightSSBO->unbind(bindingPoint);
+        if (m_lightSSBOId) {
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<GLuint>(bindingPoint), 0);
         }
     }
 
@@ -337,11 +461,16 @@ namespace ve {
         glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
 
+        cacheUniformLocations();
     }
 
     OpenGLShader::~OpenGLShader() {
         if (shaderId) {
             glDeleteProgram(shaderId);
+        }
+        if (m_lightSSBOId) {
+            glDeleteBuffers(1, &m_lightSSBOId);
+            m_lightSSBOId = 0;
         }
     }
 

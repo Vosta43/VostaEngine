@@ -5,6 +5,7 @@
 #include "Panels/GeometryGraphPanel.h"
 #include "Panels/MaterialGraphPanel.h"
 #include "Panels/NoisePanel.h"
+#include "Panels/ParticlePanel.h"
 #include "Panels/TerrainRulePanel.h"
 #include "Panels/TexturePreviewPanel.h"
 #include "SubEditors/LayeredMaterialEditor.h"
@@ -34,6 +35,7 @@ public:
     void openGeometry(const std::string& path);
     void openTerrainRule(const std::string& path);
     void openTexture(const std::string& path);
+    void openParticle(const std::string& path);
 
     // Shows the noise editor window on whatever graph it last held.
     void showNoiseEditor() { m_showNoiseEditor = true; }
@@ -49,6 +51,7 @@ private:
     NoisePanel            m_noisePanel;
     GeometryGraphPanel    m_geometryPanel;
     TerrainRulePanel      m_terrainRulePanel;
+    ParticlePanel         m_particlePanel;
     MaterialLayerEditor   m_materialLayerEditor;
     LayeredMaterialEditor m_layeredMaterialEditor;
     TexturePreviewPanel   m_texturePreview;
@@ -64,6 +67,7 @@ private:
     bool m_showMaterialLayerEditor = false;
     bool m_showLayeredMaterialEditor = false;
     bool m_showTexturePreview = false;
+    bool m_showParticleEditor = false;
 };
 
 }

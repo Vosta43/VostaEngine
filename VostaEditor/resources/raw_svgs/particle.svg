@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512" fill="none">
+  <!-- emitter nozzle -->
+  <path d="M26 54 L38 54 L35 44 L29 44 Z" fill="#c8c8c8" stroke="#6e6e6e" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M30 54 L34 54 L34 58 L30 58 Z" fill="#ededed" stroke="#6e6e6e" stroke-width="1.5" stroke-linejoin="round"/>
+
+  <!-- particle plume: solid dots, shaded by distance from the nozzle -->
+  <g>
+    <circle cx="32" cy="37" r="3.6" fill="#ffffff"/>
+    <circle cx="24" cy="29" r="2.8" fill="#ffffff"/>
+    <circle cx="40" cy="28" r="2.8" fill="#ededed"/>
+    <circle cx="18" cy="20" r="2.4" fill="#ededed"/>
+    <circle cx="46" cy="19" r="2.4" fill="#ededed"/>
+    <circle cx="25" cy="12" r="2.0" fill="#c8c8c8"/>
+    <circle cx="39" cy="10.5" r="2.0" fill="#c8c8c8"/>
+    <circle cx="32" cy="5.5" r="1.6" fill="#c8c8c8"/>
+    <circle cx="12.5" cy="10" r="1.4" fill="#c8c8c8"/>
+    <circle cx="51.5" cy="8.5" r="1.4" fill="#c8c8c8"/>
+  </g>
+</svg>

@@ -39,17 +39,17 @@ uniform vec3 u_CameraPos;
 uniform vec3 u_PlanetCenter;
 
 // ---------------------------------------------------------------------------
-// Light SSBO
+// Light SSBO — one element per light in the scene, no fixed cap.
 // ---------------------------------------------------------------------------
 struct Light
 {
-    vec3  position;
+    vec3  position;              // render space
     float range;
     vec3  color;
     float intensity;
     float attenuationLinear;
     float attenuationQuadratic;
-    int   type;
+    int   type;                  // 0 = point
     int   pad;
 };
 
@@ -59,6 +59,11 @@ layout(std430, binding = 1) readonly buffer LightBuffer
 };
 
 uniform int u_LightCount;
+
+// 1 for offscreen previews whose background the present pass discards. The sky
+// branch then writes black instead of evaluating the atmosphere and the space
+// background it is about to throw away.
+uniform int u_DiscardSky;
 
 // ---------------------------------------------------------------------------
 // HDR output
@@ -74,6 +79,8 @@ const float PI = 3.14159265359;
 #include "atmosphere.glsl"
 #include "volume_cloud.glsl"
 #include "shadow_lib.glsl"
+// Direction-only star field, composited behind the sky (needs atmosphere.glsl)
+#include "space_background.glsl"
 
 // ---------------------------------------------------------------------------
 // PBR helper functions (Cook-Torrance BRDF, metallic-roughness workflow)
@@ -167,12 +174,27 @@ void main()
     // Background pixels (no geometry) — render the atmospheric sky
     if (depth <= 0.0)
     {
-        vec3 atmosphere = computeAtmosphereLUT(u_CameraPos - u_PlanetCenter, rayDir);
-        float sunDot    = dot(rayDir, u_SunDirection);
-        // Sun disc tinted by the atmosphere along the sun ray: white light,
-        // warm and dimmer near the horizon.
-        vec3 sunColor   = u_SunIntensity * sunTransmittance(u_CameraPos - u_PlanetCenter, u_SunDirection);
-        finalColor      = atmosphere + sunColor * sunDisk(sunDot);
+        // Thumbnails and other offscreen previews draw onto a transparent target
+        // and the present pass discards every background pixel. Evaluating the
+        // sky here is dead work, and if that discard ever misses its depth test
+        // the sky shows up as a backdrop behind the preview.
+        if (u_DiscardSky != 0)
+        {
+            finalColor = vec3(0.0);
+        }
+        else
+        {
+            vec3 atmosphere = computeAtmosphereLUT(u_CameraPos - u_PlanetCenter, rayDir);
+            // Star field sits behind the atmosphere: veSpaceRadiance applies the
+            // full-column transmittance and the planet's occlusion, so it shares
+            // the sky's exposure and horizon reddening for free.
+            vec3 stars      = veSpaceRadiance(u_CameraPos - u_PlanetCenter, rayDir);
+            float sunDot    = dot(rayDir, u_SunDirection);
+            // Sun disc tinted by the atmosphere along the sun ray: white light,
+            // warm and dimmer near the horizon.
+            vec3 sunColor   = u_SunIntensity * sunTransmittance(u_CameraPos - u_PlanetCenter, u_SunDirection);
+            finalColor      = atmosphere + stars + sunColor * sunDisk(sunDot);
+        }
     }
     else
     {
@@ -206,8 +228,8 @@ void main()
             Light light = lights[i];
             if (light.type != 0) continue;
 
-            vec3 lightDir   = light.position - worldPos;
-            float distance  = length(lightDir);
+            vec3  lightDir = light.position - worldPos;
+            float distance = length(lightDir);
             if (distance > light.range) continue;
 
             lightDir = normalize(lightDir);
@@ -216,7 +238,7 @@ void main()
             float attenuation = calculateAttenuation(distance, light.range,
                                                      light.attenuationLinear,
                                                      light.attenuationQuadratic);
-            vec3 radiance = light.color * light.intensity * attenuation;
+            vec3  radiance = light.color * light.intensity * attenuation;
 
             // Cook-Torrance BRDF
             float NdotV = max(dot(normal, viewDir), 0.0);
@@ -238,25 +260,32 @@ void main()
         // Atmospheric sun as a directional light. The radiance is the physical
         // sun color attenuated by the atmosphere along the sun ray (transmittance
         // LUT, the same call the sky branch uses): white at zenith, reddened at
-        // dusk. Without an atmosphere the LUT is unbound and sunRadiance is 0,
-        // so this term is a no-op and the surface keeps its IBL-only look.
-        vec3 sunDir   = normalize(u_SunDirection);
-        float NdotSun = max(dot(normal, sunDir), 0.0);
-        vec3 sunHalfDir = normalize(viewDir + sunDir);
-        float NdotVSun  = max(dot(normal, viewDir), 0.0);
-        vec3 Fsun    = fresnelSchlick(max(dot(sunHalfDir, viewDir), 0.0), F0);
-        float Dsun   = distributionGGX(normal, sunHalfDir, roughness);
-        float VisSun = visibilitySmithGGXCorrelated(NdotVSun, NdotSun, roughness);
-        vec3 specSun = Dsun * VisSun * Fsun;
-        vec3 kDSun   = (1.0 - Fsun) * (1.0 - metallic);
-        float LoHSun = max(dot(sunDir, sunHalfDir), 0.0);
-        vec3 diffSun = kDSun * diffuseBurley(albedo, NdotVSun, NdotSun, LoHSun, roughness);
-        vec3 sunRadiance = u_SunIntensity * sunTransmittance(worldPos - u_PlanetCenter, sunDir);
-        // Shadows occlude the direct sun only; sky/IBL light is unoccluded.
-        float shadow = 1.0;
-        if (u_ShadowCascadeCount > 0)
-            shadow = shadowFactor(worldPos, normal, viewDepth);
-        Lo += (diffSun + specSun) * sunRadiance * NdotSun * shadow;
+        // dusk.
+        //
+        // Gated on the planet radius, not on "is the term harmless": with no
+        // atmosphere nothing uploads u_SunDirection, and normalize(vec3(0)) is
+        // NaN — which propagates through 0 * NaN and blacks out the surface
+        // rather than cancelling.
+        if (u_PlanetRadius > 0.0)
+        {
+            vec3 sunDir   = normalize(u_SunDirection);
+            float NdotSun = max(dot(normal, sunDir), 0.0);
+            vec3 sunHalfDir = normalize(viewDir + sunDir);
+            float NdotVSun  = max(dot(normal, viewDir), 0.0);
+            vec3 Fsun    = fresnelSchlick(max(dot(sunHalfDir, viewDir), 0.0), F0);
+            float Dsun   = distributionGGX(normal, sunHalfDir, roughness);
+            float VisSun = visibilitySmithGGXCorrelated(NdotVSun, NdotSun, roughness);
+            vec3 specSun = Dsun * VisSun * Fsun;
+            vec3 kDSun   = (1.0 - Fsun) * (1.0 - metallic);
+            float LoHSun = max(dot(sunDir, sunHalfDir), 0.0);
+            vec3 diffSun = kDSun * diffuseBurley(albedo, NdotVSun, NdotSun, LoHSun, roughness);
+            vec3 sunRadiance = u_SunIntensity * sunTransmittance(worldPos - u_PlanetCenter, sunDir);
+            // Shadows occlude the direct sun only; sky/IBL light is unoccluded.
+            float shadow = 1.0;
+            if (u_ShadowCascadeCount > 0)
+                shadow = shadowFactor(worldPos, normal, viewDepth);
+            Lo += (diffSun + specSun) * sunRadiance * NdotSun * shadow;
+        }
 
         // Specular IBL — split-sum approximation. The prefiltered cubemap is
         // baked once from the static skybox, so its sky region goes stale once

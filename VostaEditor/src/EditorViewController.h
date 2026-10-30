@@ -16,6 +16,7 @@ public:
     using OpenMaterialEditorFn = std::function<void(AssetHandle)>;
     using TerrainBrushFn = std::function<void(Scene&)>;
     using OpenTerrainMapFn = std::function<void()>;
+    using SpawnPlacementFn = SceneOutliner::SpawnPlacementFn;
 
     EditorViewController(Ref<Scene> scene, OpenMaterialEditorFn onOpenMaterial,
                          OpenMaterialEditorFn onOpenMaterialLayer, TerrainBrushFn onDrawTerrainBrush,
@@ -26,6 +27,11 @@ public:
     void rebind(Ref<Scene> newScene, OpenMaterialEditorFn onOpenMaterial,
                 OpenMaterialEditorFn onOpenMaterialLayer, TerrainBrushFn onDrawTerrainBrush,
                 OpenTerrainMapFn onOpenTerrainMap);
+
+    // Where the Create Entity menu puts new entities (see
+    // SceneOutliner::setSpawnPlacement). Stored here so rebind() re-applies it to
+    // the outliner it rebuilds.
+    void setSpawnPlacement(SpawnPlacementFn fn);
 
     // Renders the outliner and property panels.
     void onGuiRender(uint32_t& selectedEntity);
@@ -38,10 +44,11 @@ public:
     Ref<Scene> getScene() { return m_scene; }
 
 private:
-    Ref<Scene>    m_scene;
-    SceneOutliner m_outliner;
-    PropertyPanel m_propertyPanel;
-    bool          m_locked = false;
+    Ref<Scene>       m_scene;
+    SceneOutliner    m_outliner;
+    PropertyPanel    m_propertyPanel;
+    SpawnPlacementFn m_spawnPlacement;
+    bool             m_locked = false;
 };
 
 } // namespace ve

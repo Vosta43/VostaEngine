@@ -1,7 +1,7 @@
 # Vosta Engine
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
-![Version](https://img.shields.io/badge/version-0.2.9-blue.svg)
+![Version](https://img.shields.io/badge/version-0.2.10-blue.svg)
 
 A modern C++20 game engine built around deferred PBR rendering, a data-driven
 render pipeline, node-based material and noise graphs, quad-tree terrain, and a
@@ -21,6 +21,8 @@ editor whose scene can be scripted by AI agents over MCP.
   planet-centered sky rendering
 - **Volumetric clouds** — CPU-baked Worley noise, half-res fragment raymarch,
   weather-map driven coverage and density
+- **Space background** — procedural cube-sphere star field with per-star
+  blackbody tint, composited behind the atmosphere
 
 ### Scene & assets
 
@@ -48,6 +50,15 @@ editor whose scene can be scripted by AI agents over MCP.
 
 - **Noise graph** — node-based procedural noise with a CPU evaluator
 
+### Particles
+
+- **Module-graph emitter runtime** — four-stage emitters (emitter spawn/update,
+  particle spawn/update) built from modules and compiled to a small register VM
+- **Particle assets** (`.veasset`) — module stack, parameters, and attribute
+  layout saved as text, recompiled on load
+- **Billboard rendering** — camera-facing quads with per-particle colour, plus a
+  dedicated editor panel with a live viewport
+
 ### AI / MCP
 
 - **MCP tool layer** — scene, asset, and editor tools behind a command registry
@@ -62,7 +73,7 @@ editor whose scene can be scripted by AI agents over MCP.
 - Dear ImGui interface with ImGuizmo viewport gizmos
 - Node-graph editor (imgui-node-editor) for materials and noise
 - Panels for the scene outliner, properties, file browser, material graph, noise,
-  terrain map, texture preview, and AI
+  particles, terrain map, texture preview, and AI
 - CJK-capable UI font (Noto Sans SC)
 
 ## Requirements

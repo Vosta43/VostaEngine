@@ -12,8 +12,23 @@ namespace ve::vellum {
         m_hoverTarget = nullptr;
         m_captureTarget = nullptr;
         m_focusTarget = nullptr;
+        m_tooltipSource = nullptr;
+        m_tooltipVisible = false;
         m_path.clear();
         m_root = root;
+    }
+
+    void WidgetTree::setTooltipFont(FontAtlas* font) {
+        if (!font)
+            return;
+        if (!m_tooltipBox)
+            m_tooltipBox = CreateRef<TooltipBox>(font);
+        else
+            m_tooltipBox->setFont(font);
+    }
+
+    void WidgetTree::setTooltipDelay(float seconds) {
+        m_tooltipDelay = glm::max(0.0f, seconds);
     }
 
     void WidgetTree::setFocus(Widget* target) {
@@ -31,7 +46,21 @@ namespace ve::vellum {
     }
 
     void WidgetTree::frame(const glm::vec2& surfaceSize, const InputFrame& input) {
-        if (!m_root || surfaceSize.x <= 0.0f || surfaceSize.y <= 0.0f) return;
+        if (!m_root || surfaceSize.x <= 0.0f || surfaceSize.y <= 0.0f) {
+            m_tooltipSource = nullptr;
+            m_tooltipVisible = false;
+            return;
+        }
+
+        m_surfaceSize = surfaceSize;
+
+        // Animation step, taken from the host clock so a paused or backwards clock
+        // yields 0 (which snaps animations to their target instead of stalling).
+        // The cap keeps a long hitch from teleporting a transition.
+        float dt = 0.0f;
+        if (m_lastTimeSeconds > 0.0f && input.timeSeconds > m_lastTimeSeconds)
+            dt = glm::min(input.timeSeconds - m_lastTimeSeconds, 0.1f);
+        m_lastTimeSeconds = input.timeSeconds;
 
         // Two-pass layout: prepass bottom-up to cache desired sizes, then arrange
         // top-down so every widget ends up with its final absolute rect. The root
@@ -42,9 +71,13 @@ namespace ve::vellum {
         // Rects are final now, so hit-testing is valid; route before painting so
         // the state this frame's widgets read is already up to date.
         applyInput(input);
+        // After input: a hover state set above is what this frame's animation sees.
+        m_root->tick(dt);
+        updateTooltip(input);
 
         m_paint.beginFrame(surfaceSize);
         m_root->paint(m_paint);
+        paintTooltip();
 
         m_renderer.render(m_paint.list(), surfaceSize);
     }
@@ -157,6 +190,52 @@ namespace ve::vellum {
 
         // Keyboard is independent of mouse capture: a drag does not steal keys.
         dispatchKeys(input);
+    }
+
+    Widget* WidgetTree::tooltipSource() const {
+        // The deepest widget with text wins; a nested widget without a tooltip does
+        // not suppress its ancestors'.
+        for (auto it = m_path.rbegin(); it != m_path.rend(); ++it) {
+            if (!(*it)->tooltip().empty())
+                return *it;
+        }
+        return nullptr;
+    }
+
+    void WidgetTree::updateTooltip(const InputFrame& input) {
+        if (!m_tooltipBox) {
+            m_tooltipVisible = false;
+            return;
+        }
+
+        // A press or an active drag dismisses the bubble and restarts the timer.
+        Widget* source = (m_captureTarget || input.justDown) ? nullptr : tooltipSource();
+        if (source != m_tooltipSource) {
+            m_tooltipSource = source;
+            m_tooltipRevealTime = input.timeSeconds + m_tooltipDelay;
+            m_tooltipVisible = false;
+        }
+        if (!source)
+            return;
+
+        if (!m_tooltipVisible && input.timeSeconds >= m_tooltipRevealTime) {
+            m_tooltipVisible = true;
+            m_tooltipAnchor = input.pos;   // pinned here: the bubble does not follow
+        }
+        if (m_tooltipVisible) {
+            m_tooltipBox->setText(source->tooltip());
+            m_tooltipBox->setAnchor(m_tooltipAnchor);
+        }
+    }
+
+    void WidgetTree::paintTooltip() {
+        if (!m_tooltipVisible || !m_tooltipBox)
+            return;
+        // Laid out against the whole surface and painted last, once the root's clip
+        // stack has unwound, so a panel the widget sits in cannot cut it off.
+        m_tooltipBox->prepass();
+        m_tooltipBox->arrange({ { 0.0f, 0.0f }, m_surfaceSize });
+        m_tooltipBox->paint(m_paint);
     }
 
     void WidgetTree::dispatchKeys(const InputFrame& input) {

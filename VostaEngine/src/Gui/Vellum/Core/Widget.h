@@ -37,6 +37,12 @@ public:
 	// Default recurses children; leaves override to draw themselves.
 	virtual void paint(PaintContext& ctx);
 
+	// Per-frame animation step, in seconds. The tree drives it after routing input
+	// and before painting, so a state change made this frame animates this frame.
+	// The default recurses children; an animating widget overrides it and calls
+	// Widget::tick(dt) to keep its descendants ticking.
+	virtual void tick(float dt);
+
 	// Cached intrinsic size. Valid after prepass(); containers read it on their
 	// children while arranging.
 	glm::vec2 desiredSize() const;
@@ -47,6 +53,11 @@ public:
 	// widgets through it, so it is the tree's stable lookup key.
 	void setName(const std::string& name) { m_name = name; }
 	const std::string& name() const { return m_name; }
+
+	// Text bubble WidgetTree shows after the cursor rests on this widget. Empty
+	// disables it; the deepest widget with text on the hover path wins.
+	void setTooltip(const std::string& text) { m_tooltip = text; }
+	const std::string& tooltip() const { return m_tooltip; }
 
 	Widget* parent() const { return m_parent; }
 	const std::vector<Ref<Widget>>& children() const { return m_children; }
@@ -87,6 +98,7 @@ protected:
 	void invalidateDesiredSize();
 
 	std::string              m_name;              // authored lookup key
+	std::string              m_tooltip;           // shown by the tree while hovered
 	Widget*                  m_parent = nullptr;  // non-owning: children own, parent only observes
 	std::vector<Ref<Widget>> m_children;          // owning
 	Rect                     m_rect{};            // absolute screen space, set by arrange()

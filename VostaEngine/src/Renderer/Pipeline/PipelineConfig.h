@@ -2,6 +2,7 @@
 
 #include "Core/Core.h"
 #include "Renderer/FrameBuffer.h"
+#include "Renderer/PipelineState.h"
 
 #include <string>
 #include <vector>
@@ -60,16 +61,13 @@ namespace ve {
 		bool  depth = false;
 	};
 
-	enum class BlendFactor { Zero, One, SrcAlpha, OneMinusSrcAlpha };
-	enum class DepthFuncType { Greater, Gequal };
-
 	struct PassStateDef {
 		bool          blend = false;
 		BlendFactor   src = BlendFactor::SrcAlpha;
 		BlendFactor   dst = BlendFactor::OneMinusSrcAlpha;
 		bool          depthTest = false;
 		bool          depthWrite = false;
-		DepthFuncType depthFunc = DepthFuncType::Greater;
+		CompareOp     depthFunc = CompareOp::Greater;
 	};
 
 	struct ConditionDef {

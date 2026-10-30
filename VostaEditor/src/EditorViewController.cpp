@@ -29,7 +29,14 @@ void EditorViewController::rebind(Ref<Scene> newScene, OpenMaterialEditorFn onOp
     m_propertyPanel.setOnDrawTerrainBrush(std::move(onDrawTerrainBrush));
     m_propertyPanel.setOnOpenTerrainMap(std::move(onOpenTerrainMap));
     m_outliner.setLocked(m_locked);
+    m_outliner.setSpawnPlacement(m_spawnPlacement);
     m_propertyPanel.setLocked(m_locked);
+}
+
+void EditorViewController::setSpawnPlacement(SpawnPlacementFn fn)
+{
+    m_spawnPlacement = std::move(fn);
+    m_outliner.setSpawnPlacement(m_spawnPlacement);
 }
 
 void EditorViewController::setLocked(bool locked)

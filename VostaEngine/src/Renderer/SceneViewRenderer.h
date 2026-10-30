@@ -15,6 +15,7 @@ class Scene;
 class SceneRenderer;
 class RenderPipeline;
 class RuntimeVirtualTexture;
+class Texture2D;
 class Texture2DArray;
 
 // Globe LOD readout for the editor toolbar: what the last update() selected.

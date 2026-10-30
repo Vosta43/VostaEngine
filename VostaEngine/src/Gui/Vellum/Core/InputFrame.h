@@ -28,6 +28,12 @@ struct InputFrame {
 	bool justUp = false;
 	bool buttonDown = false;
 	float wheel = 0.0f;
+
+	// Host clock in seconds, monotonic. Hover timing (the tooltip delay) needs a
+	// time base the core does not have to guess at. A host that leaves it at 0
+	// simply never reveals a tooltip.
+	float timeSeconds = 0.0f;
+
 	std::vector<KeyInput> keys;
 };
 
