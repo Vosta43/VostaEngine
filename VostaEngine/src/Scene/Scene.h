@@ -23,6 +23,13 @@ namespace ve {
         // scene while editing, where the ECS graph must not run.
         void tickParticles(float deltaTime);
 
+        // Audio follows the primary camera and runs source components. Only the
+        // runtime scene calls these; the authored scene stays silent in the
+        // editor.
+        void updateAudioListener();
+        void tickAudio();
+        void stopAudio();
+
         void onPickingRender();
 
         Entity createEntity();

@@ -30,9 +30,10 @@ struct ProcessResult {
 // for launching something the user keeps using (a packaged game), as opposed to
 // running a tool to completion (MSBuild).
 //
-// Windows-only for now -- packaging shells out to MSBuild, which has no
-// cross-platform equivalent in this engine yet, so only the Windows
-// implementation is compiled (see the Platform/Windows/ source file).
+// Implementations: Platform/Windows/ProcessWindows.cpp (CreateProcess) and
+// Platform/Posix/ProcessPosix.cpp (fork/execvp). On POSIX a program that cannot
+// be launched reports started and exits with code 127, carrying the reason in
+// output.
 VE_API ProcessResult runProcess(const std::vector<std::string>& argv,
                                 const std::string& processDir = std::string(),
                                 bool wait = true);

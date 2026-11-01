@@ -27,6 +27,7 @@ set(EDITOR_SOURCES
     src/Panels/TerrainMapPanel.cpp
     src/Panels/TerrainRulePanel.cpp
     src/Panels/TexturePreviewPanel.cpp
+    src/Panels/JsonEditorPanel.cpp
 
     src/SubEditors/LayeredMaterialEditor.cpp
     src/SubEditors/MaterialLayerEditor.cpp

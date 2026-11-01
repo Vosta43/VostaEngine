@@ -42,7 +42,8 @@ namespace ve {
 
 		void applyText(Widget& w, const JsonReader& p, const HudBuildContext& ctx) {
 			auto& t = static_cast<TextBlock&>(w);
-			t.setFont(ctx.atlas(p.getFloat("fontSize", 24.0f)));
+			t.setFont(ctx.atlas(p.getString("font", std::string()),
+			                    p.getFloat("fontSize", 24.0f)));
 			t.setText(p.getString("text", std::string()));
 			t.setColor(p.getVec4("color", glm::vec4(1.0f)));
 		}
@@ -89,7 +90,8 @@ namespace ve {
 
 		void applyInputBox(Widget& w, const JsonReader& p, const HudBuildContext& ctx) {
 			auto& in = static_cast<InputBox&>(w);
-			in.setFont(ctx.atlas(p.getFloat("fontSize", 24.0f)));
+			in.setFont(ctx.atlas(p.getString("font", std::string()),
+			                     p.getFloat("fontSize", 24.0f)));
 			in.setSize(p.getVec2("size", glm::vec2(200.0f, 40.0f)));
 			in.setText(p.getString("text", std::string()));
 			in.setTextColor(p.getVec4("color", glm::vec4(0.92f, 0.93f, 0.95f, 1.0f)));
@@ -101,9 +103,9 @@ namespace ve {
 		static const std::vector<HudWidgetType> types = {
 			{ "stack",       "",                                                                 createStack,  applyStack  },
 			{ "colored_box", "size(size), color(color)",                                         createBox,    applyBox    },
-			{ "text",        "text(string), color(color), fontSize(float,min=8,max=200)",         createText,   applyText   },
+			{ "text",        "text(string), color(color), font(string), fontSize(float,min=8,max=200)", createText,   applyText   },
 			{ "button",      "size(size), color(color), hoverColor(color), pressedColor(color)", createButton, applyButton },
-			{ "input_box",   "size(size), text(string), color(color), fontSize(float,min=8,max=200)", createInputBox, applyInputBox },
+			{ "input_box",   "size(size), text(string), color(color), font(string), fontSize(float,min=8,max=200)", createInputBox, applyInputBox },
 			{ "image",       "source(string), size(size), tint(color)",                          createImage,  applyImage  },
 			{ "nine_grid_image", "source(string), cellSize(float,min=1), size(size), tint(color)", createNineGridImage, applyNineGridImage },
 		};

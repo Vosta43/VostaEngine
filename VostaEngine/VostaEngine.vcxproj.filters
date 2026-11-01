@@ -48,10 +48,19 @@
     <ClCompile Include="src\Gui\Gui.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Gui\UIRenderTarget.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Gui\Vellum\Core\Widget.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Text\Font.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Gui\Vellum\Text\FontAtlas.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Text\GlyphAtlas.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Gui\Vellum\Text\FontManager.cpp">
@@ -222,6 +231,12 @@
     <ClCompile Include="thirdparty\stb_truetype\stb_truetype.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="thirdparty\miniaudio-master\miniaudio.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\stb_vorbis\stb_vorbis.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="thirdparty\ufbx\ufbx.c">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -274,6 +289,18 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Asset\TextureImporter.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Audio\AudioComponent.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Audio\AudioDecode.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Audio\AudioDevice.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Audio\SoundAsset.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Core\AssetLoadQueue.cpp">
@@ -590,6 +617,9 @@
     <ClInclude Include="src\Gui\Gui.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Gui\UIRenderTarget.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Gui\Vellum\Core\Animated.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -611,7 +641,13 @@
     <ClInclude Include="src\Gui\Vellum\Core\Widget.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Text\Font.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Gui\Vellum\Text\FontAtlas.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Text\GlyphAtlas.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Gui\Vellum\Text\FontManager.h">
@@ -903,6 +939,18 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Asset\AssetLibrary.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Audio\AudioDecode.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Audio\AudioDevice.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Audio\AudioInternal.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Audio\SoundAsset.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Asset\TextureImporter.h">

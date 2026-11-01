@@ -12,6 +12,8 @@
 #include "Noise/NoiseGraphResource.h"
 #include "Terrain/RuleGraphResource.h"
 #include "Particle/ParticleAsset.h"
+#include "Audio/AudioDevice.h"
+#include "Audio/SoundAsset.h"
 
 #include "imgui.h"
 
@@ -26,6 +28,14 @@
 #include <gtx/quaternion.hpp>
 
 namespace ve {
+
+namespace {
+
+    // Audition voice for the property row. Browser-side preview, not a runtime
+    // voice, so pausing or stopping the scene leaves it alone.
+    uint32_t s_auditionVoice = 0;
+
+}
 
 PropertyPanel::PropertyPanel(const Ref<Scene>& sceneContext)
     : m_sceneContext(sceneContext)
@@ -197,8 +207,10 @@ void PropertyPanel::drawProperty(const std::string& typeName, void* compPtr, con
     // component that declares one of these is editable without a custom drawer.
     else if (prop.uiType == "mesh" || prop.uiType == "noise" ||
              prop.uiType == "terrain_rule" || prop.uiType == "hud" ||
-             prop.uiType == "particle") {
+             prop.uiType == "particle" || prop.uiType == "sound") {
         drawAssetHandleProperty(ptr, prop);
+    } else if (prop.uiType == "combo") {
+        drawComboProperty(ptr, prop);
     } else {
         ImGui::Text("%s", prop.name.c_str());
     }
@@ -484,12 +496,51 @@ void PropertyPanel::drawAssetHandleProperty(void* ptr, const ReflectionProperty&
     } else if (prop.uiType == "particle") {
         AssetBrowser::ResourceCombo<ParticleAsset>("##combo", *handle,
             [](AssetHandle, float size) { ImGui::Button("?", ImVec2(size, size)); }, 24.0f);
+    } else if (prop.uiType == "sound") {
+        AssetBrowser::ResourceCombo<SoundAsset>("##combo", *handle,
+            [](AssetHandle, float size) { ImGui::Button("?", ImVec2(size, size)); }, 24.0f);
+
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Play") && handle->isValid()) {
+            AudioDevice& audio = AudioDevice::get();
+            if (s_auditionVoice != 0 && audio.hasVoice(s_auditionVoice))
+                audio.stopVoice(s_auditionVoice);
+            AudioVoiceParams params;
+            params.bus = SoundBus::Sfx;
+            s_auditionVoice = audio.playVoice(*handle, params, Vec3(0.0));
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Stop") && s_auditionVoice != 0) {
+            AudioDevice::get().stopVoice(s_auditionVoice);
+            s_auditionVoice = 0;
+        }
     }
 
     ImGui::SameLine();
     if (ImGui::Button("Clear"))
         *handle = AssetHandle();
     ImGui::PopID();
+}
+
+// Enum-valued int with the labels listed in the property meta.
+void PropertyPanel::drawComboProperty(void* ptr, const ReflectionProperty& prop)
+{
+    int* value = static_cast<int*>(ptr);
+    if (prop.options.empty()) {
+        ImGui::Text("%s: %d", prop.name.c_str(), *value);
+        return;
+    }
+
+    const int count = static_cast<int>(prop.options.size());
+    int current = std::clamp(*value, 0, count - 1);
+
+    if (ImGui::BeginCombo(prop.name.c_str(), prop.options[static_cast<size_t>(current)].c_str())) {
+        for (int i = 0; i < count; ++i) {
+            if (ImGui::Selectable(prop.options[static_cast<size_t>(i)].c_str(), i == current))
+                *value = i;
+        }
+        ImGui::EndCombo();
+    }
 }
 
 // -----------------------------------------------------------------------

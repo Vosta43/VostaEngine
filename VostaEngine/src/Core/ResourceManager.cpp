@@ -12,6 +12,7 @@
 #include "Scene/Terrain/TerrainDataResource.h"
 #include "Gui/Hud/HudAsset.h"
 #include "Particle/ParticleAsset.h"
+#include "Audio/SoundAsset.h"
 
 
 namespace ve {
@@ -140,6 +141,7 @@ namespace ve {
     VE_DEFINE_RESOURCE_STORAGE(TerrainDataResource)
     VE_DEFINE_RESOURCE_STORAGE(HudAsset)
     VE_DEFINE_RESOURCE_STORAGE(ParticleAsset)
+    VE_DEFINE_RESOURCE_STORAGE(SoundAsset)
 
     template VE_API AssetHandle ResourceManager::requestAsync<Texture2D>(const std::string&);
     template VE_API AssetHandle ResourceManager::requestAsync<StaticMesh>(const std::string&);

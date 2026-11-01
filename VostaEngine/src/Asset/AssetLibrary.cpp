@@ -91,6 +91,7 @@ namespace ve {
 			{ "terrain_data",     "Terrain Data",     "Terrain",  "terrain_data",     {} },
 			{ "terrain_rule",     "Terrain Rule Graph", "Terrain", "terrain_rule",    {} },
 			{ "hud",              "HUD",              "UI",       "hud",              {} },
+			{ "sound",            "Sound",            "Audio",    "",                 { ".wav", ".flac", ".mp3", ".ogg" } },
 			{ "scene",            "Scene",            "Scene",    "",                 { ".veworld" } },
 		};
 		return types;

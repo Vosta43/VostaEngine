@@ -131,9 +131,19 @@ VostaEngine/thirdparty/JSON/*
 !SandBox/assets/models/cube.obj
 !VostaEditor/assets/models/sphere.obj
 
-# The OBJ importer writes a <stem>_default.veasset material next to a mesh on
+# The OBJ importer writes a <stem>_default[.veasset] material next to a mesh on
 # first import. Generated, never authored -- so never committed.
+VostaEngine/resources/models/*_default
 VostaEngine/resources/models/*_default.veasset
+
+# ── miniaudio (vendored): only the amalgamated single-file build is used ──
+VostaEngine/thirdparty/miniaudio-master/*
+!VostaEngine/thirdparty/miniaudio-master/miniaudio.h
+!VostaEngine/thirdparty/miniaudio-master/miniaudio.c
+!VostaEngine/thirdparty/miniaudio-master/LICENSE
+
+# ── Visual Studio upgrade log (regenerated when the IDE migrates a project) ──
+/VostaEngine/UpgradeLog.htm
 
 # ── Athenaeum knowledge-base CLI (local-only tool, not for distribution) ──
 ath.py

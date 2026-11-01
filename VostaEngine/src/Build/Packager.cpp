@@ -21,7 +21,7 @@ namespace {
 
     // Mirrors project() VERSION in CMakeLists.txt, recorded in build.json so a
     // shipped folder can be traced back to the engine that produced it.
-    constexpr const char* kEngineVersion = "0.2.10";
+    constexpr const char* kEngineVersion = "0.2.11";
 
     // ── Job state ───────────────────────────────────────────────────────────
     // One job at a time. The worker thread writes under the mutex; the UI reads

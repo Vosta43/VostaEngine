@@ -175,6 +175,7 @@
     <ClCompile Include="src\Panels\TerrainRulePanel.cpp" />
     <ClCompile Include="src\Panels\TerrainMapPanel.cpp" />
     <ClCompile Include="src\Panels\TexturePreviewPanel.cpp" />
+    <ClCompile Include="src\Panels\JsonEditorPanel.cpp" />
     <ClCompile Include="src\SubEditors\MaterialLayerEditor.cpp" />
     <ClCompile Include="src\SubEditors\LayeredMaterialEditor.cpp" />
     <ClCompile Include="src\SubEditors\TerrainEditor.cpp" />
@@ -215,6 +216,7 @@
     <ClInclude Include="src\Panels\TerrainRulePanel.h" />
     <ClInclude Include="src\Panels\TerrainMapPanel.h" />
     <ClInclude Include="src\Panels\TexturePreviewPanel.h" />
+    <ClInclude Include="src\Panels\JsonEditorPanel.h" />
     <ClInclude Include="src\Panels\AssetBrowserWidget.h" />
     <ClInclude Include="src\SubEditors\MaterialLayerEditor.h" />
     <ClInclude Include="src\SubEditors\LayeredMaterialEditor.h" />

@@ -17,6 +17,8 @@ namespace ve {
 
 namespace ve::vellum {
 
+    class GlyphAtlas;
+
     // Turns a DrawList into engine RHI draw calls. Deliberately concrete: Vellum
     // is an engine module and drives the engine's render primitives directly, the
     // same way the sprite renderer does. There is no backend interface.
@@ -41,6 +43,13 @@ namespace ve::vellum {
         // Reserves an id and registers `texture` under it in one step.
         TextureId addTexture(const Ref<Texture2D>& texture);
 
+        // Drops the mapping for `id`; the caller still owns the texture. Id 0 is kept.
+        void unregisterTexture(TextureId id);
+
+        // The shared glyph atlas all fonts rasterise into. Created on first use,
+        // so the GL context must be live by then.
+        GlyphAtlas& glyphAtlas();
+
     private:
         // One quad per four vertices / six indices is the DrawList contract, so the
         // index buffer is a fixed pattern and only the vertices stream per frame.
@@ -51,6 +60,7 @@ namespace ve::vellum {
         Ref<VertexBuffer> m_vertexBuffer;
         Ref<Texture2D>    m_whiteTexture;
 
+        Ref<GlyphAtlas>   m_glyphAtlas;
         std::unordered_map<TextureId, Ref<Texture2D>> m_textures;
         TextureId m_nextTextureId = 1;   // 0 is the white pixel
         bool m_initialized = false;

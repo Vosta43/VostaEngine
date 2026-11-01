@@ -27,11 +27,16 @@ namespace ve::vellum {
     void VellumLayer::onAttach() {
         // The GL context is live by the time a layer attaches (the window builds it),
         // so atlases can be created (and grow) right here and from any later request.
-        m_fonts.init(&m_tree.renderer(),
-                     toAbsolute("VostaEngine/resources/fonts/NotoSans-Regular-2.ttf"));
+        // Latin leads so digits and punctuation keep their metrics; the SC face
+        // behind it covers CJK, which the editor's ImGui font already does the
+        // same way.
+        m_fonts.init(&m_tree.renderer(), {
+            toAbsolute("VostaEngine/resources/fonts/NotoSans-Regular-2.ttf"),
+            toAbsolute("VostaEngine/resources/fonts/NotoSansSC-Regular.ttf")
+        });
         if (!m_fonts.defaultFont())
             VE_CORE_ERROR_PRINT("Vellum: default font failed to load; text will not render");
-        m_tree.setTooltipFont(m_fonts.defaultFont());
+        m_tree.setTooltipFont(defaultFont());
 
         m_dispatcher = Application::get().getDispatcher();
         if (!m_dispatcher)
@@ -72,6 +77,21 @@ namespace ve::vellum {
         m_dispatcher = nullptr;
     }
 
+    Font* VellumLayer::addFont(const std::string& name, std::vector<std::string> faces) {
+        for (std::string& face : faces)
+            face = toAbsolute(face);
+        return m_fonts.add(name, std::move(faces));
+    }
+
+    FontAtlas* VellumLayer::font(const std::string& name, float pixelSize) {
+        Font* font = m_fonts.find(name);
+        if (!font) {
+            VE_CORE_ERROR_PRINT("Vellum: unknown font '%s'", name.c_str());
+            return nullptr;
+        }
+        return font->at(pixelSize);
+    }
+
     TextureId VellumLayer::texture(const std::string& path, glm::vec2& sizeOut) {
         const auto found = m_textures.find(path);
         if (found != m_textures.end()) {
@@ -110,6 +130,18 @@ namespace ve::vellum {
         sizeOut = entry.size;
         m_textures.emplace(path, entry);
         return entry.id;
+    }
+
+    TextureId VellumLayer::acquireTextureId() {
+        return m_tree.renderer().acquireTextureId();
+    }
+
+    void VellumLayer::registerTexture(TextureId id, const Ref<Texture2D>& texture) {
+        m_tree.renderer().registerTexture(id, texture);
+    }
+
+    void VellumLayer::releaseTexture(TextureId id) {
+        m_tree.renderer().unregisterTexture(id);
     }
 
     void VellumLayer::onUIRender() {

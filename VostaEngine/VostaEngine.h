@@ -30,6 +30,7 @@
 #include "src/Core/JobSystem.h"
 
 #include "src/Asset/ImportManager.h"
+#include "src/Asset/BuiltinReousrces.h"
 
 #include "src/Scene/Components.h"
 #include "src/Scene/Scene.h"
@@ -54,7 +55,11 @@
 #include "src/Renderer/Material.h"
 #include "src/Asset/StaticMeshResource.h"
 
+#include "src/Audio/AudioDevice.h"
+#include "src/Audio/SoundAsset.h"
+
 #include "src/Gui/Gui.h"
+#include "src/Gui/UIRenderTarget.h"
 #include "src/Gui/Vellum/VellumLayer.h"
 #include "src/Gui/Vellum/Core/Animated.h"
 #include "src/Gui/Vellum/WidgetTree.h"
@@ -69,7 +74,9 @@
 #include "src/Gui/Vellum/Widgets/Button.h"
 #include "src/Gui/Vellum/Widgets/TextBlock.h"
 #include "src/Gui/Vellum/Widgets/TooltipBox.h"
+#include "src/Gui/Vellum/Text/Font.h"
 #include "src/Gui/Vellum/Text/FontAtlas.h"
+#include "src/Gui/Vellum/Text/GlyphAtlas.h"
 #include "src/Gui/Vellum/Text/FontManager.h"
 #include "src/Gui/Vellum/Text/Utf8.h"
 

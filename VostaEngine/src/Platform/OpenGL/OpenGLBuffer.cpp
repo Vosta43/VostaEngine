@@ -16,13 +16,13 @@ namespace ve {
     }
 
     OpenGLVertexBuffer::OpenGLVertexBuffer(float* vertices, uint32_t size)
-        : m_count(size / sizeof(float)), m_size(size) {
+        : m_count(size / sizeof(float)), m_size(size), m_usage(BufferUsage::Static) {
         glCreateBuffers(1, &m_rendererId);
         glNamedBufferData(m_rendererId, size, vertices, GL_STATIC_DRAW);
     }
 
     OpenGLVertexBuffer::OpenGLVertexBuffer(uint32_t byteSize, BufferUsage usage)
-        : m_count(0), m_size(byteSize) {
+        : m_count(0), m_size(byteSize), m_usage(usage) {
         glCreateBuffers(1, &m_rendererId);
         glNamedBufferData(m_rendererId, byteSize, nullptr, toGLBufferUsage(usage));
     }
@@ -42,6 +42,13 @@ namespace ve {
     void OpenGLVertexBuffer::setData(const void* data, uint32_t size)
     {
         glNamedBufferSubData(m_rendererId, 0, size, data);
+    }
+
+    void OpenGLVertexBuffer::reallocate(uint32_t byteSize)
+    {
+        glNamedBufferData(m_rendererId, byteSize, nullptr, toGLBufferUsage(m_usage));
+        m_size = byteSize;
+        m_count = 0;
     }
 
     void OpenGLVertexBuffer::setSubData(const void* data, uint32_t byteSize, uint32_t byteOffset)

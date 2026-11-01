@@ -7,11 +7,15 @@ namespace ve {
     class OpenGLRendererAPI : public RendererAPI {
     public:
         virtual void init(bool reverseZ = true) override;
+        void bindDefaultFramebuffer() override;
         virtual void setClearColor(const glm::vec4& color) override;
         virtual void clear() override;
         void clear(bool color, bool depth) override;
         void clearInt(int32_t value) override;
         virtual void setViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height) override;
+        void getViewport(int32_t out[4]) const override;
+        uint32_t getBoundFramebuffer() const override;
+        void rendererInfo(std::string& renderer, std::string& vendor) const override;
         virtual void setScissor(int32_t x, int32_t y, int32_t width, int32_t height) override;
         virtual void setScissorTest(bool enabled) override;
         virtual void drawIndexed(const Ref<VertexArray>& vertexArray) override;
@@ -53,6 +57,7 @@ namespace ve {
         void setPointSize(float sizeInPixels) override;
         void setUnpackAlignment(uint32_t alignment) override;
         void setPackAlignment(uint32_t alignment) override;
+        void readPixels(uint32_t x, uint32_t y, uint32_t w, uint32_t h, void* out) override;
 
     private:
         // The single truth about GL state: every setter below mutates this and

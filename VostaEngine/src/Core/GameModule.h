@@ -48,12 +48,13 @@ namespace ve {
 } // namespace ve
 
 // Export a module's C ABI entry points. extern "C" keeps the names undecorated
-// so GetProcAddress can find them; returning a class *pointer* is C-compatible
-// (a pointer is a POD, so no C4190). new/delete stay inside the module's heap.
-#define VE_GAME_MODULE(ModuleClass)                                                     \
-	extern "C" __declspec(dllexport) ve::GameModule* VeCreateGameModule() {             \
-		return new ModuleClass();                                                       \
-	}                                                                                   \
-	extern "C" __declspec(dllexport) void VeDestroyGameModule(ve::GameModule* module) { \
-		delete module;                                                                  \
+// so the platform loader (GetProcAddress / dlsym) can find them; returning a
+// class *pointer* is C-compatible (a pointer is a POD, so no C4190). new/delete
+// stay inside the module's heap.
+#define VE_GAME_MODULE(ModuleClass)                                          \
+	extern "C" VE_EXPORT ve::GameModule* VeCreateGameModule() {              \
+		return new ModuleClass();                                            \
+	}                                                                        \
+	extern "C" VE_EXPORT void VeDestroyGameModule(ve::GameModule* module) {  \
+		delete module;                                                       \
 	}

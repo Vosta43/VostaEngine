@@ -4,17 +4,20 @@
 #include "Log.h"
 #include "Scene/Scene.h"
 
-#ifdef _WIN32
+#if defined(VE_PLATFORM_WINDOWS)
 #include <windows.h>
+#else
+#include <dlfcn.h>
 #endif
 
 namespace ve {
 
-#ifdef _WIN32
-
 	namespace {
 
-		std::string winErrorText(DWORD code) {
+#if defined(VE_PLATFORM_WINDOWS)
+
+		std::string platformErrorText() {
+			const DWORD code = ::GetLastError();
 			char* buffer = nullptr;
 			const DWORD len = ::FormatMessageA(
 				FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -30,6 +33,44 @@ namespace ve {
 				text.pop_back();
 			return text;
 		}
+
+		void* openModule(const std::string& path) {
+			// LOAD_WITH_ALTERED_SEARCH_PATH makes the module resolve its own
+			// dependencies (VostaEngine.dll) relative to its own folder.
+			return ::LoadLibraryExA(path.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+		}
+
+		void* findExport(void* handle, const char* name) {
+			return reinterpret_cast<void*>(
+				::GetProcAddress(static_cast<HMODULE>(handle), name));
+		}
+
+		void closeModule(void* handle) {
+			::FreeLibrary(static_cast<HMODULE>(handle));
+		}
+
+#else
+
+		std::string platformErrorText() {
+			const char* error = ::dlerror();
+			return error ? std::string(error) : std::string("unknown error");
+		}
+
+		void* openModule(const std::string& path) {
+			// RTLD_NOW: a module with an unresolved symbol fails here, at load
+			// time, rather than at the first call into it.
+			return ::dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+		}
+
+		void* findExport(void* handle, const char* name) {
+			return ::dlsym(handle, name);
+		}
+
+		void closeModule(void* handle) {
+			::dlclose(handle);
+		}
+
+#endif
 
 		// Bridges the scene's tick to the module: gameplay runs from
 		// Scene::onUpdate, so a host that pauses the scene pauses the game.
@@ -60,24 +101,20 @@ namespace ve {
 			return false;
 		}
 
-		// LOAD_WITH_ALTERED_SEARCH_PATH makes the module resolve its own
-		// dependencies (VostaEngine.dll) relative to its own folder.
-		HMODULE handle = ::LoadLibraryExA(dllPath.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+		void* handle = openModule(dllPath);
 		if (!handle) {
-			m_lastError = "LoadLibraryEx failed (" + winErrorText(::GetLastError()) + "): " + dllPath;
+			m_lastError = "failed to open module (" + platformErrorText() + "): " + dllPath;
 			VE_CORE_ERROR_PRINT("%s", m_lastError.c_str());
 			return false;
 		}
 
-		auto create = reinterpret_cast<VeCreateGameModuleFn>(
-			reinterpret_cast<void*>(::GetProcAddress(handle, "VeCreateGameModule")));
-		auto destroy = reinterpret_cast<VeDestroyGameModuleFn>(
-			reinterpret_cast<void*>(::GetProcAddress(handle, "VeDestroyGameModule")));
+		auto create = reinterpret_cast<VeCreateGameModuleFn>(findExport(handle, "VeCreateGameModule"));
+		auto destroy = reinterpret_cast<VeDestroyGameModuleFn>(findExport(handle, "VeDestroyGameModule"));
 
 		if (!create || !destroy) {
 			m_lastError = "module is missing its VE_GAME_MODULE export: " + dllPath;
 			VE_CORE_ERROR_PRINT("%s", m_lastError.c_str());
-			::FreeLibrary(handle);
+			closeModule(handle);
 			return false;
 		}
 
@@ -92,7 +129,7 @@ namespace ve {
 		if (!module) {
 			m_lastError = "VeCreateGameModule returned null: " + dllPath;
 			VE_CORE_ERROR_PRINT("%s", m_lastError.c_str());
-			::FreeLibrary(handle);
+			closeModule(handle);
 			return false;
 		}
 
@@ -101,7 +138,7 @@ namespace ve {
 				+ ", engine=" + std::to_string(VE_GAME_MODULE_API_VERSION) + "): " + dllPath;
 			VE_CORE_ERROR_PRINT("%s", m_lastError.c_str());
 			destroy(module);
-			::FreeLibrary(handle);
+			closeModule(handle);
 			return false;
 		}
 
@@ -126,7 +163,7 @@ namespace ve {
 			}
 
 			destroy(module);
-			::FreeLibrary(handle);
+			closeModule(handle);
 			return false;
 		}
 
@@ -215,31 +252,9 @@ namespace ve {
 		}
 
 		if (m_osHandle) {
-			::FreeLibrary(static_cast<HMODULE>(m_osHandle));
+			closeModule(m_osHandle);
 			m_osHandle = nullptr;
 		}
 	}
-
-#else // !_WIN32
-
-	GameModuleHost::~GameModuleHost() {}
-
-	bool GameModuleHost::load(Application&, const std::string&) {
-		m_lastError = "GameModuleHost is not implemented on this platform yet";
-		VE_CORE_ERROR_PRINT("%s", m_lastError.c_str());
-		return false;
-	}
-
-	void GameModuleHost::unload() {}
-
-	bool GameModuleHost::start(Scene&) {
-		m_lastError = "GameModuleHost is not implemented on this platform yet";
-		VE_CORE_ERROR_PRINT("%s", m_lastError.c_str());
-		return false;
-	}
-
-	void GameModuleHost::stop(Scene&) {}
-
-#endif
 
 } // namespace ve

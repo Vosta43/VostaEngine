@@ -42,10 +42,12 @@ namespace ve {
 
     static GLenum toGLPrimitive(PrimitiveType topology) {
         switch (topology) {
-        case PrimitiveType::Triangles: return GL_TRIANGLES;
-        case PrimitiveType::Lines:     return GL_LINES;
-        case PrimitiveType::LineStrip: return GL_LINE_STRIP;
-        case PrimitiveType::Points:    return GL_POINTS;
+        case PrimitiveType::Triangles:     return GL_TRIANGLES;
+        case PrimitiveType::Lines:         return GL_LINES;
+        case PrimitiveType::LineStrip:     return GL_LINE_STRIP;
+        case PrimitiveType::TriangleStrip: return GL_TRIANGLE_STRIP;
+        case PrimitiveType::TriangleFan:   return GL_TRIANGLE_FAN;
+        case PrimitiveType::Points:        return GL_POINTS;
         }
         return GL_TRIANGLES;
     }
@@ -83,6 +85,10 @@ namespace ve {
         glClearDepth(reverseZ ? 0.0 : 1.0);
         glDepthFunc(reverseZ ? GL_GREATER : GL_LESS);
     }
+    void OpenGLRendererAPI::bindDefaultFramebuffer() {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
     void OpenGLRendererAPI::setClearColor(const glm::vec4& color) {
         glClearColor(color.r, color.g, color.b, color.a);
     }
@@ -109,6 +115,25 @@ namespace ve {
     void OpenGLRendererAPI::setViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
         //VE_CORE_SUCCESS_PRINT("glViewport called: %d %d %d %d", x, y, width, height);
         glViewport(x, y, width, height);
+    }
+
+    void OpenGLRendererAPI::getViewport(int32_t out[4]) const {
+        GLint vp[4] = { 0, 0, 0, 0 };
+        glGetIntegerv(GL_VIEWPORT, vp);
+        out[0] = vp[0]; out[1] = vp[1]; out[2] = vp[2]; out[3] = vp[3];
+    }
+
+    uint32_t OpenGLRendererAPI::getBoundFramebuffer() const {
+        GLint fb = 0;
+        glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fb);
+        return static_cast<uint32_t>(fb);
+    }
+
+    void OpenGLRendererAPI::rendererInfo(std::string& renderer, std::string& vendor) const {
+        const GLubyte* r = glGetString(GL_RENDERER);
+        const GLubyte* v = glGetString(GL_VENDOR);
+        renderer = r ? reinterpret_cast<const char*>(r) : "unknown";
+        vendor   = v ? reinterpret_cast<const char*>(v) : "unknown";
     }
 
     void OpenGLRendererAPI::setScissor(int32_t x, int32_t y, int32_t width, int32_t height) {
@@ -386,6 +411,30 @@ namespace ve {
 
     void OpenGLRendererAPI::setPackAlignment(uint32_t alignment) {
         glPixelStorei(GL_PACK_ALIGNMENT, static_cast<GLint>(alignment));
+    }
+
+    void OpenGLRendererAPI::readPixels(uint32_t x, uint32_t y, uint32_t w, uint32_t h, void* out) {
+        if (!out || w == 0 || h == 0) return;
+
+        // The source is whatever framebuffer is bound for reading; a bound FBO
+        // is read from its first attachment, the window from its back buffer.
+        // Both the read buffer and the pack alignment are transient here, so the
+        // caller's values are put back rather than left at the defaults.
+        GLint framebuffer = 0;
+        GLint readBuffer = GL_BACK;
+        GLint packAlignment = 4;
+        glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &framebuffer);
+        glGetIntegerv(GL_READ_BUFFER, &readBuffer);
+        glGetIntegerv(GL_PACK_ALIGNMENT, &packAlignment);
+
+        glReadBuffer(framebuffer == 0 ? GL_BACK : GL_COLOR_ATTACHMENT0);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glReadPixels(static_cast<GLint>(x), static_cast<GLint>(y),
+                     static_cast<GLsizei>(w), static_cast<GLsizei>(h),
+                     GL_RGBA, GL_UNSIGNED_BYTE, out);
+
+        glPixelStorei(GL_PACK_ALIGNMENT, packAlignment);
+        glReadBuffer(readBuffer);
     }
 
 

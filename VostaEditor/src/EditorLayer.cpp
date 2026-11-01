@@ -7,6 +7,7 @@
 #include "imguizmo.h"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <filesystem>
 #include <string>
@@ -277,6 +278,7 @@ namespace ve {
         m_editorView.onGuiRender(m_selectedEntity);
 
         m_assetEditors.onGuiRender();
+        m_jsonEditor.onGuiRender();
 
         if (m_showTerrainMap) {
             if (Ref<Scene> scene = m_editorView.getScene())
@@ -430,8 +432,19 @@ namespace ve {
 
     void EditorLayer::openFile(const std::string& path)
     {
-        if (utils::getExtension(path) == ".veworld") {
+        std::string ext = utils::getExtension(path);
+        std::transform(ext.begin(), ext.end(), ext.begin(),
+            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+        if (ext == ".veworld") {
             openScene(path);
+            return;
+        }
+
+        // A plain JSON file is not an asset: the viewer/editor reads and writes
+        // the file itself, with no AssetLibrary or ResourceManager entry.
+        if (ext == ".json") {
+            m_jsonEditor.openFile(path);
             return;
         }
 

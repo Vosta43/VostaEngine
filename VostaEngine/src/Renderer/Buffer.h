@@ -174,6 +174,13 @@ namespace ve {
             : m_bufferElements(elements) {
             calculateOffsetsAndStride(explicitStride);
         }
+        // Keeps the caller's own element offsets (a packed struct laid out by
+        // offsetof) instead of recomputing them, and adopts `explicitStride`.
+        // Built at runtime, so the initializer_list forms cannot express it.
+        BufferLayout(const std::vector<BufferElement>& elements, uint32_t explicitStride)
+            : m_bufferElements(elements)
+            , m_stride(explicitStride) {
+        }
 
         inline const std::vector<BufferElement>& getBufferElements() const { return m_bufferElements; }
         inline uint32_t getStride() const { return m_stride; }
@@ -231,6 +238,9 @@ namespace ve {
         virtual const BufferLayout& getLayout() const = 0;
         virtual void setLayout(const BufferLayout& layout) = 0;
         virtual void setData(const void* data, uint32_t size) = 0;
+        // Resizes the storage while keeping the buffer's identity, so VAOs that
+        // already reference it stay valid. Contents are undefined afterwards.
+        virtual void reallocate(uint32_t byteSize) = 0;
         // Writes a byte range, leaving the rest of the buffer untouched. A
         // remeshed chunk lands in its own slot of a shared buffer through this
         // instead of re-uploading everything before it.

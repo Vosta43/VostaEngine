@@ -18,6 +18,7 @@ namespace ve {
         virtual const BufferLayout& getLayout() const override { return m_layout; }
         virtual void setLayout(const BufferLayout& layout) override { m_layout = layout; }
         virtual void setData(const void* data, uint32_t size) override;
+        virtual void reallocate(uint32_t byteSize) override;
         virtual void setSubData(const void* data, uint32_t byteSize, uint32_t byteOffset) override;
         virtual void copyFrom(const VertexBuffer& src, uint32_t dstByteOffset,
                               uint32_t srcByteOffset, uint32_t byteSize) override;
@@ -26,6 +27,7 @@ namespace ve {
         uint32_t m_rendererId;
         uint32_t m_count;
         uint32_t m_size = 0;
+        BufferUsage m_usage = BufferUsage::Static;
         BufferLayout m_layout;
     };
 

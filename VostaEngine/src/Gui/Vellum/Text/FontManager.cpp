@@ -7,28 +7,60 @@
 
 namespace ve::vellum {
 
-	void FontManager::init(VellumRenderer* renderer, std::string defaultTtfPath) {
+	void FontManager::init(VellumRenderer* renderer, std::vector<std::string> defaultFaces) {
 		m_renderer = renderer;
-		m_defaultPath = std::move(defaultTtfPath);
+		m_defaultFaces = std::move(defaultFaces);
+		m_default.reset();
 	}
 
-	FontAtlas* FontManager::font(float pixelSize) {
+	void FontManager::init(VellumRenderer* renderer, std::string defaultTtfPath) {
+		init(renderer, std::vector<std::string>{ std::move(defaultTtfPath) });
+	}
+
+	Font* FontManager::add(const std::string& name, std::vector<std::string> faces) {
 		if (!m_renderer) {
 			VE_CORE_ERROR_PRINT("Vellum: FontManager used before init()");
 			return nullptr;
 		}
-
-		const auto key = std::make_pair(m_defaultPath, pixelSize);
-		const auto found = m_cache.find(key);
-		if (found != m_cache.end())
+		if (name.empty()) {
+			VE_CORE_ERROR_PRINT("Vellum: a registered font needs a name");
+			return nullptr;
+		}
+		if (const auto found = m_fonts.find(name); found != m_fonts.end())
 			return found->second.get();
 
-		Ref<FontAtlas> atlas = FontAtlas::create(m_defaultPath, pixelSize,
-		                                         m_renderer->acquireTextureId(), *m_renderer);
-		if (!atlas)
+		Ref<Font> font = Font::load(*m_renderer, std::move(faces), name);
+		if (!font)
 			return nullptr;
 
-		return m_cache.emplace(key, std::move(atlas)).first->second.get();
+		return m_fonts.emplace(name, std::move(font)).first->second.get();
+	}
+
+	Font* FontManager::find(const std::string& name) const {
+		const auto found = m_fonts.find(name);
+		return found != m_fonts.end() ? found->second.get() : nullptr;
+	}
+
+	Font* FontManager::defaultFont() {
+		if (!m_renderer) {
+			VE_CORE_ERROR_PRINT("Vellum: FontManager used before init()");
+			return nullptr;
+		}
+		if (m_default)
+			return m_default.get();
+
+		if (m_defaultFaces.empty()) {
+			VE_CORE_ERROR_PRINT("Vellum: FontManager has no face in its chain");
+			return nullptr;
+		}
+
+		m_default = Font::load(*m_renderer, m_defaultFaces, "default");
+		return m_default.get();
+	}
+
+	FontAtlas* FontManager::font(float pixelSize) {
+		Font* def = defaultFont();
+		return def ? def->at(pixelSize) : nullptr;
 	}
 
 }

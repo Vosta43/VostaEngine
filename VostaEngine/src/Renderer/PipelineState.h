@@ -36,7 +36,7 @@ namespace ve {
     };
 
     enum class PrimitiveType : uint8_t {
-        Triangles, Lines, LineStrip, Points
+        Triangles, Lines, LineStrip, TriangleStrip, TriangleFan, Points
     };
 
     struct BlendDesc {

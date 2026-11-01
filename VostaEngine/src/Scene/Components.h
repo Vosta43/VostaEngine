@@ -25,6 +25,8 @@
 #include "Core/ComponentRegistry.h"
 #include "Scene/Terrain/Terrain.h"
 #include "Scene/SpaceBackground.h"
+#include "Audio/AudioDevice.h"
+#include "Audio/SoundAsset.h"
 #include "Particle/ParticleAsset.h"
 #include "Particle/ParticleSystem.h"
 #include "Noise/NoiseGraphResource.h"
@@ -496,6 +498,133 @@ VESTRUCT(ParticleComponent)
 		bool m_builtFallback = false;
 	};
 VECOMPONENT(ParticleComponent, "Particle", "Effects")
+
+	// Plays a sound through the engine mixer at the entity's position. The voice
+	// itself lives in AudioDevice: only its id is stored here, and it is
+	// runtime state that neither copies nor serializes.
+	VESTRUCT(AudioSourceComponent)
+	struct AudioSourceComponent {
+		VEPROPERTY(AudioSourceComponent, AssetHandle, soundHandle, "Sound", "type=sound")
+		AssetHandle soundHandle;
+
+		VEPROPERTY(AudioSourceComponent, bool, playOnStart, "Play On Start", "type=bool")
+		bool playOnStart = true;
+
+		VEPROPERTY(AudioSourceComponent, bool, loop, "Loop", "type=bool")
+		bool loop = false;
+
+		VEPROPERTY(AudioSourceComponent, float, volume, "Volume", "type=drag,minValue=0,maxValue=4,speed=0.01")
+		float volume = 1.0f;
+
+		VEPROPERTY(AudioSourceComponent, float, pitch, "Pitch", "type=drag,minValue=0.01,maxValue=4,speed=0.01")
+		float pitch = 1.0f;
+
+		VEPROPERTY(AudioSourceComponent, bool, spatial, "Spatial", "type=bool")
+		bool spatial = true;
+
+		VEPROPERTY(AudioSourceComponent, float, minDistance, "Min Distance", "type=drag,minValue=0,speed=0.1")
+		float minDistance = 1.0f;
+
+		VEPROPERTY(AudioSourceComponent, float, maxDistance, "Max Distance", "type=drag,minValue=0,speed=1")
+		float maxDistance = 1000.0f;
+
+		VEPROPERTY(AudioSourceComponent, int, bus, "Bus", "type=combo,options=SFX|Music|UI")
+		int bus = 0;
+
+		AudioSourceComponent() = default;
+		AudioSourceComponent(const AudioSourceComponent& other) { copyAuthored(other); }
+		AudioSourceComponent& operator=(const AudioSourceComponent& other) {
+			if (this != &other) {
+				stop();
+				copyAuthored(other);
+			}
+			return *this;
+		}
+		// Transfer, not copy: the registry swaps components while erasing, and
+		// two ids for one voice would double-free it in the destructors.
+		AudioSourceComponent(AudioSourceComponent&& other) noexcept { moveFrom(other); }
+		AudioSourceComponent& operator=(AudioSourceComponent&& other) noexcept {
+			if (this != &other) {
+				stop();
+				moveFrom(other);
+			}
+			return *this;
+		}
+		~AudioSourceComponent() { stop(); }
+
+		// Retries until the asset is resident, then keeps the voice's parameters
+		// in sync with the authored fields. Exported because the inline
+		// destructor/assignment in consumer modules call stop().
+		VE_API void tick(const Vec3& worldPosition);
+		VE_API void play(const Vec3& worldPosition);
+		VE_API void stop();
+		VE_API bool isPlaying() const;
+
+		void serialize(JsonWriter& w) const {
+			writeAssetPath<SoundAsset>(w, "sound", soundHandle);
+			w.set("playOnStart", playOnStart);
+			w.set("loop", loop);
+			w.set("volume", volume);
+			w.set("pitch", pitch);
+			w.set("spatial", spatial);
+			w.set("minDistance", minDistance);
+			w.set("maxDistance", maxDistance);
+			w.set("bus", bus);
+		}
+
+		void deserialize(const JsonReader& r) {
+			stop();
+			soundHandle = readAssetPath<SoundAsset>(r, "sound");
+			playOnStart = r.getBool("playOnStart", playOnStart);
+			loop = r.getBool("loop", loop);
+			volume = r.getFloat("volume", volume);
+			pitch = r.getFloat("pitch", pitch);
+			spatial = r.getBool("spatial", spatial);
+			minDistance = r.getFloat("minDistance", minDistance);
+			maxDistance = r.getFloat("maxDistance", maxDistance);
+			bus = r.getInt("bus", bus);
+			resetRuntime();
+		}
+
+	private:
+		AudioVoiceParams voiceParams() const;
+
+		void copyAuthored(const AudioSourceComponent& other) {
+			soundHandle = other.soundHandle;
+			playOnStart = other.playOnStart;
+			loop = other.loop;
+			volume = other.volume;
+			pitch = other.pitch;
+			spatial = other.spatial;
+			minDistance = other.minDistance;
+			maxDistance = other.maxDistance;
+			bus = other.bus;
+			resetRuntime();
+		}
+
+		void moveFrom(AudioSourceComponent& other) {
+			copyAuthored(other);
+			m_voiceId = other.m_voiceId;
+			m_wantPlay = other.m_wantPlay;
+			m_armed = other.m_armed;
+			other.m_voiceId = 0;
+			other.m_wantPlay = false;
+			other.m_armed = false;
+		}
+
+		void resetRuntime() {
+			m_voiceId = 0;
+			m_wantPlay = false;
+			m_armed = true;
+		}
+
+		uint32_t m_voiceId = 0;
+		// A start was requested but no voice exists yet (asset still loading).
+		bool m_wantPlay = false;
+		// playOnStart has not been evaluated for this runtime instance.
+		bool m_armed = true;
+	};
+VECOMPONENT(AudioSourceComponent, "Audio Source", "Audio")
 
 	// Screen-space HUD: one authored Vellum widget tree, referenced as a
 	// .veasset and drawn over the scene while a play session is live.

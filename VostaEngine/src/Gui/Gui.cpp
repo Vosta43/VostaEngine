@@ -1,8 +1,8 @@
 #include "vepch.h"
 #include "Gui.h"
 
-#define IMGUI_API __declspec(dllexport)
-#define IMGUI_IMPL_API __declspec(dllexport)
+#define IMGUI_API VE_EXPORT
+#define IMGUI_IMPL_API VE_EXPORT
 #include <imgui.h>
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"

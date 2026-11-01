@@ -12,6 +12,7 @@
 #include "Scene/Terrain/TerrainDataResource.h"
 #include "Gui/Hud/HudAsset.h"
 #include "Particle/ParticleAsset.h"
+#include "Audio/SoundAsset.h"
 
 #include <cstdint>
 
@@ -122,5 +123,10 @@ namespace ve {
 		for (const auto& stage : particle.emitter.stages)
 			entries += stage.size();
 		return kParticleBytes + entries * 512;
+	}
+
+	size_t estimateBytes(const SoundAsset& sound) {
+		// Streamed assets carry no payload; only resident PCM is accounted.
+		return sound.samples.size() * sizeof(float);
 	}
 }

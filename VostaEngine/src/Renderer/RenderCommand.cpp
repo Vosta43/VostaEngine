@@ -10,6 +10,10 @@ namespace ve {
         s_RendererAPI->init(reverseZ);
     }
 
+    void RenderCommand::bindDefaultFramebuffer() {
+        s_RendererAPI->bindDefaultFramebuffer();
+    }
+
     void RenderCommand::setClearColor(float r, float g, float b, float a) {
         s_RendererAPI->setClearColor(glm::vec4(r, g, b, a));
     }
@@ -28,6 +32,18 @@ namespace ve {
 
     void RenderCommand::setViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
         s_RendererAPI->setViewport(x, y, width, height);
+    }
+
+    void RenderCommand::getViewport(int32_t out[4]) {
+        s_RendererAPI->getViewport(out);
+    }
+
+    uint32_t RenderCommand::getBoundFramebuffer() {
+        return s_RendererAPI->getBoundFramebuffer();
+    }
+
+    void RenderCommand::rendererInfo(std::string& renderer, std::string& vendor) {
+        s_RendererAPI->rendererInfo(renderer, vendor);
     }
 
     void RenderCommand::setScissor(int32_t x, int32_t y, int32_t width, int32_t height) {
@@ -147,6 +163,10 @@ namespace ve {
 
     void RenderCommand::setPackAlignment(uint32_t alignment) {
         s_RendererAPI->setPackAlignment(alignment);
+    }
+
+    void RenderCommand::readPixels(uint32_t x, uint32_t y, uint32_t w, uint32_t h, void* out) {
+        s_RendererAPI->readPixels(x, y, w, h, out);
     }
 
 }

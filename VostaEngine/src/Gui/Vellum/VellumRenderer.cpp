@@ -2,6 +2,7 @@
 #include "VellumRenderer.h"
 
 #include "Core/Log.h"
+#include "Gui/Vellum/Text/GlyphAtlas.h"
 #include "Renderer/Buffer.h"
 #include "Renderer/RenderCommand.h"
 #include "Renderer/RendererAPI.h"
@@ -104,6 +105,16 @@ void main() {
         const TextureId id = acquireTextureId();
         registerTexture(id, texture);
         return id;
+    }
+
+    void VellumRenderer::unregisterTexture(TextureId id) {
+        if (id != 0) m_textures.erase(id);
+    }
+
+    GlyphAtlas& VellumRenderer::glyphAtlas() {
+        if (!m_glyphAtlas)
+            m_glyphAtlas = CreateRef<GlyphAtlas>(*this);
+        return *m_glyphAtlas;
     }
 
     void VellumRenderer::render(const DrawList& list, const glm::vec2& surfaceSize) {

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512" fill="none">
+  <!-- speaker: back box (darker) and cone (lighter) -->
+  <path d="M8 26 H17 V38 H8 Z" fill="#bcbcbc" stroke="#6e6e6e" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M17 26 L30 13 V51 L17 38 Z" fill="#ededed" stroke="#6e6e6e" stroke-width="1.5" stroke-linejoin="round"/>
+
+  <!-- sound waves radiating from the cone mouth, fading outward -->
+  <g stroke-width="3" stroke-linecap="round">
+    <path d="M39.66 25.57 A10 10 0 0 1 39.66 38.43" stroke="#8e8e8e"/>
+    <path d="M45.02 21.07 A17 17 0 0 1 45.02 42.93" stroke="#a8a8a8"/>
+    <path d="M50.38 16.57 A24 24 0 0 1 50.38 47.43" stroke="#c8c8c8"/>
+  </g>
+</svg>

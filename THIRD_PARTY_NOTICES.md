@@ -200,6 +200,62 @@ No warranty; use at your own risk.
 
 ---
 
+## stb_vorbis
+
+- **License**: Public Domain / MIT
+- **Website**: https://github.com/nothings/stb
+- **Location**: `VostaEngine/thirdparty/stb_vorbis/`
+- **Role**: OGG/Vorbis decoder, registered with miniaudio as a custom decoding backend
+
+```
+Written by Sean Barrett and contributors.
+
+This software is available under two licenses:
+  1. Public Domain
+  2. MIT License
+
+No warranty; use at your own risk.
+```
+
+---
+
+## stb_truetype
+
+- **License**: Public Domain / MIT
+- **Version**: 1.26
+- **Website**: https://github.com/nothings/stb
+- **Location**: `VostaEngine/thirdparty/stb_truetype/`
+- **Role**: Glyph rasteriser for Vellum UI text
+
+```
+Written by Sean Barrett and contributors.
+
+This software is available under two licenses:
+  1. Public Domain
+  2. MIT License
+
+No warranty; use at your own risk.
+```
+
+---
+
+## miniaudio
+
+- **License**: Public Domain / MIT-0
+- **Version**: 0.11.25
+- **Website**: https://miniaud.io
+- **Source**: https://github.com/mackron/miniaudio
+- **Location**: `VostaEngine/thirdparty/miniaudio-master/`
+- **Role**: Audio device, mixer and WAV/FLAC/MP3 decoding
+
+```
+This software is available as a choice of the following two licenses:
+  Alternative 1 - Public Domain (www.unlicense.org)
+  Alternative 2 - MIT No Attribution
+```
+
+---
+
 ## Premake
 
 - **License**: BSD-3-Clause

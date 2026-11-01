@@ -3,14 +3,36 @@
 
 #include <memory>
 
-#ifdef _WIN32
+#if defined(_WIN32)
+	#define VE_PLATFORM_WINDOWS 1
+#elif defined(__APPLE__)
+	#include <TargetConditionals.h>
+	#if TARGET_OS_IPHONE
+		#define VE_PLATFORM_IOS 1
+	#else
+		#define VE_PLATFORM_MACOS 1
+	#endif
+#elif defined(__linux__)
+	#define VE_PLATFORM_LINUX 1
+#else
+	#error "Vosta Engine: unsupported platform"
+#endif
+
+// VE_API marks engine symbols the editor consumes: export when building the
+// engine DLL, import when consuming it. VE_EXPORT is for a shared library that
+// is not built as the engine (a game module's C entry points), so it always
+// exports and never depends on VE_BUILD_DLL.
+#if defined(VE_PLATFORM_WINDOWS)
 	#ifdef VE_BUILD_DLL
 		#define VE_API __declspec(dllexport)
 	#else
 		#define VE_API __declspec(dllimport)
 	#endif // VE_BUILD_DLL
-
-#endif // VE_PLATFORM_WINDOWS
+	#define VE_EXPORT __declspec(dllexport)
+#else
+	#define VE_API __attribute__((visibility("default")))
+	#define VE_EXPORT __attribute__((visibility("default")))
+#endif
 
 #ifdef VE_DEBUG
 #define VE_ASSERT(condition, message) \

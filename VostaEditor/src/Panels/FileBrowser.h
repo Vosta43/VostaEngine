@@ -88,6 +88,7 @@ namespace ve {
         std::shared_ptr<Texture2D> m_noiseIcon;
         std::shared_ptr<Texture2D> m_particleIcon;
         std::shared_ptr<Texture2D> m_terrainDataIcon;
+        std::shared_ptr<Texture2D> m_soundIcon;
         std::shared_ptr<Texture2D> m_notImportedIcon;
 
         // path -> .veasset type token. Refilled on refreshFiles(); without it

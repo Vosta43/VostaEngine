@@ -3,6 +3,7 @@
 #include <glm.hpp>
 #include <memory>
 #include <cstdint>
+#include <string>
 
 #include "Core/Core.h"
 #include "Renderer/PipelineState.h"
@@ -29,6 +30,9 @@ namespace ve {
 
         // reverseZ: engine 0..1 clip space (depth 0 = far) vs standard GL depth.
         virtual void init(bool reverseZ = true) = 0;
+        // Binds the window's default framebuffer. An offscreen caller puts the
+        // target back through this rather than through a null Framebuffer.
+        virtual void bindDefaultFramebuffer() = 0;
         virtual void setClearColor(const glm::vec4& color) = 0;
         virtual void clear() = 0;
         // Clear only the requested attachments, so a pass can wipe colour while
@@ -38,6 +42,13 @@ namespace ve {
         // e.g. the R32I picking target), then clear depth.
         virtual void clearInt(int32_t value) = 0;
         virtual void setViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height) = 0;
+        // Reads the current viewport back (origin bottom-left), for callers that
+        // draw into their own target and must restore the frame's rectangle.
+        virtual void getViewport(int32_t out[4]) const = 0;
+        // Name of the framebuffer currently bound for drawing; 0 is the default one.
+        virtual uint32_t getBoundFramebuffer() const = 0;
+        // Driver's renderer/vendor strings, for a startup banner.
+        virtual void rendererInfo(std::string& renderer, std::string& vendor) const = 0;
         // Scissor rectangle in pixels (origin bottom-left); only applied while scissor test is enabled.
         virtual void setScissor(int32_t x, int32_t y, int32_t width, int32_t height) = 0;
         virtual void setScissorTest(bool enabled) = 0;
@@ -117,6 +128,11 @@ namespace ve {
         // tightly packed blocks and when reading a rectangle back.
         virtual void setUnpackAlignment(uint32_t alignment) = 0;
         virtual void setPackAlignment(uint32_t alignment) = 0;
+        // Copies colour texels out of the currently bound framebuffer -- the
+        // default one when no framebuffer is bound -- as w*h densely packed
+        // RGBA8 at (x, y), origin bottom-left. Synchronous: it waits for the GPU,
+        // so use GpuReadback when the frame must not stall.
+        virtual void readPixels(uint32_t x, uint32_t y, uint32_t w, uint32_t h, void* out) = 0;
 
         static API getAPI() {return s_API;}
         static bool isReverseZ() { return s_reverseZ; }

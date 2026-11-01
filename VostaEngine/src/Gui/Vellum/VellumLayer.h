@@ -8,9 +8,11 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace ve {
     class EventDispatcher;
+    class Texture2D;
 }
 
 namespace ve::vellum {
@@ -32,14 +34,26 @@ namespace ve::vellum {
         Widget* root() const { return m_tree.root(); }
 
         // The engine's default UI font, borrowed by TextBlocks. Null if unavailable.
-        FontAtlas* defaultFont() { return m_fonts.defaultFont(); }
+        FontAtlas* defaultFont() { return m_fonts.font(FontManager::kDefaultSize); }
         // The default face at an arbitrary pixel size, created on first request.
         FontAtlas* font(float pixelSize) { return m_fonts.font(pixelSize); }
+
+        // Registers a named face chain (registered once; a repeated name returns the
+        // existing font). Paths resolve like any asset. Null when no face loads.
+        Font* addFont(const std::string& name, std::vector<std::string> faces);
+        // A registered font at `pixelSize`. Null when `name` is unknown.
+        FontAtlas* font(const std::string& name, float pixelSize);
 
         // Loads `path` as a UI texture on first request and registers it with the
         // renderer; `sizeOut` receives its pixel size. Returns 0 when the file does
         // not load. Paths resolve against the engine/project roots like any asset.
         TextureId texture(const std::string& path, glm::vec2& sizeOut);
+
+        // Registration for textures the caller owns (a render target). Re-registering
+        // the same id is how a recreated GL texture survives a resize.
+        TextureId acquireTextureId();
+        void registerTexture(TextureId id, const Ref<Texture2D>& texture);
+        void releaseTexture(TextureId id);
 
         void onUIRender() override;
 

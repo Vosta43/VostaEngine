@@ -23,7 +23,9 @@ namespace ve {
 			return;
 
 		HudBuildContext ctx;
-		ctx.atlasFor = [layer](float size) { return layer->font(size); };
+		ctx.atlasFor = [layer](const std::string& name, float size) {
+			return name.empty() ? layer->font(size) : layer->font(name, size);
+		};
 		ctx.textureFor = [layer](const std::string& path, glm::vec2& sizeOut) {
 			return layer->texture(path, sizeOut);
 		};

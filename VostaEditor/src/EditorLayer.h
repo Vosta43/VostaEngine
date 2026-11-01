@@ -15,6 +15,7 @@
 #include "Panels/AssetEditorHost.h"
 #include "Panels/EditorDialogs.h"
 #include "Panels/FileBrowser.h"
+#include "Panels/JsonEditorPanel.h"
 #include "Panels/TerrainMapPanel.h"
 #include "SubEditors/TerrainEditor.h"
 #include "Viewport/ViewportOverlays.h"
@@ -52,8 +53,8 @@ namespace ve {
         const std::filesystem::path& currentScenePath() const;
 
         // Double-click entry point from the file browser: dispatches on the
-        // file's kind (a .veworld loads as a scene, a .veasset opens the matching
-        // asset editor).
+        // file's kind (a .veworld loads as a scene, a plain .json opens the JSON
+        // editor, anything else is an asset the AssetEditorHost opens).
         void openFile(const std::string& path);
 
         void bootstrapProject();
@@ -116,6 +117,9 @@ namespace ve {
         // Hosts the .veasset editors (material graph, layer stack, material layer,
         // noise graph, texture viewer).
         AssetEditorHost m_assetEditors;
+        // Plain .json files open here; JSON is not an asset kind, so this owns the
+        // file directly instead of going through ResourceManager.
+        JsonEditorPanel m_jsonEditor;
         // The editor's modal dialogs (Save / Load scene, New / Open project,
         // Package). Drives its work back through callbacks this layer sets.
         EditorDialogs m_dialogs;

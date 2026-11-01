@@ -7,6 +7,7 @@
 #include "Renderer/RenderCommand.h"
 #include "Renderer/Texture.h"
 #include "Core/Application.h"
+#include "Audio/AudioDevice.h"
 #include "Renderer/CameraController.h"
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
@@ -33,11 +34,38 @@ namespace ve {
 
 		m_ecsystemGraph.onUpdate(deltaTime);
 		tickParticles(deltaTime);
+		updateAudioListener();
+		tickAudio();
 	}
 
 	void Scene::tickParticles(float deltaTime) {
 		for (uint32_t entityId : m_entityRegistry.view<ParticleComponent>())
 			m_entityRegistry.get<ParticleComponent>(entityId).tick(deltaTime);
+	}
+
+	void Scene::updateAudioListener() {
+		Entity camera = getPrimaryCameraEntity();
+		if (camera.getId() == 0xFFFFFFFFu || !m_entityRegistry.has<TransformComponent>(camera))
+			return;
+
+		const TransformComponent& transform = m_entityRegistry.get<TransformComponent>(camera);
+		AudioDevice& device = AudioDevice::get();
+		device.setListenerPosition(transform.position);
+		device.setListenerOrientation(
+			transform.rotation * glm::vec3(0.0f, 0.0f, -1.0f),
+			transform.rotation * glm::vec3(0.0f, 1.0f, 0.0f));
+	}
+
+	void Scene::tickAudio() {
+		for (uint32_t entityId : m_entityRegistry.group<AudioSourceComponent, TransformComponent>()) {
+			m_entityRegistry.get<AudioSourceComponent>(entityId).tick(
+				m_entityRegistry.get<TransformComponent>(entityId).position);
+		}
+	}
+
+	void Scene::stopAudio() {
+		for (uint32_t entityId : m_entityRegistry.view<AudioSourceComponent>())
+			m_entityRegistry.get<AudioSourceComponent>(entityId).stop();
 	}
 
 	//void Scene::onUpdate(float deltaTime) {

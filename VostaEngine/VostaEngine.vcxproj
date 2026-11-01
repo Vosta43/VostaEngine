@@ -108,7 +108,7 @@
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;$(VostaEngineDir)thirdparty\miniaudio-master;$(VostaEngineDir)thirdparty\stb_vorbis;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>vepch.h</PrecompiledHeaderFile>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
@@ -131,7 +131,7 @@
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;$(VostaEngineDir)thirdparty\miniaudio-master;$(VostaEngineDir)thirdparty\stb_vorbis;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>vepch.h</PrecompiledHeaderFile>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
@@ -151,6 +151,10 @@
     <ClCompile Include="src\Asset\ImportManager.cpp" />
     <ClCompile Include="src\Asset\StaticMeshImporter.cpp" />
     <ClCompile Include="src\Asset\TextureImporter.cpp" />
+    <ClCompile Include="src\Audio\AudioComponent.cpp" />
+    <ClCompile Include="src\Audio\AudioDecode.cpp" />
+    <ClCompile Include="src\Audio\AudioDevice.cpp" />
+    <ClCompile Include="src\Audio\SoundAsset.cpp" />
     <ClCompile Include="src\Core\Application.cpp" />
     <ClCompile Include="src\Core\ComponentRegistry.cpp" />
     <ClCompile Include="src\Core\GameModuleHost.cpp" />
@@ -197,8 +201,11 @@
     <ClCompile Include="src\Core\Window.cpp" />
     <ClCompile Include="src\Graph\NodeGraph.cpp" />
     <ClCompile Include="src\Gui\Gui.cpp" />
+    <ClCompile Include="src\Gui\UIRenderTarget.cpp" />
     <ClCompile Include="src\Gui\Vellum\Core\Widget.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Text\Font.cpp" />
     <ClCompile Include="src\Gui\Vellum\Text\FontAtlas.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Text\GlyphAtlas.cpp" />
     <ClCompile Include="src\Gui\Vellum\Text\FontManager.cpp" />
     <ClCompile Include="src\Gui\Vellum\Widgets\Button.cpp" />
     <ClCompile Include="src\Gui\Vellum\Widgets\ColoredBox.cpp" />
@@ -337,8 +344,14 @@
     <ClCompile Include="thirdparty\IMGUI\backends\imgui_impl_opengl3.cpp">
       <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="thirdparty\miniaudio-master\miniaudio.c">
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="thirdparty\stb_image\stb_image.cpp" />
     <ClCompile Include="thirdparty\stb_truetype\stb_truetype.cpp">
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="thirdparty\stb_vorbis\stb_vorbis.c">
       <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="thirdparty\ufbx\ufbx.c">
@@ -377,6 +390,10 @@
     <ClInclude Include="src\Asset\TextureFormat.h" />
     <ClInclude Include="src\Asset\TextureResource.h" />
     <ClInclude Include="src\Asset\Utils.h" />
+    <ClInclude Include="src\Audio\AudioDecode.h" />
+    <ClInclude Include="src\Audio\AudioDevice.h" />
+    <ClInclude Include="src\Audio\AudioInternal.h" />
+    <ClInclude Include="src\Audio\SoundAsset.h" />
     <ClInclude Include="src\Core\Application.h" />
     <ClInclude Include="src\Core\GameModule.h" />
     <ClInclude Include="src\Core\GameModuleHost.h" />
@@ -415,6 +432,7 @@
     <ClInclude Include="src\Core\Window.h" />
     <ClInclude Include="src\Graph\NodeGraph.h" />
     <ClInclude Include="src\Gui\Gui.h" />
+    <ClInclude Include="src\Gui\UIRenderTarget.h" />
     <ClInclude Include="src\Gui\Vellum\Core\Animated.h" />
     <ClInclude Include="src\Gui\Vellum\Core\DrawList.h" />
     <ClInclude Include="src\Gui\Vellum\Core\InputFrame.h" />
@@ -422,7 +440,9 @@
     <ClInclude Include="src\Gui\Vellum\Core\PaintContext.h" />
     <ClInclude Include="src\Gui\Vellum\Core\Reply.h" />
     <ClInclude Include="src\Gui\Vellum\Core\Widget.h" />
+    <ClInclude Include="src\Gui\Vellum\Text\Font.h" />
     <ClInclude Include="src\Gui\Vellum\Text\FontAtlas.h" />
+    <ClInclude Include="src\Gui\Vellum\Text\GlyphAtlas.h" />
     <ClInclude Include="src\Gui\Vellum\Text\FontManager.h" />
     <ClInclude Include="src\Gui\Vellum\Text\Utf8.h" />
     <ClInclude Include="src\Gui\Vellum\Widgets\Button.h" />

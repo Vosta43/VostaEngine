@@ -43,6 +43,7 @@ private:
     void drawDragProperty(const std::string& typeName, void* compPtr, const ReflectionProperty& prop);
     void drawInputProperty(void* ptr, const ReflectionProperty& prop);
     void drawBoolProperty(void* ptr, const ReflectionProperty& prop);
+    void drawComboProperty(void* ptr, const ReflectionProperty& prop);
     void drawMaterialProperty(void* ptr, const ReflectionProperty& prop);
     void drawTextureProperty(void* ptr);
     void drawSkyboxTextureProperty(void* ptr);

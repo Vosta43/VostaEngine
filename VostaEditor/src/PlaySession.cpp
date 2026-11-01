@@ -1,5 +1,6 @@
 #include "PlaySession.h"
 
+#include <Audio/AudioDevice.h>
 #include <Core/Application.h>
 #include <Core/Log.h>
 #include <Scene/Scene.h>
@@ -40,6 +41,7 @@ bool PlaySession::play(Application& app, const Ref<Scene>& authored, const std::
                                m_host.lastError().c_str());
     }
 
+    AudioDevice::get().setPaused(false);
     m_state = State::Play;
     return true;
 }
@@ -59,12 +61,15 @@ void PlaySession::tick(float deltaTime) {
 }
 
 void PlaySession::pause() {
-    if (m_state == State::Play)
+    if (m_state == State::Play) {
+        AudioDevice::get().setPaused(true);
         m_state = State::Pause;
+    }
 }
 
 void PlaySession::resume() {
     if (m_state == State::Pause) {
+        AudioDevice::get().setPaused(false);
         m_stepOnce = false;
         m_state = State::Play;
     }
@@ -81,6 +86,11 @@ void PlaySession::stop() {
             m_host.stop(*m_runtimeScene);
         m_host.unload();
     }
+
+    if (m_runtimeScene)
+        m_runtimeScene->stopAudio();
+    AudioDevice::get().stopAllVoices();
+    AudioDevice::get().setPaused(false);
 
     m_runtimeScene.reset();
     m_stepOnce = false;

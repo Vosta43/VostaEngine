@@ -20,6 +20,7 @@
 #include "Renderer/Shader.h"
 #include "Renderer/SplashScreen.h"
 #include "Asset/BuiltinReousrces.h"
+#include "Audio/AudioDevice.h"
 #include "Particle/ParticleSelfTest.h"
 
 namespace ve {
@@ -34,6 +35,10 @@ namespace ve {
         // or layer can ask for them.
         BuiltinResources::init();
 
+        // Opens the output device (and the decoder's resource manager). A
+        // machine without speakers still runs; every audio call then no-ops.
+        AudioDevice::get().init();
+
 #ifdef _DEBUG
         ParticleSelfTest::runAll();
 #endif
@@ -41,7 +46,7 @@ namespace ve {
         m_dispatcher = std::make_unique<EventDispatcher>();
         VE_CORE_SUCCESS("Event dispatcher initialized");
 
-        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.10 dev", m_dispatcher.get());
+        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.11 dev", m_dispatcher.get());
         VE_CORE_SUCCESS("Window created");
 
         m_shaderLibrary = std::make_unique<ShaderLibrary>();
@@ -67,6 +72,7 @@ namespace ve {
     }
 
     Application::~Application() {
+        AudioDevice::get().shutdown();
         m_layerStack.popOverlay(m_vellumLayer.get());
         m_layerStack.popOverlay(m_GuiLayer.get());
     }
@@ -91,6 +97,10 @@ namespace ve {
             // Age LRU entries, trim over-budget resources, and refill slots
             // whose demand outlived an unload.
             ResourceManager::tick();
+
+            // Reap voices that reached their end and re-anchor spatial voices
+            // after the listener moved.
+            AudioDevice::get().update();
 
             onUpdate(DeltaTime::get().getDeltaTime());
 

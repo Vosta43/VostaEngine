@@ -19,15 +19,20 @@ namespace ve {
 	// Supplied by the caller (the HUD system borrows VellumLayer's fonts) so the
 	// document itself stays font-agnostic.
 	struct HudBuildContext {
-		// Resolve an atlas for a requested pixel size. Never null in a working host.
-		std::function<vellum::FontAtlas* (float)> atlasFor;
+		// Resolve an atlas for a named face chain (empty selects the host default)
+		// at a requested pixel size. Never null in a working host.
+		std::function<vellum::FontAtlas* (const std::string&, float)> atlasFor;
 
 		// Resolve a texture by path, registering it with the UI renderer and
 		// writing its pixel size into the second argument. 0 on failure.
 		std::function<vellum::TextureId (const std::string&, glm::vec2&)> textureFor;
 
+		vellum::FontAtlas* atlas(const std::string& fontName, float size) const {
+			return atlasFor ? atlasFor(fontName, size) : nullptr;
+		}
+
 		vellum::FontAtlas* atlas(float size) const {
-			return atlasFor ? atlasFor(size) : nullptr;
+			return atlas(std::string(), size);
 		}
 
 		vellum::TextureId texture(const std::string& path, glm::vec2& sizeOut) const {

@@ -43,7 +43,7 @@ namespace ve {
         ofn.hwndOwner = GetActiveWindow();
         ofn.lpstrFile = szFile;
         ofn.nMaxFile = sizeof(szFile);
-        ofn.lpstrFilter = "All\0*.*\0Textures\0*.png;*.jpg;*.hdr\0Models\0*.obj;*.fbx\0";
+        ofn.lpstrFilter = "All\0*.*\0Textures\0*.png;*.jpg;*.hdr\0Models\0*.obj;*.fbx\0Audio\0*.wav;*.flac;*.mp3;*.ogg\0";
         ofn.nFilterIndex = 1;
         ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
         if (GetOpenFileNameA(&ofn))
@@ -283,13 +283,15 @@ namespace ve {
         m_noiseIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/noise_resource_2.png"));
         m_particleIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/particle.png"));
         m_terrainDataIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/terrain_data.png"));
+        m_soundIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/sound.png"));
         m_notImportedIcon = std::shared_ptr<Texture2D>(Texture2D::create("VostaEditor/resources/icons/not_imported_file.png"));
     }
 
     // Source types the importer can turn into project assets.
     static bool isImportableFile(const std::string& path) {
         const std::string ext = ve::utils::getExtension(path);
-        return ext == ".obj" || ext == ".png" || ext == ".jpg" || ext == ".hdr";
+        return ext == ".obj" || ext == ".png" || ext == ".jpg" || ext == ".hdr" ||
+               ext == ".wav" || ext == ".flac" || ext == ".mp3" || ext == ".ogg";
     }
 
     // Stem with any trailing "_<digits>" auto-suffix removed, so "sofa_1" and
@@ -329,6 +331,8 @@ namespace ve {
         const ImU32 kSource  = IM_COL32(55, 90, 200, 255);
         const ImU32 kNoise   = IM_COL32(90, 200, 170, 255);
         const ImU32 kParticle = IM_COL32(255, 175, 70, 255);
+        const ImU32 kSound   = IM_COL32(235, 120, 120, 255);
+        const ImU32 kJson    = IM_COL32(150, 200, 120, 255);
 
         if (isDirectory)
             return kFolder;
@@ -338,6 +342,8 @@ namespace ve {
         if (ext == ".glsl" || ext == ".vert" || ext == ".frag" || ext == ".comp") return kShader;
         if (ext == ".obj" || ext == ".fbx") return kMesh;
         if (ext == ".png" || ext == ".jpg" || ext == ".hdr") return kTexture;
+        if (ext == ".wav" || ext == ".flac" || ext == ".mp3" || ext == ".ogg") return kSound;
+        if (ext == ".json") return kJson;
 
         if (ext == ".veasset") {
             auto it = assetTypeCache.find(path);
@@ -346,6 +352,7 @@ namespace ve {
             if (type == "texture")    return kTexture;
             if (type == "noise")      return kNoise;
             if (type == "particle")   return kParticle;
+            if (type == "sound")      return kSound;
         }
         return kDefault;
     }
@@ -416,6 +423,16 @@ namespace ve {
         }
         if (ext == ".veworld")
             return m_terrainIcon;
+
+        // Plain data files opened by the JSON editor. No dedicated icon yet; the
+        // source icon keeps them from reading as "not imported".
+        if (ext == ".json")
+            return m_sourceIcon;
+
+        // Sound assets play straight from the source file: no baked asset, so the
+        // extension alone decides the icon.
+        if (ext == ".wav" || ext == ".flac" || ext == ".mp3" || ext == ".ogg")
+            return m_soundIcon;
 
         // An image counts as imported once its baked texture asset exists.
         if (ext == ".png" || ext == ".jpg" || ext == ".hdr") {
@@ -491,6 +508,9 @@ namespace ve {
             }
             if (assetType == "terrain_data") {
                 return m_terrainDataIcon;
+            }
+            if (assetType == "sound") {
+                return m_soundIcon;
             }
             // Unknown veasset type — fall through.
         }

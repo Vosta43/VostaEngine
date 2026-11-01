@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -108,6 +109,89 @@ namespace ve {
 		std::string asString(const std::string& def = std::string()) const;
 
 	private:
+		struct Impl;
+		std::shared_ptr<Impl> m_impl;
+	};
+
+	// Generic document tree, for tools that edit JSON whose shape they do not
+	// know (the editor's JSON panel). Unlike JsonReader, any root type is valid,
+	// key order is preserved (insertion order), and integers stay integers.
+	// Nodes are handles: they address a position from the root, so a structural
+	// edit elsewhere can never leave one dangling -- it resolves to the node now
+	// at that position, or to an invalid node when the position is gone.
+
+	enum class JsonKind : uint8_t { Null, Bool, Integer, Float, String, Object, Array };
+
+	class JsonDocument;
+
+	class VE_API JsonNode {
+	public:
+		JsonNode();
+
+		bool     valid() const;
+		JsonKind kind() const;
+
+		// Children of an object or array, in document order. An object child's
+		// key comes from keyAt(); an array child's key is empty.
+		size_t      childCount() const;
+		std::string keyAt(size_t index) const;
+		JsonNode    childAt(size_t index) const;
+
+		// Opaque identity for this position, e.g. $["window"][0]. Stable across
+		// frames while the shape above it does not change; used as a UI id.
+		std::string path() const;
+
+		std::string asString(const std::string& def = std::string()) const;
+		int64_t     asInt64(int64_t def = 0) const;
+		double      asDouble(double def = 0.0) const;
+		bool        asBool(bool def = false) const;
+		// Compact JSON text of this node. For a value too large for int64, the
+		// only lossless reading.
+		std::string asRawText() const;
+
+		bool setString(const std::string& v);
+		bool setInteger(int64_t v);
+		bool setFloat(double v);   // false for NaN/Inf
+		bool setBool(bool v);
+		bool setNull();
+		// Replaces the value with the empty value of `kind` ({}, [], "", 0, ...).
+		bool setKind(JsonKind kind);
+
+		bool appendMember(const std::string& key, JsonKind kind); // unique key
+		bool appendElement(JsonKind kind);
+		bool removeChild(size_t index);
+		bool renameKey(size_t index, const std::string& newKey);  // keeps position
+		bool moveChild(size_t from, size_t to);                   // keeps in-bounds
+
+	private:
+		friend class JsonDocument;
+		struct Impl;
+		std::shared_ptr<Impl> m_impl;
+	};
+
+	class VE_API JsonDocument {
+	public:
+		JsonDocument();
+		~JsonDocument();
+
+		JsonDocument(const JsonDocument&) = delete;
+		JsonDocument& operator=(const JsonDocument&) = delete;
+
+		// A missing file or a parse error leaves this document invalid and, when
+		// `error` is given, puts the parser's line/column message there. An empty
+		// or whitespace-only file loads as an empty object, not as an error.
+		bool load(const std::string& path, std::string* error = nullptr);
+		bool parseText(const std::string& text, std::string* error = nullptr);
+		// Writes the loaded path with 2-space indentation; clears dirty().
+		bool save(std::string* error = nullptr);
+
+		bool valid() const;
+		bool dirty() const;
+		const std::string& path() const;
+		JsonNode root() const;
+
+	private:
+		friend class JsonNode;
 		struct Impl;
 		std::shared_ptr<Impl> m_impl;
 	};

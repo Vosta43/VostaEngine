@@ -146,6 +146,12 @@ set(ENGINE_SOURCES
     src/Asset/StaticMeshImporter.cpp
     src/Asset/TextureImporter.cpp
 
+    # Audio (miniaudio mixer, streaming decoder, sound assets)
+    src/Audio/AudioComponent.cpp
+    src/Audio/AudioDecode.cpp
+    src/Audio/AudioDevice.cpp
+    src/Audio/SoundAsset.cpp
+
     # Graph (node graphs shared by material and noise)
     src/Graph/NodeGraph.cpp
 
@@ -164,10 +170,13 @@ set(ENGINE_SOURCES
 
     # GUI
     src/Gui/Gui.cpp
+    src/Gui/UIRenderTarget.cpp
 
     # Vellum (retained-mode UI)
     src/Gui/Vellum/Core/Widget.cpp
+    src/Gui/Vellum/Text/Font.cpp
     src/Gui/Vellum/Text/FontAtlas.cpp
+    src/Gui/Vellum/Text/GlyphAtlas.cpp
     src/Gui/Vellum/Text/FontManager.cpp
     src/Gui/Vellum/Widgets/Button.cpp
     src/Gui/Vellum/Widgets/ColoredBox.cpp
@@ -210,18 +219,23 @@ set(ENGINE_SOURCES
     thirdparty/IMGUI/misc/cpp/imgui_stdlib.cpp
     thirdparty/IMGUI/backends/imgui_impl_glfw.cpp
     thirdparty/IMGUI/backends/imgui_impl_opengl3.cpp
+    thirdparty/miniaudio-master/miniaudio.c
     thirdparty/stb_image/stb_image.cpp
     thirdparty/stb_truetype/stb_truetype.cpp
+    thirdparty/stb_vorbis/stb_vorbis.c
     thirdparty/ufbx/ufbx.c
 )
 
-# Packaging drives MSBuild on a project's .slnx, and process spawning is the one
-# platform seam it needs. Both are Windows-only today, so they are added only
-# there rather than carrying dead branches on other platforms.
+# Packaging drives MSBuild on a project's .slnx, so the packager itself is
+# Windows-only. Process spawning is per platform behind one header.
 if(WIN32)
     list(APPEND ENGINE_SOURCES
         src/Build/Packager.cpp
         src/Platform/Windows/ProcessWindows.cpp
+    )
+else()
+    list(APPEND ENGINE_SOURCES
+        src/Platform/Posix/ProcessPosix.cpp
     )
 endif()
 
@@ -247,6 +261,8 @@ target_include_directories(VostaEngine
         ${ENGINE_ROOT}/thirdparty/ufbx
         ${ENGINE_ROOT}/thirdparty/JSON/include
         ${ENGINE_ROOT}/thirdparty/FastNoiseLite
+        ${ENGINE_ROOT}/thirdparty/miniaudio-master
+        ${ENGINE_ROOT}/thirdparty/stb_vorbis
 )
 
 # ── GLFW (pre-built binary, vendored) ───────────────────────────────────
@@ -280,6 +296,11 @@ if(WIN32)
     target_link_libraries(VostaEngine PRIVATE winhttp)
 endif()
 
+# ── libdl — dlopen/dlsym for GameModuleHost (empty on macOS) ─────────────
+if(NOT WIN32)
+    target_link_libraries(VostaEngine PRIVATE ${CMAKE_DL_LIBS})
+endif()
+
 # ── Precompiled header ──────────────────────────────────────────────────
 target_precompile_headers(VostaEngine PRIVATE "src/Core/vepch.h")
 
@@ -301,6 +322,14 @@ set_source_files_properties(
 # stb_truetype 实现单独一个 TU，同样跳过预编译头
 set_source_files_properties(
     thirdparty/stb_truetype/stb_truetype.cpp
+    PROPERTIES
+        SKIP_PRECOMPILE_HEADERS ON
+)
+
+# miniaudio / stb_vorbis 是 C 实现，同样跳过预编译头
+set_source_files_properties(
+    thirdparty/miniaudio-master/miniaudio.c
+    thirdparty/stb_vorbis/stb_vorbis.c
     PROPERTIES
         SKIP_PRECOMPILE_HEADERS ON
 )

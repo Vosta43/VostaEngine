@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <cstdint>
+#include <string>
 
 #include "Core/Core.h"
 #include "Renderer/RendererAPI.h"
@@ -15,12 +16,19 @@ namespace ve {
     class VE_API RenderCommand {
     public:
         static void init(bool reverseZ = true);
+        static void bindDefaultFramebuffer();
         static void setClearColor(float r, float g, float b, float a);
         static void clear();
         static void clear(bool color, bool depth);
         // Clear the bound framebuffer's integer color attachment to `value`.
         static void clearInt(int32_t value);
         static void setViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+        // Current viewport rectangle (origin bottom-left).
+        static void getViewport(int32_t out[4]);
+        // Framebuffer currently bound for drawing; 0 is the default one.
+        static uint32_t getBoundFramebuffer();
+        // Driver's renderer/vendor strings.
+        static void rendererInfo(std::string& renderer, std::string& vendor);
         static void setScissor(int32_t x, int32_t y, int32_t width, int32_t height);
         static void setScissorTest(bool enabled);
         static void drawIndexed(const Ref<VertexArray>& vertexArray);
@@ -68,6 +76,9 @@ namespace ve {
         static void setPointSize(float sizeInPixels);
         static void setUnpackAlignment(uint32_t alignment);
         static void setPackAlignment(uint32_t alignment);
+        // Synchronous RGBA8 read-back of the bound framebuffer's colour
+        // attachment 0 (the default back buffer when none is bound).
+        static void readPixels(uint32_t x, uint32_t y, uint32_t w, uint32_t h, void* out);
 
     private:
         static RendererAPI* s_RendererAPI;

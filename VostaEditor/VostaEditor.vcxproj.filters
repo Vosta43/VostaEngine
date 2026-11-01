@@ -75,6 +75,9 @@
     <ClCompile Include="src\Panels\TexturePreviewPanel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Panels\JsonEditorPanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\EditorViewController.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -165,6 +168,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Panels\TexturePreviewPanel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Panels\JsonEditorPanel.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\EditorViewController.h">

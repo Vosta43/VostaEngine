@@ -5,7 +5,7 @@ it is meant to get you from nothing to spawning, moving, and reacting to things
 in a scene. It is not an exhaustive reference — for the full surface, the headers
 are the reference. The *API map* at the end says which header to open for what.
 
-Applies to engine **0.2.10** (`VE_GAME_MODULE_API_VERSION` **2**).
+Applies to engine **0.2.11** (`VE_GAME_MODULE_API_VERSION` **2**).
 
 ## 1. The model in one minute
 
@@ -286,6 +286,17 @@ if (auto* ui = ve::Application::get().getVellumLayer()) {
 Two rules that bite (details in *Pitfalls*): change a tree by rebuilding it and
 calling `setRoot` again, and never call `setRoot` from inside a widget callback.
 
+Fonts are named face chains. `ui->font(size)` uses the engine default
+(NotoSans with NotoSansSC behind it for CJK). To use your own, register a chain
+once and address it by name — the chain is exactly what you pass, so include a
+CJK face if the text needs one:
+
+```cpp
+ui->addFont("title", { "content/fonts/Title-Regular.ttf",
+                       "content/fonts/NotoSansSC-Regular.ttf" });
+auto* titleFont = ui->font("title", 40.0f);   // null for an unknown name
+```
+
 ## 6. The API map
 
 `<VostaEngine.h>` pulls in the public surface. By subsystem, the headers to open:
@@ -305,7 +316,7 @@ calling `setRoot` again, and never call `setRoot` from inside a widget callback.
 | Assets | `Core/ResourceManager.h`, `Core/AssetHandle.h`, `Asset/ImportManager.h`, `Asset/StaticMeshResource.h` | asset handles and importing |
 | Mesh & material | `Renderer/StaticMesh.h`, `Renderer/Material.h` | mesh and material types |
 | Rendering | `Renderer/Camera.h`, `Renderer/SceneView.h`, `Renderer/RenderPipeline.h`, `Renderer/SceneRenderer.h`, `Renderer/Renderer*.h`, `Renderer/Shader.h`, `Renderer/FrameBuffer.h` | cameras, the view/pipeline, low-level commands |
-| UI | `Gui/Gui.h`, `Gui/Vellum/*` | ImGui (`Gui`) and the Vellum widgets |
+| UI | `Gui/Gui.h`, `Gui/Vellum/*` | ImGui (`Gui`), the Vellum widgets, and named fonts (`Font`, `FontManager`) |
 | MCP | `MCP/*.h` | tool/command registry, LLM client, agent session |
 
 Some areas are reachable by a direct `#include` (the folder `engine/include/src`
@@ -326,8 +337,9 @@ those as engine-internal.
 - **Never call `setRoot` from inside a widget callback.** The input router holds
   a raw pointer to the widget it is delivering to, and `setRoot` invalidates it —
   a dereference crash. Mark your state dirty and rebuild in `onUpdate` instead.
-- **Vellum's default font is Latin-only.** Non-Latin (e.g. CJK) text renders
-  blank until the engine's default UI font is changed.
+- **Vellum's default font chain covers Latin and CJK.** NotoSans leads for
+  Latin metrics and NotoSansSC falls back behind it per codepoint. Text in a
+  script neither face carries still renders blank.
 - **No GL objects before the context.** Do not create GL resources during static
   init; the context is live only once layers attach / a session starts.
 - **Mismatched module version.** A `game.dll` built against a different

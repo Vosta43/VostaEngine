@@ -11,9 +11,10 @@ namespace ve {
 	class Scene;
 	class ECSystemBase;
 
-	// Loads one game-module DLL and drives its GameModule lifecycle. One module
-	// per host. Windows-only for now (LoadLibraryEx). Every failure path logs and
-	// returns false -- a bad module must never crash the host.
+	// Loads one game-module shared library and drives its GameModule lifecycle.
+	// One module per host. The platform loader is LoadLibraryExA on Windows and
+	// dlopen elsewhere. Every failure path logs and returns false -- a bad module
+	// must never crash the host.
 	class VE_API GameModuleHost {
 	public:
 		GameModuleHost() = default;
@@ -45,7 +46,7 @@ namespace ve {
 		const std::string& lastError() const { return m_lastError; }
 
 	private:
-		void* m_osHandle = nullptr;          // HMODULE
+		void* m_osHandle = nullptr;          // HMODULE or dlopen handle
 		GameModule* m_module = nullptr;
 		Application* m_app = nullptr;
 		VeDestroyGameModuleFn m_destroyFn = nullptr;

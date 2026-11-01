@@ -249,6 +249,14 @@ namespace ve {
 			ResourceManager::store<Texture2D>(assetPath);
 			VE_CORE_SUCCESS_PRINT("Imported texture asset: %s", assetPath.c_str());
 		}
+		else if (ext == ".wav" || ext == ".flac" || ext == ".mp3" || ext == ".ogg") {
+			// Sound assets are played straight from the source file, so there is
+			// nothing to bake: copying it into the content tree is the import.
+			const std::string local = copyInto(src, dest);
+			if (local.empty())
+				return;
+			VE_CORE_SUCCESS_PRINT("Imported sound asset: %s", local.c_str());
+		}
 		else if (ext == ".veasset") {
 			copyInto(src, dest);
 		}
