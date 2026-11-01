@@ -289,6 +289,20 @@ void EditorDialogs::onGuiRender() {
 
             ImGui::SameLine();
 
+            if (ImGui::Button("Browse...")) {
+                const std::string start = m_openProjectDir.empty()
+                    ? Project::projectsDir() : m_openProjectDir;
+                const std::string picked = pickFolderDialog(start);
+                if (!picked.empty()) {
+                    m_openProjectDir = picked;
+                    if (m_callbacks.onApplyProject)
+                        m_callbacks.onApplyProject(picked);
+                    m_showOpenProjectPopup = false;
+                }
+            }
+
+            ImGui::SameLine();
+
             if (ImGui::Button("Cancel"))
                 m_showOpenProjectPopup = false;
 

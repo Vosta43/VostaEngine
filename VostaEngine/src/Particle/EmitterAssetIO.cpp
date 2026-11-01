@@ -176,6 +176,11 @@ namespace ve {
 			}
 		}
 
+		ar << static_cast<int32_t>(asset.renderer.type);
+		ar << asset.renderer.spriteTexturePath;
+		ar << static_cast<int32_t>(asset.renderer.subImageSizeX);
+		ar << static_cast<int32_t>(asset.renderer.subImageSizeY);
+
 		return true;
 	}
 
@@ -202,7 +207,7 @@ namespace ve {
 
 		int32_t version = 0;
 		ar >> version;
-		if (version != kEmitterFormatVersion) {
+		if (version < 1 || version > kEmitterFormatVersion) {
 			if (version > kEmitterFormatVersion && unsupportedVersion)
 				*unsupportedVersion = true;
 			setError(error, "unsupported particle asset version " + std::to_string(version));
@@ -287,6 +292,21 @@ namespace ve {
 
 				asset.stages[s].push_back(std::move(entry));
 			}
+		}
+
+		if (version >= 2) {
+			int32_t rendererType = 0;
+			ar >> rendererType;
+			ar >> asset.renderer.spriteTexturePath;
+			int32_t cols = 1;
+			int32_t rows = 1;
+			ar >> cols >> rows;
+
+			asset.renderer.type = ParticleRendererType::Sprite;
+			if (rendererType != static_cast<int32_t>(ParticleRendererType::Sprite))
+				warn += "unknown renderer type " + std::to_string(rendererType) + "; ";
+			asset.renderer.subImageSizeX = static_cast<uint32_t>(std::clamp(cols, 1, 64));
+			asset.renderer.subImageSizeY = static_cast<uint32_t>(std::clamp(rows, 1, 64));
 		}
 
 		ensureUniqueModuleGuids(asset);

@@ -46,13 +46,19 @@ namespace ve::vellum {
     }
 
     void WidgetTree::frame(const glm::vec2& surfaceSize, const InputFrame& input) {
+        frame(surfaceSize, LayoutTransform{}, input);
+    }
+
+    void WidgetTree::frame(const glm::vec2& surfaceSize, const LayoutTransform& layout,
+                           const InputFrame& input) {
         if (!m_root || surfaceSize.x <= 0.0f || surfaceSize.y <= 0.0f) {
             m_tooltipSource = nullptr;
             m_tooltipVisible = false;
             return;
         }
 
-        m_surfaceSize = surfaceSize;
+        m_layout = layout;
+        m_logicalSize = layout.logicalSize(surfaceSize);
 
         // Animation step, taken from the host clock so a paused or backwards clock
         // yields 0 (which snaps animations to their target instead of stalling).
@@ -65,21 +71,24 @@ namespace ve::vellum {
         // Two-pass layout: prepass bottom-up to cache desired sizes, then arrange
         // top-down so every widget ends up with its final absolute rect. The root
         // is pinned to the whole surface, matching how a view constrains its child.
-        m_root->prepass();
-        m_root->arrange({ { 0.0f, 0.0f }, surfaceSize });
+        m_root->prepass(layout.scale);
+        m_root->arrange({ { 0.0f, 0.0f }, m_logicalSize });
 
         // Rects are final now, so hit-testing is valid; route before painting so
-        // the state this frame's widgets read is already up to date.
-        applyInput(input);
+        // the state this frame's widgets read is already up to date. The router and
+        // every handler work in logical units, so the pointer is mapped once here.
+        InputFrame local = input;
+        local.pos = layout.toLogical(input.pos);
+        applyInput(local);
         // After input: a hover state set above is what this frame's animation sees.
         m_root->tick(dt);
-        updateTooltip(input);
+        updateTooltip(local);
 
-        m_paint.beginFrame(surfaceSize);
+        m_paint.beginFrame(m_logicalSize);
         m_root->paint(m_paint);
         paintTooltip();
 
-        m_renderer.render(m_paint.list(), surfaceSize);
+        m_renderer.render(m_paint.list(), surfaceSize, layout);
     }
 
     void WidgetTree::buildPath(const glm::vec2& pos) {
@@ -113,7 +122,7 @@ namespace ve::vellum {
 
     bool WidgetTree::wantsWheel(const glm::vec2& pos) const {
         std::vector<Widget*> path;
-        collectPath(m_root.get(), pos, path);
+        collectPath(m_root.get(), m_layout.toLogical(pos), path);
         for (Widget* widget : path)
             if (widget->canConsumeWheel())
                 return true;
@@ -233,8 +242,8 @@ namespace ve::vellum {
             return;
         // Laid out against the whole surface and painted last, once the root's clip
         // stack has unwound, so a panel the widget sits in cannot cut it off.
-        m_tooltipBox->prepass();
-        m_tooltipBox->arrange({ { 0.0f, 0.0f }, m_surfaceSize });
+        m_tooltipBox->prepass(m_layout.scale);
+        m_tooltipBox->arrange({ { 0.0f, 0.0f }, m_logicalSize });
         m_tooltipBox->paint(m_paint);
     }
 

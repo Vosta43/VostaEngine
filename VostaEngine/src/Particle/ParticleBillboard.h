@@ -16,15 +16,17 @@ namespace ve {
 	// look different in one than in the other.
 	namespace ParticleBillboard {
 
-		// The soft-dot sprite every particle quad is textured with.
+		// The soft-dot sprite used when the emitter's renderer has no texture.
 		VE_API Ref<Texture2D> sprite();
 
 		// Maps a particle position in asset space to render space.
 		using SpaceMap = std::function<glm::vec3(const glm::vec3&)>;
 
 		// Appends one camera-facing quad per live particle to the frame's instance
-		// list. No GPU work happens here; the caller owns the blend/depth state and
-		// pairs this with flush().
+		// list, textured and sub-UV'd by the emitter's renderer section. No GPU work
+		// happens here; the caller owns the blend/depth state and pairs this with
+		// flush(). Emitters that disagree on texture or sheet grid get separate
+		// batches.
 		VE_API uint32_t draw(const EmitterAsset& emitter, const ParticleDataSet& particles,
 			const SpaceMap& toRenderSpace,
 			const glm::vec4& tint = glm::vec4(0.55f, 0.75f, 1.0f, 1.0f),

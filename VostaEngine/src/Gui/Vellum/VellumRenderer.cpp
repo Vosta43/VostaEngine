@@ -118,6 +118,11 @@ void main() {
     }
 
     void VellumRenderer::render(const DrawList& list, const glm::vec2& surfaceSize) {
+        render(list, surfaceSize, LayoutTransform{});
+    }
+
+    void VellumRenderer::render(const DrawList& list, const glm::vec2& surfaceSize,
+                                const LayoutTransform& layout) {
         init();
         if (!m_shader || list.commands.empty()) return;
 
@@ -133,8 +138,15 @@ void main() {
 
         m_shader->bind();
         // ortho(0, w, h, 0) puts the origin at the top-left with y growing downwards,
-        // so a widget's screen-space rect maps straight through without a y-flip.
-        m_shader->setMat4("u_Projection", makeOrtho(0.0f, surfaceSize.x, surfaceSize.y, 0.0f, -1.0f, 1.0f));
+        // so a widget's screen-space rect maps straight through without a y-flip. The
+        // layout is applied on the right: logical vertices never see the surface size.
+        glm::mat4 projection = makeOrtho(0.0f, surfaceSize.x, surfaceSize.y, 0.0f, -1.0f, 1.0f);
+        if (layout.scale != 1.0f || layout.origin != glm::vec2(0.0f)) {
+            projection = projection
+                * glm::translate(glm::mat4(1.0f), glm::vec3(layout.origin, 0.0f))
+                * glm::scale(glm::mat4(1.0f), glm::vec3(layout.scale, layout.scale, 1.0f));
+        }
+        m_shader->setMat4("u_Projection", projection);
 
         // The caller may have left a sub-rect viewport behind (editor viewports, render
         // targets); Vellum owns the whole surface it painted against.
@@ -144,6 +156,18 @@ void main() {
         RenderCommand::setBlend(true);
         RenderCommand::setBlendFunc(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha);
         RenderCommand::setScissorTest(true);
+
+        // Clips are painted in logical units; scissor wants surface pixels. Snapping
+        // outward keeps a clip from shaving a fractional edge off the geometry.
+        const auto scissorRect = [&](const Rect& logical) {
+            const glm::vec2 lo = layout.toSurface(logical.pos);
+            const glm::vec2 hi = layout.toSurface(logical.pos + logical.size);
+            const float x0 = std::max(0.0f, std::floor(lo.x));
+            const float y0 = std::max(0.0f, std::floor(lo.y));
+            const float x1 = std::min(surfaceSize.x, std::ceil(hi.x));
+            const float y1 = std::min(surfaceSize.y, std::ceil(hi.y));
+            return Rect{ { x0, y0 }, { std::max(0.0f, x1 - x0), std::max(0.0f, y1 - y0) } };
+        };
 
         TextureId boundTexture = ~static_cast<TextureId>(0);
         for (const DrawCommand& cmd : list.commands) {
@@ -156,12 +180,15 @@ void main() {
                 boundTexture = cmd.texture;
             }
 
+            const Rect clip = scissorRect(cmd.clip);
+            if (clip.size.x <= 0.0f || clip.size.y <= 0.0f) continue;
+
             // glScissor's origin is bottom-left, so the top-left clip rect is flipped.
             RenderCommand::setScissor(
-                static_cast<int32_t>(cmd.clip.pos.x),
-                static_cast<int32_t>(surfaceSize.y - (cmd.clip.pos.y + cmd.clip.size.y)),
-                static_cast<int32_t>(cmd.clip.size.x),
-                static_cast<int32_t>(cmd.clip.size.y));
+                static_cast<int32_t>(clip.pos.x),
+                static_cast<int32_t>(surfaceSize.y - (clip.pos.y + clip.size.y)),
+                static_cast<int32_t>(clip.size.x),
+                static_cast<int32_t>(clip.size.y));
 
             RenderCommand::drawIndexed(m_vertexArray, cmd.indexCount, cmd.firstIndex);
         }

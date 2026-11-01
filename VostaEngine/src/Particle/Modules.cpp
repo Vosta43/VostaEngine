@@ -8,6 +8,30 @@ namespace ve::builtin {
 
 	namespace {
 
+		constexpr float kDegToRad = 0.017453293f;
+		constexpr float kTwoPi = 6.2831853f;
+
+		// The VM has no min/abs/dot/cross opcodes; these compose the existing ones.
+		Reg absOf(ProgramBuilder& builder, const Reg& value) {
+			return builder.max(value, builder.mul(value, builder.imm(-1.0f)));
+		}
+
+		Reg dot(ProgramBuilder& builder, const Reg& a, const Reg& b) {
+			return builder.add(
+				builder.add(builder.mul(builder.extract(a, 0), builder.extract(b, 0)),
+					builder.mul(builder.extract(a, 1), builder.extract(b, 1))),
+				builder.mul(builder.extract(a, 2), builder.extract(b, 2)));
+		}
+
+		Reg cross(ProgramBuilder& builder, const Reg& a, const Reg& b) {
+			const Reg ax = builder.extract(a, 0), ay = builder.extract(a, 1), az = builder.extract(a, 2);
+			const Reg bx = builder.extract(b, 0), by = builder.extract(b, 1), bz = builder.extract(b, 2);
+			return builder.compose(
+				builder.sub(builder.mul(ay, bz), builder.mul(az, by)),
+				builder.sub(builder.mul(az, bx), builder.mul(ax, bz)),
+				builder.sub(builder.mul(ax, by), builder.mul(ay, bx)));
+		}
+
 		void gravityEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
 			const Reg accel = builder.param(entry, "Accel");
 			const Reg dt = builder.implicit(Implicit::Dt);
@@ -86,6 +110,115 @@ namespace ve::builtin {
 			builder.storeAttr("Position", builder.add(center, builder.mul(direction, distance)));
 		}
 
+		// Box, disc, cone and ring spawns all overwrite Position, so they behave like
+		// ShapeLocation: place them after InitParticle, and use only one of them.
+		void shapeBoxEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
+			const Reg center = builder.param(entry, "Center");
+			const Reg halfExtent = builder.param(entry, "HalfExtent");
+			const Reg seed = builder.implicit(Implicit::SpawnRandom);
+
+			const Reg offset = builder.compose(
+				builder.mul(builder.sub(builder.mul(builder.random(seed, 0), builder.imm(2.0f)), builder.imm(1.0f)),
+					builder.extract(halfExtent, 0)),
+				builder.mul(builder.sub(builder.mul(builder.random(seed, 1), builder.imm(2.0f)), builder.imm(1.0f)),
+					builder.extract(halfExtent, 1)),
+				builder.mul(builder.sub(builder.mul(builder.random(seed, 2), builder.imm(2.0f)), builder.imm(1.0f)),
+					builder.extract(halfExtent, 2)));
+
+			builder.storeAttr("Position", builder.add(center, offset));
+		}
+
+		// Flat disc in the XY plane, the plane the editor's Z-up preview shows.
+		void shapeDiscEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
+			const Reg center = builder.param(entry, "Center");
+			const Reg radius = builder.param(entry, "Radius");
+			const Reg seed = builder.implicit(Implicit::SpawnRandom);
+
+			// sqrt() makes the sample area-uniform instead of center-heavy.
+			const Reg r = builder.mul(radius, builder.sqrt(builder.random(seed, 3)));
+			const Reg phi = builder.mul(builder.random(seed, 4), builder.imm(kTwoPi));
+			const Reg offset = builder.compose(builder.mul(builder.cos(phi), r),
+				builder.mul(builder.sin(phi), r), builder.imm(0.0f));
+
+			builder.storeAttr("Position", builder.add(center, offset));
+		}
+
+		void shapeConeEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
+			const Reg center = builder.param(entry, "Center");
+			const Reg radius = builder.param(entry, "Radius");
+			const Reg height = builder.param(entry, "Height");
+			const Reg seed = builder.implicit(Implicit::SpawnRandom);
+
+			const Reg u = builder.random(seed, 5);
+			const Reg z = builder.mul(u, height);
+			const Reg r = builder.mul(builder.mul(radius, builder.sub(builder.imm(1.0f), u)),
+				builder.sqrt(builder.random(seed, 6)));
+			const Reg phi = builder.mul(builder.random(seed, 7), builder.imm(kTwoPi));
+			const Reg offset = builder.compose(builder.mul(builder.cos(phi), r),
+				builder.mul(builder.sin(phi), r), z);
+
+			builder.storeAttr("Position", builder.add(center, offset));
+		}
+
+		// Thin annulus in the XY plane; Thickness spreads the radius on both sides.
+		void shapeRingEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
+			const Reg center = builder.param(entry, "Center");
+			const Reg radius = builder.param(entry, "Radius");
+			const Reg thickness = builder.param(entry, "Thickness");
+			const Reg seed = builder.implicit(Implicit::SpawnRandom);
+
+			const Reg spread = builder.mul(builder.sub(builder.mul(builder.random(seed, 8), builder.imm(2.0f)),
+				builder.imm(1.0f)), thickness);
+			const Reg r = builder.add(radius, spread);
+			const Reg phi = builder.mul(builder.random(seed, 9), builder.imm(kTwoPi));
+			const Reg offset = builder.compose(builder.mul(builder.cos(phi), r),
+				builder.mul(builder.sin(phi), r), builder.imm(0.0f));
+
+			builder.storeAttr("Position", builder.add(center, offset));
+		}
+
+		// Speed drawn uniformly in [SpeedMin, SpeedMax], direction drawn inside a cone
+		// around Direction. Overwrites InitParticle's constant velocity.
+		void initialVelocityEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
+			const Reg direction = builder.normalize(builder.param(entry, "Direction"));
+			const Reg minSpeed = builder.param(entry, "SpeedMin");
+			const Reg maxSpeed = builder.param(entry, "SpeedMax");
+			const Reg halfAngle = builder.mul(builder.param(entry, "ConeAngle"), builder.imm(kDegToRad));
+			const Reg seed = builder.implicit(Implicit::SpawnRandom);
+
+			// Tangent frame around Direction. The helper axis must not be parallel to
+			// it, so use +Z unless Direction is already near vertical.
+			const Reg horizontal = builder.less(absOf(builder, builder.extract(direction, 2)), builder.imm(0.999f));
+			const Reg helper = builder.compose(builder.sub(builder.imm(1.0f), horizontal),
+				builder.imm(0.0f), horizontal);
+			const Reg tangent = builder.normalize(cross(builder, direction, helper));
+			const Reg bitangent = cross(builder, direction, tangent);
+
+			// cos(theta) uniform in [cos(halfAngle), 1] gives a uniform solid angle.
+			const Reg cosMax = builder.cos(halfAngle);
+			const Reg cosTheta = builder.sub(builder.imm(1.0f),
+				builder.mul(builder.random(seed, 10), builder.sub(builder.imm(1.0f), cosMax)));
+			const Reg sinTheta = builder.sqrt(builder.max(
+				builder.sub(builder.imm(1.0f), builder.mul(cosTheta, cosTheta)), builder.imm(0.0f)));
+			const Reg phi = builder.mul(builder.random(seed, 11), builder.imm(kTwoPi));
+			const Reg spread = builder.add(
+				builder.mul(tangent, builder.mul(builder.cos(phi), sinTheta)),
+				builder.mul(bitangent, builder.mul(builder.sin(phi), sinTheta)));
+			const Reg localDirection = builder.add(builder.mul(direction, cosTheta), spread);
+
+			const Reg speed = builder.add(minSpeed,
+				builder.mul(builder.sub(maxSpeed, minSpeed), builder.random(seed, 12)));
+			builder.storeAttr("Velocity", builder.mul(localDirection, speed));
+		}
+
+		void lifetimeRangeEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
+			const Reg minLife = builder.param(entry, "Min");
+			const Reg maxLife = builder.param(entry, "Max");
+			const Reg t = builder.random(builder.implicit(Implicit::SpawnRandom), 13);
+
+			builder.storeAttr("Lifetime", builder.add(minLife, builder.mul(builder.sub(maxLife, minLife), t)));
+		}
+
 		void spawnRateEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
 			const Reg rate = builder.param(entry, "Rate");
 			const Reg dt = builder.implicit(Implicit::Dt);
@@ -100,12 +233,85 @@ namespace ve::builtin {
 			builder.storeAttr("SpawnInfo0.SpawnGroup", builder.imm(0.0f));
 		}
 
+		// Every velocity module integrates Position, matching Gravity and the other
+		// forces: a particle needs at least one of them in ParticleUpdate to move.
+		void dragEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
+			const Reg drag = builder.param(entry, "Drag");
+			const Reg dt = builder.implicit(Implicit::Dt);
+			const Reg factor = builder.max(builder.sub(builder.imm(1.0f), builder.mul(drag, dt)), builder.imm(0.0f));
+
+			const Reg velocity = builder.mul(builder.loadAttr("Velocity"), factor);
+			builder.storeAttr("Velocity", velocity);
+			builder.storeAttr("Position", builder.add(builder.loadAttr("Position"), builder.mul(velocity, dt)));
+		}
+
+		void speedLimitEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
+			const Reg maxSpeed = builder.param(entry, "MaxSpeed");
+			const Reg dt = builder.implicit(Implicit::Dt);
+			const Reg velocity = builder.loadAttr("Velocity");
+			const Reg speed = builder.length(velocity);
+
+			// Scale down only when over the limit; length() is 0 at rest, so divide by
+			// a floored magnitude rather than risk a division by zero.
+			const Reg ratio = builder.div(maxSpeed, builder.max(speed, builder.imm(1e-6f)));
+			const Reg over = builder.less(maxSpeed, speed);
+			const Reg factor = builder.add(builder.imm(1.0f),
+				builder.mul(builder.sub(ratio, builder.imm(1.0f)), over));
+
+			const Reg limited = builder.mul(velocity, factor);
+			builder.storeAttr("Velocity", limited);
+			builder.storeAttr("Position", builder.add(builder.loadAttr("Position"), builder.mul(limited, dt)));
+		}
+
+		// Swirls particles around Axis through Center. Only the radial (in-plane)
+		// part gets the tangential push, so particles do not drift along the axis.
+		void vortexEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
+			const Reg center = builder.param(entry, "Center");
+			const Reg axis = builder.normalize(builder.param(entry, "Axis"));
+			const Reg strength = builder.param(entry, "Strength");
+			const Reg dt = builder.implicit(Implicit::Dt);
+
+			const Reg position = builder.loadAttr("Position");
+			const Reg radial = builder.sub(position, center);
+			const Reg inPlane = builder.sub(radial, builder.mul(axis, dot(builder, radial, axis)));
+			const Reg tangent = builder.normalize(cross(builder, axis, inPlane));
+
+			const Reg velocity = builder.add(builder.loadAttr("Velocity"),
+				builder.mul(builder.mul(tangent, strength), dt));
+			builder.storeAttr("Velocity", velocity);
+			builder.storeAttr("Position", builder.add(position, builder.mul(velocity, dt)));
+		}
+
+		// Kill modules multiply into Alive instead of overwriting it, so an earlier
+		// Lifetime expiry is not resurrected and several kill volumes combine.
+		void killSphereEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
+			const Reg center = builder.param(entry, "Center");
+			const Reg radius = builder.param(entry, "Radius");
+			const Reg distance = builder.length(builder.sub(builder.loadAttr("Position"), center));
+
+			builder.setAlive(builder.mul(builder.implicit(Implicit::Alive), builder.less(distance, radius)));
+		}
+
+		void killBoxEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
+			const Reg center = builder.param(entry, "Center");
+			const Reg halfExtent = builder.param(entry, "HalfExtent");
+			const Reg local = absOf(builder, builder.sub(builder.loadAttr("Position"), center));
+			const Reg inside = builder.less(builder.sub(local, halfExtent), builder.imm(0.0f));
+
+			const Reg keep = builder.mul(builder.mul(builder.extract(inside, 0), builder.extract(inside, 1)),
+				builder.extract(inside, 2));
+			builder.setAlive(builder.mul(builder.implicit(Implicit::Alive), keep));
+		}
+
 		void lifetimeEmit(ProgramBuilder& builder, const ModuleEntry&) {
 			const Reg dt = builder.implicit(Implicit::Dt);
 			const Reg age = builder.add(builder.loadAttr("Age"), dt);
 
 			builder.storeAttr("Age", age);
-			builder.setAlive(builder.less(age, builder.loadAttr("Lifetime")));
+			// Composes with Alive for the same reason the kill modules do: any module
+			// may be the one that kills a particle, and none may revive it.
+			builder.setAlive(builder.mul(builder.implicit(Implicit::Alive),
+				builder.less(age, builder.loadAttr("Lifetime"))));
 		}
 
 		const ModuleAsset kGravity = {
@@ -142,6 +348,52 @@ namespace ve::builtin {
 			&shapeLocationEmit
 		};
 
+		const ModuleAsset kShapeBox = {
+			"ShapeBox", 1, stageBit(Stage::ParticleSpawn),
+			{ { "Center", { 0.0f, 0.0f, 0.0f, 0.0f }, 3 },
+			  { "HalfExtent", { 100.0f, 100.0f, 100.0f, 0.0f }, 3 } },
+			&shapeBoxEmit
+		};
+
+		const ModuleAsset kShapeDisc = {
+			"ShapeDisc", 1, stageBit(Stage::ParticleSpawn),
+			{ { "Center", { 0.0f, 0.0f, 0.0f, 0.0f }, 3 },
+			  { "Radius", { 200.0f, 0.0f, 0.0f, 0.0f }, 1 } },
+			&shapeDiscEmit
+		};
+
+		const ModuleAsset kShapeCone = {
+			"ShapeCone", 1, stageBit(Stage::ParticleSpawn),
+			{ { "Center", { 0.0f, 0.0f, 0.0f, 0.0f }, 3 },
+			  { "Radius", { 200.0f, 0.0f, 0.0f, 0.0f }, 1 },
+			  { "Height", { 200.0f, 0.0f, 0.0f, 0.0f }, 1 } },
+			&shapeConeEmit
+		};
+
+		const ModuleAsset kShapeRing = {
+			"ShapeRing", 1, stageBit(Stage::ParticleSpawn),
+			{ { "Center", { 0.0f, 0.0f, 0.0f, 0.0f }, 3 },
+			  { "Radius", { 200.0f, 0.0f, 0.0f, 0.0f }, 1 },
+			  { "Thickness", { 20.0f, 0.0f, 0.0f, 0.0f }, 1 } },
+			&shapeRingEmit
+		};
+
+		const ModuleAsset kInitialVelocity = {
+			"InitialVelocity", 1, stageBit(Stage::ParticleSpawn),
+			{ { "Direction", { 0.0f, 0.0f, 1.0f, 0.0f }, 3 },
+			  { "SpeedMin", { 100.0f, 0.0f, 0.0f, 0.0f }, 1 },
+			  { "SpeedMax", { 200.0f, 0.0f, 0.0f, 0.0f }, 1 },
+			  { "ConeAngle", { 15.0f, 0.0f, 0.0f, 0.0f }, 1 } },
+			&initialVelocityEmit
+		};
+
+		const ModuleAsset kLifetimeRange = {
+			"LifetimeRange", 1, stageBit(Stage::ParticleSpawn),
+			{ { "Min", { 1.0f, 0.0f, 0.0f, 0.0f }, 1 },
+			  { "Max", { 2.0f, 0.0f, 0.0f, 0.0f }, 1 } },
+			&lifetimeRangeEmit
+		};
+
 		const ModuleAsset kSpawnRate = {
 			"SpawnRate", 1, stageBit(Stage::EmitterUpdate),
 			{ { "Rate", { 100.0f, 0.0f, 0.0f, 0.0f }, 1 } },
@@ -152,6 +404,40 @@ namespace ve::builtin {
 			"Lifetime", 1, stageBit(Stage::ParticleUpdate), {}, &lifetimeEmit
 		};
 
+		const ModuleAsset kDrag = {
+			"Drag", 1, stageBit(Stage::ParticleUpdate),
+			{ { "Drag", { 1.0f, 0.0f, 0.0f, 0.0f }, 1 } },
+			&dragEmit
+		};
+
+		const ModuleAsset kSpeedLimit = {
+			"SpeedLimit", 1, stageBit(Stage::ParticleUpdate),
+			{ { "MaxSpeed", { 500.0f, 0.0f, 0.0f, 0.0f }, 1 } },
+			&speedLimitEmit
+		};
+
+		const ModuleAsset kVortex = {
+			"Vortex", 1, stageBit(Stage::ParticleUpdate),
+			{ { "Center", { 0.0f, 0.0f, 0.0f, 0.0f }, 3 },
+			  { "Axis", { 0.0f, 0.0f, 1.0f, 0.0f }, 3 },
+			  { "Strength", { 300.0f, 0.0f, 0.0f, 0.0f }, 1 } },
+			&vortexEmit
+		};
+
+		const ModuleAsset kKillSphere = {
+			"KillSphere", 1, stageBit(Stage::ParticleUpdate),
+			{ { "Center", { 0.0f, 0.0f, 0.0f, 0.0f }, 3 },
+			  { "Radius", { 3000.0f, 0.0f, 0.0f, 0.0f }, 1 } },
+			&killSphereEmit
+		};
+
+		const ModuleAsset kKillBox = {
+			"KillBox", 1, stageBit(Stage::ParticleUpdate),
+			{ { "Center", { 0.0f, 0.0f, 0.0f, 0.0f }, 3 },
+			  { "HalfExtent", { 2000.0f, 2000.0f, 2000.0f, 0.0f }, 3 } },
+			&killBoxEmit
+		};
+
 	}
 
 	const ModuleAsset& gravity() { return kGravity; }
@@ -160,13 +446,27 @@ namespace ve::builtin {
 	const ModuleAsset& initEmitter() { return kInitEmitter; }
 	const ModuleAsset& initParticle() { return kInitParticle; }
 	const ModuleAsset& shapeLocation() { return kShapeLocation; }
+	const ModuleAsset& shapeBox() { return kShapeBox; }
+	const ModuleAsset& shapeDisc() { return kShapeDisc; }
+	const ModuleAsset& shapeCone() { return kShapeCone; }
+	const ModuleAsset& shapeRing() { return kShapeRing; }
+	const ModuleAsset& initialVelocity() { return kInitialVelocity; }
+	const ModuleAsset& lifetimeRange() { return kLifetimeRange; }
 	const ModuleAsset& spawnRate() { return kSpawnRate; }
 	const ModuleAsset& lifetime() { return kLifetime; }
+	const ModuleAsset& drag() { return kDrag; }
+	const ModuleAsset& speedLimit() { return kSpeedLimit; }
+	const ModuleAsset& vortex() { return kVortex; }
+	const ModuleAsset& killSphere() { return kKillSphere; }
+	const ModuleAsset& killBox() { return kKillBox; }
 
 	const std::vector<const ModuleAsset*>& builtinModules() {
 		static const std::vector<const ModuleAsset*> modules = {
-			&kInitEmitter, &kSpawnRate, &kInitParticle, &kShapeLocation,
-			&kGravity, &kLinearForce, &kPointForce, &kLifetime
+			&kInitEmitter, &kSpawnRate, &kInitParticle,
+			&kShapeLocation, &kShapeBox, &kShapeDisc, &kShapeCone, &kShapeRing,
+			&kInitialVelocity, &kLifetimeRange,
+			&kGravity, &kLinearForce, &kPointForce, &kLifetime,
+			&kDrag, &kSpeedLimit, &kVortex, &kKillSphere, &kKillBox
 		};
 		return modules;
 	}

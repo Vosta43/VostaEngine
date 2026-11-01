@@ -56,9 +56,12 @@ namespace ve {
 				implicitBit(Implicit::ExecIndex) | implicitBit(Implicit::Dt) |
 				implicitBit(Implicit::SpawnTime) | implicitBit(Implicit::SpawnIndex) |
 				implicitBit(Implicit::SpawnCount) | implicitBit(Implicit::SpawnGroup) |
-				implicitBit(Implicit::SpawnRandom));
+				implicitBit(Implicit::SpawnRandom) | implicitBit(Implicit::Alive));
 		case Stage::ParticleUpdate:
-			return static_cast<uint8_t>(implicitBit(Implicit::ExecIndex) | implicitBit(Implicit::Dt));
+			// Alive is readable so a later kill module can compose with the decision
+			// an earlier one (Lifetime) already made instead of overwriting it.
+			return static_cast<uint8_t>(implicitBit(Implicit::ExecIndex) | implicitBit(Implicit::Dt) |
+				implicitBit(Implicit::Alive));
 		}
 		return 0;
 	}

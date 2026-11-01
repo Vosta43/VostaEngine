@@ -5,11 +5,19 @@ namespace ve::vellum {
 
 Widget::~Widget() = default;
 
-void Widget::prepass() {
+void Widget::prepass(float layoutScale) {
+	const bool rescale = m_layoutScale != layoutScale;
+	if (rescale) {
+		// Sizes measured under the old factor are stale: text quantises its atlas
+		// to whole physical pixels, so the same logical size can measure half a
+		// pixel differently at another scale.
+		m_layoutScale = layoutScale;
+		m_desiredSizeValid = false;
+	}
 	if (m_desiredSizeValid)
 		return;
 	for (auto& child : m_children)
-		child->prepass();
+		child->prepass(layoutScale);
 	m_desiredSize = computeDesiredSize();
 	m_desiredSizeValid = true;
 }

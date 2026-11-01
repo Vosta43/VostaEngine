@@ -164,6 +164,7 @@
     <ClCompile Include="src\Graph\TerrainRuleEditorSchema.cpp" />
     <ClCompile Include="src\Panels\AiPanel.cpp" />
     <ClCompile Include="src\Panels\AssetEditorHost.cpp" />
+    <ClCompile Include="src\Panels\AssetManagerPanel.cpp" />
     <ClCompile Include="src\Panels\EditorDialogs.cpp" />
     <ClCompile Include="src\Panels\FileBrowser.cpp" />
     <ClCompile Include="src\Panels\SceneOutlinerPanel.cpp" />
@@ -205,6 +206,8 @@
     <ClInclude Include="src\Graph\TerrainRuleEditorSchema.h" />
     <ClInclude Include="src\Panels\AiPanel.h" />
     <ClInclude Include="src\Panels\AssetEditorHost.h" />
+    <ClInclude Include="src\Panels\AssetManagerPanel.h" />
+    <ClInclude Include="src\Panels\AssetVisuals.h" />
     <ClInclude Include="src\Panels\EditorDialogs.h" />
     <ClInclude Include="src\Panels\FileBrowser.h" />
     <ClInclude Include="src\Panels\SceneOutlinerPanel.h" />

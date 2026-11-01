@@ -23,6 +23,10 @@
 #include "Audio/AudioDevice.h"
 #include "Particle/ParticleSelfTest.h"
 
+#if defined(VE_PLATFORM_WINDOWS)
+#include <objbase.h>
+#endif
+
 namespace ve {
 
     Application* Application::s_instance = nullptr;
@@ -31,22 +35,32 @@ namespace ve {
 
         s_instance = this;
 
+        // Claim the STA before anything else touches COM. miniaudio opens the
+        // audio device below and would otherwise initialise this thread as MTA;
+        // the shell's IFileDialog::Show deadlocks on an MTA thread whenever it
+        // has an owner window, which is every Browse button in the editor.
+#if defined(VE_PLATFORM_WINDOWS)
+        m_comInitialized = SUCCEEDED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED));
+#endif
+
         // Register engine-owned assets (default material, ...) before any scene
         // or layer can ask for them.
         BuiltinResources::init();
+
+#ifdef _DEBUG
+        // Run before the audio device so the tests work on machines without an
+        // output device (CI, headless sessions).
+        ParticleSelfTest::runAll();
+#endif
 
         // Opens the output device (and the decoder's resource manager). A
         // machine without speakers still runs; every audio call then no-ops.
         AudioDevice::get().init();
 
-#ifdef _DEBUG
-        ParticleSelfTest::runAll();
-#endif
-
         m_dispatcher = std::make_unique<EventDispatcher>();
         VE_CORE_SUCCESS("Event dispatcher initialized");
 
-        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.11 dev", m_dispatcher.get());
+        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.12 dev", m_dispatcher.get());
         VE_CORE_SUCCESS("Window created");
 
         m_shaderLibrary = std::make_unique<ShaderLibrary>();
@@ -75,6 +89,13 @@ namespace ve {
         AudioDevice::get().shutdown();
         m_layerStack.popOverlay(m_vellumLayer.get());
         m_layerStack.popOverlay(m_GuiLayer.get());
+
+#if defined(VE_PLATFORM_WINDOWS)
+        // miniaudio saw RPC_E_CHANGED_MODE above and therefore never owned the
+        // apartment; the reference this constructor took is ours to release.
+        if (m_comInitialized)
+            CoUninitialize();
+#endif
     }
 
     void Application::run() {

@@ -32,6 +32,13 @@ namespace ve::vellum {
         // `surfaceSize` pixels.
         void frame(const glm::vec2& surfaceSize, const InputFrame& input);
 
+        // Same, with widgets laid out in logical units and the surface showing
+        // `layout.logicalSize()` of them. The tree is arranged against that logical
+        // size, the mouse is mapped into it, and the renderer maps back out — so a
+        // resize changes only the transform, never the tree.
+        void frame(const glm::vec2& surfaceSize, const LayoutTransform& layout,
+                   const InputFrame& input);
+
         bool wantsWheel(const glm::vec2& pos) const;
 
         // Tooltip support. The tree owns the bubble; leaving the font null keeps
@@ -76,7 +83,8 @@ namespace ve::vellum {
         float           m_tooltipDelay = 0.5f;
         bool            m_tooltipVisible = false;
         glm::vec2       m_tooltipAnchor{ 0.0f };        // pinned at reveal, not followed
-        glm::vec2       m_surfaceSize{ 0.0f };
+        glm::vec2       m_logicalSize{ 0.0f };          // design units the root is arranged against
+        LayoutTransform m_layout{};                     // logical -> surface, this frame
         float           m_lastTimeSeconds = 0.0f;       // previous frame's host clock
     };
 

@@ -83,6 +83,7 @@ namespace ve {
         // content/ so the panel looks unchanged until the user goes up.
         m_fileBrowser.setRootPath(getProjectRoot().string(), toProjectAbsolute("content"));
         m_fileBrowser.setOnFileSelect([this](const std::string& path) { openFile(path); });
+        m_assetManager.setOnOpenAsset([this](const std::string& path) { openFile(toAbsolute(path)); });
         m_fileBrowser.setOnSetDefaultScene([this](const std::string& path) {
             m_document.project().defaultScene = toProjectRelative(path);
             Project::save(m_document.project());
@@ -285,6 +286,9 @@ namespace ve {
                 m_terrainMap.onGuiRender(*scene, &m_showTerrainMap);
         }
 
+        if (m_showAssetManager)
+            m_assetManager.onGuiRender(&m_showAssetManager);
+
         if (m_showAi) {
             m_aiPanel.onGuiRender(&m_showAi);
         }
@@ -350,6 +354,11 @@ namespace ve {
 
                 if (ImGui::MenuItem("Terrain Map"))
                     m_showTerrainMap = true;
+
+                if (ImGui::MenuItem("Asset Manager")) {
+                    m_assetManager.requestRefresh();
+                    m_showAssetManager = true;
+                }
 
                 if (ImGui::MenuItem("AI Assistant"))
                     m_showAi = true;
@@ -469,6 +478,7 @@ namespace ve {
         m_fileBrowser.setRootPath(getProjectRoot().string(), toProjectAbsolute("content"));
         m_fileBrowser.setDefaultScenePath(m_document.project().defaultScene.empty()
             ? std::string() : toProjectAbsolute(m_document.project().defaultScene));
+        m_assetManager.requestRefresh();
 
         // Save before dropping the binding: the camera sidecar hangs off the
         // absolute scene path, so this still lands next to the outgoing scene
@@ -657,6 +667,7 @@ namespace ve {
         if (AssetLibrary::get().revision() != m_seenAssetRevision) {
             m_seenAssetRevision = AssetLibrary::get().revision();
             m_fileBrowser.requestRefresh();
+            m_assetManager.requestRefresh();
         }
 
         m_document.syncTerrainDataDirty(m_editorView.getScene());

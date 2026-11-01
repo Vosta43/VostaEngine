@@ -1,4 +1,5 @@
 #include "FileBrowser.h"
+#include "AssetVisuals.h"
 #include "AssetSaveRegistry.h"
 #include "Renderer/Texture.h"
 #include "Renderer/StaticMesh.h"
@@ -23,6 +24,8 @@
 #include <windows.h>
 #include <commdlg.h>
 #include <shlobj.h>
+#include <shobjidl.h>
+#include <objbase.h>
 #include <cstdio>
 #include <fstream>
 #include <algorithm>
@@ -52,30 +55,118 @@ namespace ve {
     }
 
     namespace {
+        std::wstring toWide(const std::string& text) {
+            if (text.empty())
+                return {};
+            const int len = MultiByteToWideChar(CP_UTF8, 0, text.c_str(),
+                                                static_cast<int>(text.size()), nullptr, 0);
+            std::wstring out(static_cast<size_t>(len), L'\0');
+            MultiByteToWideChar(CP_UTF8, 0, text.c_str(), static_cast<int>(text.size()),
+                                out.data(), len);
+            return out;
+        }
+
+        std::string fromWide(const wchar_t* text) {
+            if (!text || !*text)
+                return {};
+            const int len = WideCharToMultiByte(CP_UTF8, 0, text, -1, nullptr, 0, nullptr, nullptr);
+            if (len <= 1)
+                return {};
+            // len counts the terminating null, so size the buffer for it and trim
+            // afterwards; handing len to a len - 1 buffer would write one past.
+            std::string out(static_cast<size_t>(len), '\0');
+            WideCharToMultiByte(CP_UTF8, 0, text, -1, out.data(), len, nullptr, nullptr);
+            out.resize(static_cast<size_t>(len - 1));
+            return out;
+        }
+
         int CALLBACK browseFolderCallback(HWND hwnd, UINT msg, LPARAM, LPARAM data) {
             if (msg == BFFM_INITIALIZED && data)
-                SendMessageA(hwnd, BFFM_SETSELECTIONA, TRUE, data);
+                SendMessageW(hwnd, BFFM_SETSELECTIONW, TRUE, data);
             return 0;
+        }
+
+        // The pre-Vista picker. Only used when the calling thread is stuck in the
+        // multithreaded apartment: IFileDialog::Show hangs there as soon as it is
+        // given an owner, whereas the classic dialog copes. No BIF_NEWDIALOGSTYLE
+        // here — that path spins up a shell thread of its own and needs an STA.
+        std::string pickFolderLegacy(const std::string& initial) {
+            const std::wstring wideInitial = toWide(initial);
+
+            wchar_t display[MAX_PATH] = {};
+            BROWSEINFOW info = {};
+            info.hwndOwner = GetActiveWindow();
+            info.pszDisplayName = display;
+            info.lpszTitle = L"Select a folder";
+            info.ulFlags = BIF_RETURNONLYFSDIRS;
+            if (!wideInitial.empty()) {
+                info.lpfn = browseFolderCallback;
+                info.lParam = reinterpret_cast<LPARAM>(wideInitial.c_str());
+            }
+
+            PIDLIST_ABSOLUTE idl = SHBrowseForFolderW(&info);
+            if (!idl)
+                return {};
+
+            wchar_t path[MAX_PATH] = {};
+            const bool ok = SHGetPathFromIDListW(idl, path) != FALSE;
+            CoTaskMemFree(idl);
+            return ok ? fromWide(path) : std::string();
         }
     }
 
     std::string pickFolderDialog(const std::string& initial) {
-        char display[MAX_PATH] = {};
-        BROWSEINFOA bi = {};
-        bi.hwndOwner      = GetActiveWindow();
-        bi.pszDisplayName = display;
-        bi.lpszTitle      = "Select a folder";
-        bi.ulFlags        = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
-        bi.lpfn           = browseFolderCallback;
-        bi.lParam         = reinterpret_cast<LPARAM>(initial.c_str());
+        // The legacy SHBrowseForFolder new-style dialog spins up a shell thread
+        // and can stall for seconds on modern Windows. The Vista-era IFileDialog
+        // picker opens promptly, so use it with FOS_PICKFOLDERS.
+        const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
-        LPITEMIDLIST idl = SHBrowseForFolderA(&bi);
-        if (!idl)
-            return {};
-        char path[MAX_PATH] = {};
-        const bool ok = SHGetPathFromIDListA(idl, path) != FALSE;
-        CoTaskMemFree(idl);
-        return ok ? std::string(path) : std::string();
+        // RPC_E_CHANGED_MODE means the thread is already MTA (miniaudio claims it
+        // when the audio device opens). Show() would block there forever, so drop
+        // to the classic dialog instead of trying.
+        if (com == RPC_E_CHANGED_MODE)
+            return pickFolderLegacy(initial);
+
+        const bool comOwned = SUCCEEDED(com);
+
+        std::string result;
+        IFileDialog* dialog = nullptr;
+        if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER,
+                                       IID_PPV_ARGS(&dialog)))) {
+            FILEOPENDIALOGOPTIONS options = 0;
+            dialog->GetOptions(&options);
+            dialog->SetOptions(options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST);
+            dialog->SetTitle(L"Select a folder");
+
+            if (!initial.empty()) {
+                std::error_code ec;
+                const std::filesystem::path abs = std::filesystem::absolute(initial, ec);
+                const std::wstring wide = toWide(ec ? initial : abs.string());
+                IShellItem* folder = nullptr;
+                if (!wide.empty() && SUCCEEDED(SHCreateItemFromParsingName(
+                        wide.c_str(), nullptr, IID_PPV_ARGS(&folder)))) {
+                    dialog->SetFolder(folder);
+                    folder->Release();
+                }
+            }
+
+            if (SUCCEEDED(dialog->Show(GetActiveWindow()))) {
+                IShellItem* item = nullptr;
+                if (SUCCEEDED(dialog->GetResult(&item))) {
+                    PWSTR path = nullptr;
+                    if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path))) {
+                        result = fromWide(path);
+                        CoTaskMemFree(path);
+                    }
+                    item->Release();
+                }
+            }
+            dialog->Release();
+        }
+
+        if (comOwned)
+            CoUninitialize();
+        return result;
     }
 
     FileBrowser::FileBrowser()
@@ -306,18 +397,6 @@ namespace ve {
         return stem;
     }
 
-    // Hand the loaded texture straight to ImGui as its own icon. The
-    // ResourceManager caches it by path, so re-opening a folder is a map lookup
-    // rather than a re-decode.
-    static std::shared_ptr<Texture2D> texturePreviewForAsset(const std::string& assetPath) {
-        AssetHandle handle = ResourceManager::find<Texture2D>(assetPath);
-        if (!handle.isValid())
-            handle = ResourceManager::store<Texture2D>(assetPath);
-        if (!handle.isValid())
-            return nullptr;
-        return ResourceManager::get<Texture2D>(handle);
-    }
-
     // Colour of a tile's separator rule, by asset kind: folder white, mesh blue,
     // texture pink, shader purple, source dark blue. Other untyped assets keep
     // the default pale blue.
@@ -329,8 +408,6 @@ namespace ve {
         const ImU32 kTexture = IM_COL32(235, 125, 185, 255);
         const ImU32 kShader  = IM_COL32(170, 125, 240, 255);
         const ImU32 kSource  = IM_COL32(55, 90, 200, 255);
-        const ImU32 kNoise   = IM_COL32(90, 200, 170, 255);
-        const ImU32 kParticle = IM_COL32(255, 175, 70, 255);
         const ImU32 kSound   = IM_COL32(235, 120, 120, 255);
         const ImU32 kJson    = IM_COL32(150, 200, 120, 255);
 
@@ -348,61 +425,9 @@ namespace ve {
         if (ext == ".veasset") {
             auto it = assetTypeCache.find(path);
             const std::string type = it != assetTypeCache.end() ? it->second : ve::utils::peekAssetToken(path);
-            if (type == "staticmesh") return kMesh;
-            if (type == "texture")    return kTexture;
-            if (type == "noise")      return kNoise;
-            if (type == "particle")   return kParticle;
-            if (type == "sound")      return kSound;
+            return assetvis::accentColorForTypeKey(type);
         }
         return kDefault;
-    }
-
-    // Name as shown in the browser: the baked-asset extensions are noise, so
-    // they are hidden everywhere the name is displayed. commitRename() puts the
-    // extension back when the typed name omits one.
-    static std::string displayName(const std::string& name) {
-        for (const std::string ext : { std::string(".veasset"), std::string(".veworld") }) {
-            if (name.size() > ext.size() &&
-                name.compare(name.size() - ext.size(), ext.size(), ext) == 0)
-                return name.substr(0, name.size() - ext.size());
-        }
-        return name;
-    }
-
-    // Wrap a name into at most two lines fitting maxWidth, breaking only on
-    // UTF-8 character boundaries and ellipsising the second line if needed.
-    static void wrapTwoLines(const std::string& text, float maxWidth,
-                             std::string& line1, std::string& line2) {
-        line1.clear();
-        line2.clear();
-
-        std::vector<std::string> glyphs;
-        for (size_t i = 0; i < text.size();) {
-            const unsigned char c = static_cast<unsigned char>(text[i]);
-            size_t len = (c >= 0xF0) ? 4 : (c >= 0xE0) ? 3 : (c >= 0xC0) ? 2 : 1;
-            if (len > text.size() - i) len = text.size() - i;
-            glyphs.emplace_back(text.substr(i, len));
-            i += len;
-        }
-
-        const auto fits = [maxWidth](const std::string& s) {
-            return ImGui::CalcTextSize(s.c_str()).x <= maxWidth;
-        };
-
-        size_t i = 0;
-        for (; i < glyphs.size(); ++i) {
-            if (!fits(line1 + glyphs[i])) break;
-            line1 += glyphs[i];
-        }
-        if (i >= glyphs.size())
-            return;
-
-        const std::string ellipsis = "\xE2\x80\xA6";   // U+2026
-        for (; i < glyphs.size(); ++i) {
-            if (!fits(line2 + glyphs[i] + ellipsis)) break;
-            line2 += glyphs[i];
-        }
-        line2 += ellipsis;
     }
 
     std::shared_ptr<Texture2D> FileBrowser::getIconForFile(const std::string& path, bool isDirectory) {
@@ -439,7 +464,7 @@ namespace ve {
             const std::string baked = findBaked(path, "texture");
             if (baked.empty())
                 return m_notImportedIcon;
-            if (auto tex = texturePreviewForAsset(baked))
+            if (auto tex = assetvis::texturePreviewForAsset(baked))
                 return tex;
             return m_notImportedIcon;
         }
@@ -449,7 +474,7 @@ namespace ve {
             const std::string assetType = typeIt != m_assetTypeCache.end()
                 ? typeIt->second : ve::utils::peekAssetToken(path);
             if (assetType == "texture") {
-                if (auto tex = texturePreviewForAsset(path))
+                if (auto tex = assetvis::texturePreviewForAsset(path))
                     return tex;
                 return m_notImportedIcon;
             }
@@ -494,7 +519,7 @@ namespace ve {
                         albedo = mat->albedoMapHandle;
                     const std::string albedoPath = ResourceManager::getPath<Texture2D>(albedo);
                     if (!albedoPath.empty()) {
-                        if (auto tex = texturePreviewForAsset(albedoPath))
+                        if (auto tex = assetvis::texturePreviewForAsset(albedoPath))
                             return tex;
                     }
                 }
@@ -577,9 +602,9 @@ namespace ve {
 
         // A tile is one rounded card: thumbnail on top, a coloured rule, then up
         // to two centred lines of name.
-        const float tile = 76.0f;
-        const float pad = 8.0f;
-        const float rounding = 6.0f;
+        const float tile = assetvis::kTile;
+        const float pad = assetvis::kPad;
+        const float rounding = assetvis::kRounding;
         const float lineH = ImGui::GetTextLineHeight();
         const float spacingY = ImGui::GetStyle().ItemSpacing.y;
         const float textBlockH = lineH * 2.0f + spacingY;
@@ -750,7 +775,7 @@ namespace ve {
             }
             else {
                 std::string line1, line2;
-                wrapTwoLines(displayName(file.name), colW - pad * 2.0f, line1, line2);
+                assetvis::wrapTwoLines(assetvis::displayName(file.name), colW - pad * 2.0f, line1, line2);
 
                 const ImU32 textCol = IM_COL32(225, 225, 225, 255);
                 const float w1 = ImGui::CalcTextSize(line1.c_str()).x;
@@ -789,7 +814,7 @@ namespace ve {
         }
         if (ImGui::BeginPopup("ItemContextMenu")) {
             // Full name, since the cell label truncates long ones.
-            ImGui::TextDisabled("%s", displayName(m_contextName).c_str());
+            ImGui::TextDisabled("%s", assetvis::displayName(m_contextName).c_str());
             ImGui::Separator();
 
             // Actions that only apply to one asset kind. A .veworld can be the
@@ -815,7 +840,7 @@ namespace ve {
             }
             // The ".." entry is a navigation shortcut, not a real file.
             if (ImGui::MenuItem("Rename", nullptr, false, m_contextName != ".."))
-                beginRename(m_contextPath, displayName(m_contextName));
+                beginRename(m_contextPath, assetvis::displayName(m_contextName));
             if (ImGui::MenuItem("Delete")) {
                 m_pendingDeletePath = m_contextPath;
                 m_pendingDeleteName = m_contextName;
@@ -849,7 +874,7 @@ namespace ve {
                     mat = std::filesystem::path(m_currentPath + "/New Material " + std::to_string(i) + ".veasset");
                 ResourceManager::store<Material>(mat.string());
                 refreshFiles();
-                beginRename(mat.string(), displayName(mat.filename().string()));
+                beginRename(mat.string(), assetvis::displayName(mat.filename().string()));
             }
             else if (ImGui::MenuItem("Layered Material")) {
                 std::error_code ec;
@@ -859,7 +884,7 @@ namespace ve {
                 LayeredMaterial::writeNewAsset(mat.string());
                 ResourceManager::store<Material>(mat.string());
                 refreshFiles();
-                beginRename(mat.string(), displayName(mat.filename().string()));
+                beginRename(mat.string(), assetvis::displayName(mat.filename().string()));
             }
             else if (ImGui::MenuItem("Material Layer")) {
                 std::error_code ec;
@@ -869,7 +894,7 @@ namespace ve {
                 MaterialLayerAsset::writeNewAsset(ml.string());
                 ResourceManager::store<MaterialLayerAsset>(ml.string());
                 refreshFiles();
-                beginRename(ml.string(), displayName(ml.filename().string()));
+                beginRename(ml.string(), assetvis::displayName(ml.filename().string()));
             }
             else if (ImGui::MenuItem("Noise")) {
                 std::error_code ec;
@@ -896,7 +921,7 @@ namespace ve {
                     VE_CORE_WARN_PRINT("New Noise failed: %s", nz.string().c_str());
                 }
                 refreshFiles();
-                beginRename(nz.string(), displayName(nz.filename().string()));
+                beginRename(nz.string(), assetvis::displayName(nz.filename().string()));
             }
             else if (ImGui::MenuItem("Particle")) {
                 std::error_code ec;
@@ -907,7 +932,7 @@ namespace ve {
                 if (!writeDefaultEmitterAsset(pa.string()))
                     VE_CORE_WARN_PRINT("New Particle failed: %s", pa.string().c_str());
                 refreshFiles();
-                beginRename(pa.string(), displayName(pa.filename().string()));
+                beginRename(pa.string(), assetvis::displayName(pa.filename().string()));
             }
             else if (ImGui::MenuItem("Geometry Graph")) {
                 std::error_code ec;
@@ -938,7 +963,7 @@ namespace ve {
                     VE_CORE_WARN_PRINT("New Geometry failed: %s", gg.string().c_str());
                 }
                 refreshFiles();
-                beginRename(gg.string(), displayName(gg.filename().string()));
+                beginRename(gg.string(), assetvis::displayName(gg.filename().string()));
             }
             else if (ImGui::MenuItem("Terrain Rule Graph")) {
                 std::error_code ec;
@@ -967,7 +992,7 @@ namespace ve {
                     VE_CORE_WARN_PRINT("New Terrain Rule failed: %s", tr.string().c_str());
                 }
                 refreshFiles();
-                beginRename(tr.string(), displayName(tr.filename().string()));
+                beginRename(tr.string(), assetvis::displayName(tr.filename().string()));
             }
             else if (ImGui::MenuItem("Paste", nullptr, false, !m_clipboardPath.empty())) {
                 pasteClipboard();

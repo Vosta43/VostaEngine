@@ -17,6 +17,7 @@ set(EDITOR_SOURCES
 
     src/Panels/AiPanel.cpp
     src/Panels/AssetEditorHost.cpp
+    src/Panels/AssetManagerPanel.cpp
     src/Panels/EditorDialogs.cpp
     src/Panels/FileBrowser.cpp
     src/Panels/GeometryGraphPanel.cpp

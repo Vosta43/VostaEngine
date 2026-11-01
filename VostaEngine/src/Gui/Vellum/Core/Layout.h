@@ -31,4 +31,31 @@ inline bool contains(const Rect& r, const glm::vec2& p) {
 	       p.y >= r.pos.y && p.y < r.pos.y + r.size.y;
 }
 
+// Maps the logical (design-pixel) space widgets lay out in onto the surface's
+// physical pixels. The tree arranges and paints in logical units; the renderer
+// applies the scale and the router applies its inverse to the mouse, so a design
+// laid out once survives any window size without a rebuild.
+struct LayoutTransform {
+	float     scale = 1.0f;      // logical unit -> surface pixels
+	glm::vec2 origin{ 0.0f };    // logical (0,0) in surface pixels
+
+	glm::vec2 toLogical(const glm::vec2& p) const { return (p - origin) / scale; }
+	glm::vec2 toSurface(const glm::vec2& p) const { return p * scale + origin; }
+
+	// What a surface of `surfaceSize` shows in logical units — the design rect,
+	// letterbox bars excluded.
+	glm::vec2 logicalSize(const glm::vec2& surfaceSize) const {
+		return scale > 0.0f ? (surfaceSize - origin * 2.0f) / scale : surfaceSize;
+	}
+};
+
+// Uniform scale that shows all of `design` centred in `surface`: the fit the
+// legacy UI ortho produced (letterboxing the surplus axis, never distorting).
+inline LayoutTransform fitLayout(const glm::vec2& surface, const glm::vec2& design) {
+	if (design.x <= 0.0f || design.y <= 0.0f || surface.x <= 0.0f || surface.y <= 0.0f)
+		return {};
+	const float scale = std::min(surface.x / design.x, surface.y / design.y);
+	return { scale, (surface - design * scale) * 0.5f };
+}
+
 }

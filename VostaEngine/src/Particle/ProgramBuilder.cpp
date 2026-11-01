@@ -228,6 +228,22 @@ namespace ve {
 		return dst;
 	}
 
+	Reg ProgramBuilder::extract(const Reg& a, uint8_t component) {
+		if (component >= a.comps) {
+			fail("extract: component out of range");
+			return { 0, 1 };
+		}
+		const Reg dst = newReg(1);
+		emit(Op::Extract, 1, static_cast<uint8_t>(dst.offset), static_cast<uint8_t>(a.offset), 0, 0, component);
+		return dst;
+	}
+
+	Reg ProgramBuilder::length(const Reg& a) {
+		const Reg dst = newReg(1);
+		emit(Op::Length, a.comps, static_cast<uint8_t>(dst.offset), static_cast<uint8_t>(a.offset), 0, 0, 0);
+		return dst;
+	}
+
 	Reg ProgramBuilder::add(const Reg& a, const Reg& b) { const Reg dst = newReg(a.comps); add(dst, a, b); return dst; }
 	Reg ProgramBuilder::sub(const Reg& a, const Reg& b) { const Reg dst = newReg(a.comps); sub(dst, a, b); return dst; }
 	Reg ProgramBuilder::mul(const Reg& a, const Reg& b) { const Reg dst = newReg(a.comps); mul(dst, a, b); return dst; }

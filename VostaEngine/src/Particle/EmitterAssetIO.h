@@ -8,7 +8,8 @@
 
 namespace ve {
 
-	constexpr int32_t kEmitterFormatVersion = 1;
+	// v2 appended the renderer section; v1 files load with the default renderer.
+	constexpr int32_t kEmitterFormatVersion = 2;
 
 	// Default M0 stack: InitEmitter, SpawnRate, InitParticle, Gravity, Lifetime.
 	// Not compiled; call compileEmitter() before handing it to an instance.

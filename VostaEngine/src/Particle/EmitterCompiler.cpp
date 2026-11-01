@@ -110,6 +110,12 @@ namespace ve {
 			properties.age = age->offset;
 			properties.lifetime = lifetime->offset;
 		}
+		// Optional: a module that feeds a sprite sheet writes this, and the sprite
+		// renderer uses it as the tile index.
+		if (const AttributeDesc* subUV = asset.particleLayout.find("SubUVIndex")) {
+			properties.hasSubUVIndex = true;
+			properties.subUVIndex = subUV->offset;
+		}
 
 		for (uint32_t slot = 0; slot < kMaxSpawnSlots; ++slot) {
 			const std::string prefix = "SpawnInfo" + std::to_string(slot) + ".";

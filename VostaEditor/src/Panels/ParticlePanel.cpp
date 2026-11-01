@@ -1,9 +1,11 @@
 #include "ParticlePanel.h"
 
+#include "AssetBrowserWidget.h"
 #include "AssetSaveRegistry.h"
 #include "Asset/Utils.h"
 #include "Core/AssetConfig.h"
 #include "Core/Log.h"
+#include "Core/ResourceManager.h"
 #include "Particle/EmitterAssetIO.h"
 #include "Particle/EmitterCompiler.h"
 #include "Particle/Modules.h"
@@ -76,6 +78,12 @@ namespace ve {
                         mix(&value, sizeof(value));
                 }
             }
+
+            mixU64(static_cast<uint64_t>(asset.renderer.type));
+            mix(asset.renderer.spriteTexturePath.data(), asset.renderer.spriteTexturePath.size());
+            mixU64(asset.renderer.subImageSizeX);
+            mixU64(asset.renderer.subImageSizeY);
+
             return h;
         }
 
@@ -329,6 +337,7 @@ namespace ve {
                 ensureUniqueModuleGuids(m_asset);
                 m_hasSelection = true;
                 m_selGuid = entries.back().guid;
+                m_selRenderer = false;
                 ImGui::CloseCurrentPopup();
             }
         }
@@ -381,6 +390,7 @@ namespace ve {
                 if (ImGui::Selectable(label, selected, 0, ImVec2(rowWidth, 0.0f))) {
                     m_hasSelection = true;
                     m_selGuid = entry.guid;
+                    m_selRenderer = false;
                 }
 
                 ImGui::SameLine(0.0f, 4.0f);
@@ -401,6 +411,21 @@ namespace ve {
             ImGui::PopID();
         }
 
+        // The renderer is not a stage module: it sits below the four stages and
+        // its properties live in the details pane like a module's.
+        ImGui::Spacing();
+        ImGui::TextDisabled("Render (1)");
+        ImGui::Indent(10.0f);
+        {
+            const char* label = "Sprite Renderer";
+            const float rowWidth = std::max(110.0f, ImGui::CalcTextSize(label).x + 16.0f);
+            if (ImGui::Selectable(label, m_selRenderer, 0, ImVec2(rowWidth, 0.0f))) {
+                m_selRenderer = true;
+                m_hasSelection = false;
+            }
+        }
+        ImGui::Unindent(10.0f);
+
         // Mutate after the widgets are built: erasing or swapping mid-loop would
         // invalidate the indices the buttons just reported.
         if (moveStage >= 0) {
@@ -419,6 +444,11 @@ namespace ve {
     }
 
     void ParticlePanel::drawDetails() {
+        if (m_selRenderer) {
+            drawRendererDetails();
+            return;
+        }
+
         uint32_t stage = 0;
         size_t index = 0;
         if (!findSelected(stage, index)) {
@@ -455,6 +485,74 @@ namespace ve {
             }
             ImGui::PopID();
         }
+    }
+
+    void ParticlePanel::syncRendererTexture() {
+        const std::string& path = m_asset.renderer.spriteTexturePath;
+        if (path == m_spriteResolvedPath)
+            return;
+
+        m_spriteResolvedPath = path;
+        m_spriteTextureHandle = path.empty() ? AssetHandle() : ResourceManager::load<Texture2D>(path);
+    }
+
+    void ParticlePanel::drawRendererDetails() {
+        ImGui::Text("Sprite Renderer");
+        ImGui::SameLine();
+        ImGui::TextDisabled("| Render");
+        ImGui::Separator();
+
+        static const char* kRendererTypes[] = { "Sprite Renderer" };
+        int rendererType = static_cast<int>(m_asset.renderer.type);
+        ImGui::SetNextItemWidth(200.0f);
+        if (ImGui::Combo("Renderer Type", &rendererType, kRendererTypes, IM_ARRAYSIZE(kRendererTypes)))
+            m_asset.renderer.type = static_cast<ParticleRendererType>(rendererType);
+
+        syncRendererTexture();
+
+        ImGui::Text("Sprite Texture");
+        ImGui::PushID("spriteTexture");
+        if (m_spriteTextureHandle.isValid())
+            AssetBrowser::DrawTextureThumbnail(ResourceManager::get<Texture2D>(m_spriteTextureHandle), 48.0f);
+        else
+            ImGui::Button("Empty", ImVec2(48.0f, 48.0f));
+
+        ImGui::SameLine();
+        ImGui::BeginGroup();
+        const bool picked = AssetBrowser::ResourceCombo<Texture2D>("##combo", m_spriteTextureHandle,
+            [](AssetHandle handle, float size) {
+                auto texture = ResourceManager::get<Texture2D>(handle);
+                if (texture && texture->getRendererID() != 0) {
+                    ImGui::Image((ImTextureID)(intptr_t)texture->getRendererID(), ImVec2(size, size));
+                }
+                else {
+                    ImGui::Button("?", ImVec2(size, size));
+                }
+            }, 24.0f);
+        if (picked) {
+            m_asset.renderer.spriteTexturePath = m_spriteTextureHandle.isValid()
+                ? ResourceManager::getPath<Texture2D>(m_spriteTextureHandle) : std::string();
+            m_spriteResolvedPath = m_asset.renderer.spriteTexturePath;
+        }
+        if (ImGui::Button("Clear")) {
+            m_spriteTextureHandle = AssetHandle();
+            m_asset.renderer.spriteTexturePath.clear();
+            m_spriteResolvedPath.clear();
+        }
+        ImGui::EndGroup();
+        ImGui::PopID();
+        ImGui::TextDisabled("Empty uses the built-in soft dot.");
+
+        ImGui::Text("Sub Image Size");
+        int columns = static_cast<int>(m_asset.renderer.subImageSizeX);
+        int rows = static_cast<int>(m_asset.renderer.subImageSizeY);
+        ImGui::SetNextItemWidth(90.0f);
+        if (ImGui::DragInt("X##subImageSize", &columns, 1.0f, 1, 64))
+            m_asset.renderer.subImageSizeX = static_cast<uint32_t>(columns);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(90.0f);
+        if (ImGui::DragInt("Y##subImageSize", &rows, 1.0f, 1, 64))
+            m_asset.renderer.subImageSizeY = static_cast<uint32_t>(rows);
     }
 
     bool ParticlePanel::findSelected(uint32_t& stage, size_t& index) const {
@@ -509,6 +607,9 @@ namespace ve {
         m_loadWarning.clear();
         m_readOnly = false;
         m_hasSelection = false;
+        m_selRenderer = false;
+        m_spriteTextureHandle = AssetHandle();
+        m_spriteResolvedPath.clear();
 
         std::string error;
         std::string warning;

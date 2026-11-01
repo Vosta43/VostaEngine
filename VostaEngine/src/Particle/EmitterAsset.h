@@ -17,6 +17,26 @@ namespace ve {
 		std::vector<float> params;
 	};
 
+	// How a simulation's particles become geometry. Sprite is the only kind so far;
+	// the tag is persisted so the file can gain other renderers later.
+	enum class ParticleRendererType : uint8_t {
+		Sprite = 0
+	};
+
+	struct ParticleRenderer {
+		ParticleRendererType type = ParticleRendererType::Sprite;
+
+		// Project-relative path of the sprite texture. Empty draws the built-in
+		// soft dot, so assets authored before the renderer section existed keep
+		// their look.
+		std::string spriteTexturePath;
+
+		// Sprite-sheet grid; 1x1 samples the whole texture. Particles pick a tile
+		// through their optional SubUVIndex attribute.
+		uint32_t subImageSizeX = 1;
+		uint32_t subImageSizeY = 1;
+	};
+
 	struct SpawnInfoOffsets {
 		uint16_t count = 0;
 		uint16_t interpStartDt = 0;
@@ -29,8 +49,10 @@ namespace ve {
 		uint16_t position = 0;
 		uint16_t age = 0;
 		uint16_t lifetime = 0;
+		uint16_t subUVIndex = 0;
 		bool valid = false;
 		bool hasFade = false;
+		bool hasSubUVIndex = false;
 	};
 
 	struct EmitterCompiled {
@@ -44,6 +66,7 @@ namespace ve {
 		std::vector<ModuleEntry> stages[kStageCount];
 		AttributeRegistry emitterLayout;
 		AttributeRegistry particleLayout;
+		ParticleRenderer renderer;
 		uint64_t structureHash = 0;
 		std::shared_ptr<const EmitterCompiled> compiled;
 	};

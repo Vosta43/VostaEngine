@@ -117,6 +117,9 @@
     <ClCompile Include="src\Panels\AssetEditorHost.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Panels\AssetManagerPanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Panels\EditorDialogs.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -219,6 +222,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Panels\AssetEditorHost.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Panels\AssetManagerPanel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Panels\AssetVisuals.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Panels\EditorDialogs.h">

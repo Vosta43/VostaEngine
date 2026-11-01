@@ -63,6 +63,10 @@ namespace ve {
 		Reg random(const Reg& seed, uint8_t stream);
 		// Packs three scalars into a fresh float3 register.
 		Reg compose(const Reg& x, const Reg& y, const Reg& z);
+		// Copies one component of a vector into a fresh scalar.
+		Reg extract(const Reg& a, uint8_t component);
+		// Euclidean length of a 1..4 component vector, as a fresh scalar.
+		Reg length(const Reg& a);
 
 		void setAlive(const Reg& value);
 

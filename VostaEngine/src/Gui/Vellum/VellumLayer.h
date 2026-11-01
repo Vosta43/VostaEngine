@@ -30,8 +30,26 @@ namespace ve::vellum {
         void onAttach() override;
         void onDetach() override;
 
-        void setRoot(const Ref<Widget>& root) { m_tree.setRoot(root); }
+        // Replacing the tree abandons every widget the old one tracked, so a press or
+        // release latched earlier this frame but not yet routed goes with it: the
+        // widget it was aimed at is gone, and the one now under the cursor was not
+        // there when the button went down. The router drops its capture on a swap for
+        // the same reason.
+        void setRoot(const Ref<Widget>& root) {
+            if (root.get() != m_tree.root()) {
+                m_justDown = false;
+                m_justUp = false;
+            }
+            m_tree.setRoot(root);
+        }
         Widget* root() const { return m_tree.root(); }
+
+        // Design resolution the tree lays out in. {0,0} (the default) keeps layout
+        // in window pixels. When set, the root is arranged once at this size and the
+        // whole UI is scaled and centred to fit the window, so resizing never
+        // rebuilds the tree.
+        void setDesignSize(const glm::vec2& size) { m_designSize = size; }
+        const glm::vec2& designSize() const { return m_designSize; }
 
         // The engine's default UI font, borrowed by TextBlocks. Null if unavailable.
         FontAtlas* defaultFont() { return m_fonts.font(FontManager::kDefaultSize); }
@@ -43,6 +61,9 @@ namespace ve::vellum {
         Font* addFont(const std::string& name, std::vector<std::string> faces);
         // A registered font at `pixelSize`. Null when `name` is unknown.
         FontAtlas* font(const std::string& name, float pixelSize);
+        // The registered face chain itself, for TextBlocks that resolve their own
+        // size per layout scale. Null when `name` is unknown.
+        Font* findFont(const std::string& name) const { return m_fonts.find(name); }
 
         // Loads `path` as a UI texture on first request and registers it with the
         // renderer; `sizeOut` receives its pixel size. Returns 0 when the file does
@@ -60,6 +81,7 @@ namespace ve::vellum {
     private:
         WidgetTree m_tree;
         FontManager m_fonts;
+        glm::vec2 m_designSize{ 0.0f };
         ve::EventDispatcher* m_dispatcher = nullptr;
 
         // Button edges latched by the event callbacks and consumed once per frame.

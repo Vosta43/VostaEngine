@@ -93,8 +93,8 @@ namespace ve {
 
 			ParticleDataSet set;
 			set.stride = 6;
-			set.num = 1;
 			set.ensureCapacity(4);
+			set.num = 1;
 			*set.attr(0, 0) = 1.0f;
 			*set.attr(1, 0) = 2.0f;
 			*set.attr(2, 0) = 3.0f;
@@ -321,6 +321,74 @@ namespace ve {
 			return ok;
 		}
 
+		bool testNewModules() {
+			// Every new module in its stage at once: catches emit width errors, illegal
+			// implicit reads, and register exhaustion that single-module tests miss.
+			EmitterAsset asset = makeM0Asset();
+
+			std::vector<ModuleEntry>& spawn = asset.stages[static_cast<uint32_t>(Stage::ParticleSpawn)];
+			spawn.push_back({ &builtin::shapeBox(), { 20, 20 }, {} });
+			spawn.push_back({ &builtin::shapeDisc(), { 21, 21 }, {} });
+			spawn.push_back({ &builtin::shapeCone(), { 22, 22 }, {} });
+			spawn.push_back({ &builtin::shapeRing(), { 23, 23 }, {} });
+			spawn.push_back({ &builtin::initialVelocity(), { 24, 24 }, {} });
+			spawn.push_back({ &builtin::lifetimeRange(), { 25, 25 }, {} });
+
+			std::vector<ModuleEntry>& update = asset.stages[static_cast<uint32_t>(Stage::ParticleUpdate)];
+			update.push_back({ &builtin::drag(), { 26, 26 }, {} });
+			update.push_back({ &builtin::speedLimit(), { 27, 27 }, {} });
+			update.push_back({ &builtin::vortex(), { 28, 28 }, {} });
+			update.push_back({ &builtin::killSphere(), { 29, 29 }, {} });
+			update.push_back({ &builtin::killBox(), { 30, 30 }, {} });
+
+			bool ok = check(compileEmitter(asset), "every new module compiles in its stage");
+			return ok;
+		}
+
+		bool testMotionModules() {
+			EmitterAsset asset;
+			asset.stages[static_cast<uint32_t>(Stage::EmitterSpawn)].push_back(
+				{ &builtin::initEmitter(), { 40, 40 }, {} });
+			asset.stages[static_cast<uint32_t>(Stage::EmitterUpdate)].push_back(
+				{ &builtin::spawnRate(), { 41, 41 }, { 60.0f } });
+			asset.stages[static_cast<uint32_t>(Stage::ParticleSpawn)].push_back(
+				{ &builtin::initParticle(), { 42, 42 }, {} });
+			asset.stages[static_cast<uint32_t>(Stage::ParticleSpawn)].push_back(
+				{ &builtin::initialVelocity(), { 43, 43 }, { 0.0f, 0.0f, 1.0f, 100.0f, 100.0f, 0.0f } });
+			asset.stages[static_cast<uint32_t>(Stage::ParticleUpdate)].push_back(
+				{ &builtin::lifetime(), { 44, 44 }, {} });
+			asset.stages[static_cast<uint32_t>(Stage::ParticleUpdate)].push_back(
+				{ &builtin::drag(), { 45, 45 }, { 1.0f } });
+
+			bool ok = check(compileEmitter(asset), "motion modules compile");
+			if (!ok || !asset.compiled)
+				return false;
+
+			const AttributeDesc* position = asset.particleLayout.find("Position");
+			const AttributeDesc* velocity = asset.particleLayout.find("Velocity");
+			ok &= check(position && velocity, "motion attributes available");
+			if (!position || !velocity)
+				return false;
+
+			ParticleSystemInstance system;
+			ParticleEmitterInstance& emitter = system.addEmitter(asset);
+
+			// 60/s at dt 0.1 spawns 6 per tick. Spawn happens after ParticleUpdate, so
+			// the first update a particle sees is the following tick: speed 100 for one
+			// tick, then drag 1.0 scales it to 90 and moves it 9 units up (asset +Z).
+			system.tick(0.1f);
+			system.tick(0.1f);
+
+			const ParticleDataSet& set = emitter.renderDataSet();
+			ok &= check(set.num == 12, "two ticks spawn twelve particles");
+			ok &= check(std::fabs(*set.attr(position->offset + 2, 0) - 9.0f) < 1e-3f,
+				"InitialVelocity plus Drag move the oldest particle 9 units");
+			ok &= check(std::fabs(*set.attr(velocity->offset + 2, 0) - 90.0f) < 1e-3f,
+				"Drag of 1.0 at dt 0.1 retains 90% of the speed");
+
+			return ok;
+		}
+
 		bool testShapeLocation() {
 			EmitterAsset asset = makeM0Asset();
 			ModuleEntry sphere;
@@ -389,6 +457,8 @@ namespace ve {
 		ok &= testVM();
 		ok &= testModules();
 		ok &= testRuntime();
+		ok &= testNewModules();
+		ok &= testMotionModules();
 		ok &= testShapeLocation();
 
 		if (ok)

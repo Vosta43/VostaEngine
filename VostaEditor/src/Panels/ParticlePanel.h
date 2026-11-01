@@ -42,6 +42,10 @@ namespace ve {
         // into canvas space and would land in the wrong place.
         void drawAddModulePopup();
         void drawDetails();
+        void drawRendererDetails();
+        // Resolves the renderer's texture path once per change; the sprite sheet
+        // combo edits the handle, the asset persists the path.
+        void syncRendererTexture();
         void renderPreview();
         void ensurePreviewResources();
 
@@ -73,6 +77,10 @@ namespace ve {
 
         bool m_hasSelection = false;
         Guid16 m_selGuid;
+        // The Render section is one fixed entry rather than a GUID-keyed module.
+        bool m_selRenderer = false;
+        AssetHandle m_spriteTextureHandle;
+        std::string m_spriteResolvedPath;
 
         uint64_t m_assetHash = 0;
         uint64_t m_savedHash = 0;

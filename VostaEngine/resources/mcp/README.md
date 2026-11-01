@@ -1,6 +1,6 @@
 # Vosta Engine — agent knowledge base
 
-**Engine version: `0.2.11`** (last release `0.2.10`). These docs describe the
+**Engine version: `0.2.12`** (last release `0.2.11`). These docs describe the
 on-disk formats of this specific build.
 
 > **Version check — do this first.** If the engine you are driving reports a

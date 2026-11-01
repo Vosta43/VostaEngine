@@ -13,6 +13,7 @@
 
 #include "Panels/AiPanel.h"
 #include "Panels/AssetEditorHost.h"
+#include "Panels/AssetManagerPanel.h"
 #include "Panels/EditorDialogs.h"
 #include "Panels/FileBrowser.h"
 #include "Panels/JsonEditorPanel.h"
@@ -142,6 +143,11 @@ namespace ve {
         // Window menu. Holds no scene; the current one is passed in each frame.
         TerrainMapPanel m_terrainMap;
         bool m_showTerrainMap = false;
+
+        // Flat catalogue of every asset under content/, opened from the Window
+        // menu.
+        AssetManagerPanel m_assetManager;
+        bool m_showAssetManager = true;
 
         uint32_t m_selectedEntity = UINT32_MAX;
 

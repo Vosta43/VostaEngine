@@ -22,10 +22,12 @@ namespace ve {
 		Normalize,
 		SetAlive,
 		Insert,     // r[dst + aux] = r[a]
+		Extract,    // r[dst] = r[a + aux]
 		Random,     // [0,1) hash of the seed register and the stream id in aux
 		Sin,
 		Cos,
-		Sqrt
+		Sqrt,
+		Length      // r[dst] = |r[a .. a + comps)|
 	};
 
 	constexpr uint8_t kFlagScalarB = 1u << 0;

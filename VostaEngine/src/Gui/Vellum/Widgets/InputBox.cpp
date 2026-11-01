@@ -65,12 +65,28 @@ namespace ve::vellum {
 		updateCaretMetrics();
 	}
 
+	float InputBox::textOffsetX(const std::string& text) const {
+		if (m_textAlign != TextAlign::Center || !m_font || text.empty())
+			return 0.0f;
+		const float width = m_font->measure(text).x;
+		const float visible = contentRect().size.x;
+		// A value that does not fit is left-anchored so the caret can scroll to it.
+		return width < visible ? (visible - width) * 0.5f : 0.0f;
+	}
+
 	void InputBox::updateCaretMetrics() {
 		m_caretContentX = m_font ? m_font->measure(m_text.substr(0, m_caret)).x : 0.0f;
 
 		const float visible = contentRect().size.x;
 		if (!m_font || visible <= 0.0f)
 			return;
+
+		// Centred text that fits has nothing to scroll for, and scrolling it would
+		// defeat the centring.
+		if (m_textAlign == TextAlign::Center && m_font->measure(m_text).x < visible) {
+			m_scrollX = 0.0f;
+			return;
+		}
 
 		// Keep the caret inside [0, visible]; scroll only ever moves right.
 		if (m_caretContentX - m_scrollX + kCaretWidth > visible)
@@ -115,7 +131,10 @@ namespace ve::vellum {
 
 	Reply InputBox::onMouseDown(const glm::vec2& pos) {
 		const Rect content = contentRect();
-		placeCaretAt(pos.x - content.pos.x + m_scrollX);
+		// The same inset the frame painted with, so a click lands under the glyph
+		// it is visually over.
+		const float offset = textOffsetX(m_text.empty() ? m_placeholder : m_text);
+		placeCaretAt(pos.x - content.pos.x - offset + m_scrollX);
 		return Reply::handleFocus();
 	}
 
@@ -193,13 +212,31 @@ namespace ve::vellum {
 	}
 
 	void InputBox::paint(PaintContext& ctx) {
-		const glm::vec4& border = isFocused() ? m_focusBorderColor
-		                        : isHovered()  ? m_hoverBorderColor
-		                        :                m_borderColor;
-		ctx.fillRect(m_rect, border);
 		const Rect inner = innerRect();
-		ctx.fillRect(inner, m_bgColor);
+		if (m_bgTexture) {
+			// Pixel-art background: the focus accent is a tint, never a new border.
+			glm::vec4 tint = m_bgTint;
+			if (isFocused()) {
+				tint.r *= m_focusTintScale;
+				tint.g *= m_focusTintScale;
+				tint.b *= m_focusTintScale;
+			}
+			ctx.drawQuad(m_rect, glm::vec2(0.0f), glm::vec2(1.0f), m_bgTexture, tint);
+		}
+		else {
+			const glm::vec4& border = isFocused() ? m_focusBorderColor
+			                        : isHovered()  ? m_hoverBorderColor
+			                        :                m_borderColor;
+			ctx.fillRect(m_rect, border);
+			ctx.fillRect(inner, m_bgColor);
+		}
 		if (!m_font)
+			return;
+
+		// An empty field reads as its placeholder; typing replaces it in place.
+		const bool empty = m_text.empty();
+		const std::string& display = empty ? m_placeholder : m_text;
+		if (display.empty() && !isFocused())
 			return;
 
 		const Rect content = contentRect();
@@ -209,11 +246,12 @@ namespace ve::vellum {
 			std::max(0.0f, (inner.size.y - m_font->lineHeight()) * 0.5f);
 		const float baseline = lineTop + m_font->ascent();
 		const TextureId texture = m_font->textureId();
+		const float offset = textOffsetX(display);
 
-		float x = content.pos.x - m_scrollX;
+		float x = content.pos.x + offset - m_scrollX;
 		std::size_t i = 0;
-		while (i < m_text.size()) {
-			const uint32_t cp = utf8Next(m_text, i);
+		while (i < display.size()) {
+			const uint32_t cp = utf8Next(display, i);
 			if (cp == 0)
 				continue;
 
@@ -222,13 +260,14 @@ namespace ve::vellum {
 				continue;
 			if (g->size.x > 0.0f && g->size.y > 0.0f) {
 				const glm::vec2 topLeft = { x + g->bearing.x, baseline + g->bearing.y };
-				ctx.drawQuad({ topLeft, g->size }, g->uv0, g->uv1, texture, m_textColor);
+				ctx.drawQuad({ topLeft, g->size }, g->uv0, g->uv1, texture,
+				             empty ? m_placeholderColor : m_textColor);
 			}
 			x += g->advance;
 		}
 
 		if (isFocused()) {
-			const float caretX = content.pos.x + m_caretContentX - m_scrollX;
+			const float caretX = content.pos.x + offset + m_caretContentX - m_scrollX;
 			ctx.fillRect({ { caretX, lineTop }, { kCaretWidth, m_font->lineHeight() } },
 			             m_caretColor);
 		}

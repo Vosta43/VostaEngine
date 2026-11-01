@@ -102,6 +102,9 @@ namespace ve {
 			case Op::Insert:
 				r[i.dst + i.aux] = r[i.a];
 				break;
+			case Op::Extract:
+				r[i.dst] = r[i.a + i.aux];
+				break;
 			case Op::Random: {
 				uint32_t seedBits;
 				std::memcpy(&seedBits, &r[i.a], sizeof(seedBits));
@@ -123,6 +126,13 @@ namespace ve {
 				for (uint8_t c = 0; c < i.comps; ++c)
 					r[i.dst + c] = std::sqrt(r[i.a + c]);
 				break;
+			case Op::Length: {
+				float lengthSquared = 0.0f;
+				for (uint8_t c = 0; c < i.comps; ++c)
+					lengthSquared += r[i.a + c] * r[i.a + c];
+				r[i.dst] = std::sqrt(lengthSquared);
+				break;
+			}
 			}
 		}
 

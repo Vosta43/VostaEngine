@@ -2,6 +2,7 @@
 #include "ParticleBillboard.h"
 
 #include "Core/Application.h"
+#include "Core/ResourceManager.h"
 #include "ParticleTypes.h"
 #include "Renderer/Buffer.h"
 #include "Renderer/RenderCommand.h"
@@ -10,6 +11,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace ve {
@@ -18,12 +21,23 @@ namespace ve {
 
 		namespace {
 
-			// One instance per particle: 32 bytes against the 144 a CPU-expanded
-			// quad costs in the sprite batch.
+			// One instance per particle against the 144 bytes a CPU-expanded quad
+			// costs in the sprite batch.
 			struct Instance {
 				glm::vec3 center;
 				float size;
 				glm::vec4 color;
+				// Sprite-sheet tile index; 0 when the particle has no SubUVIndex.
+				float subUV;
+			};
+
+			// One instanced draw's worth of instances. Emitters only share a batch
+			// when they agree on both the texture and the sheet grid.
+			struct Batch {
+				Ref<Texture2D> texture;
+				glm::vec2 subImageSize{ 1.0f, 1.0f };
+				uint32_t begin = 0;
+				uint32_t count = 0;
 			};
 
 			struct State {
@@ -37,6 +51,11 @@ namespace ve {
 				Ref<VertexArray> vertexArray;
 				Ref<VertexBuffer> instanceBuffer;
 				std::vector<Instance> instances;
+				std::vector<Batch> batches;
+				// A texture path that does not load stays failed for the session, so
+				// a missing asset does not retry disk access (and log an error) at
+				// frame rate.
+				std::unordered_set<std::string> failedTextures;
 				uint32_t count = 0;
 			};
 
@@ -72,6 +91,7 @@ namespace ve {
 					{ ShaderDataType::Float3, "a_Center", false, true },
 					{ ShaderDataType::Float,  "a_Size",   false, true },
 					{ ShaderDataType::Float4, "a_Color",  false, true },
+					{ ShaderDataType::Float,  "a_SubUV",  false, true },
 					});
 
 				s.vertexArray = VertexArray::create();
@@ -109,6 +129,33 @@ namespace ve {
 			return texture;
 		}
 
+		namespace {
+
+			Ref<Texture2D> resolveSpriteTexture(const std::string& path) {
+				if (path.empty())
+					return sprite();
+
+				State& s = state();
+				if (s.failedTextures.contains(path))
+					return sprite();
+
+				AssetHandle handle = ResourceManager::find<Texture2D>(path);
+				if (!handle.isValid())
+					handle = ResourceManager::load<Texture2D>(path);
+
+				Ref<Texture2D> texture = ResourceManager::get<Texture2D>(handle);
+				if (!texture) {
+					// A registered slot that is merely unloaded comes back on a later
+					// frame; only a path that never registered is permanently failed.
+					if (!ResourceManager::contains<Texture2D>(handle))
+						s.failedTextures.insert(path);
+					return sprite();
+				}
+				return texture;
+			}
+
+		}
+
 		uint32_t draw(const EmitterAsset& emitter, const ParticleDataSet& particles,
 			const SpaceMap& toRenderSpace, const glm::vec4& tint, float size) {
 			if (particles.num == 0)
@@ -124,6 +171,12 @@ namespace ve {
 				return 0;
 
 			const ParticlePropertiesOffsetsLayout& properties = compiled->particleProperties;
+			const ParticleRenderer& renderer = emitter.renderer;
+
+			const Ref<Texture2D> texture = resolveSpriteTexture(renderer.spriteTexturePath);
+			const glm::vec2 subImageSize(
+				(float)std::max(renderer.subImageSizeX, 1u),
+				(float)std::max(renderer.subImageSizeY, 1u));
 
 			uint32_t appended = 0;
 			for (uint32_t i = 0; i < particles.num; ++i) {
@@ -142,10 +195,21 @@ namespace ve {
 					*particles.attr(properties.position + 1, i),
 					*particles.attr(properties.position + 2, i));
 
+				Batch* batch = s.batches.empty() ? nullptr : &s.batches.back();
+				if (!batch || batch->texture != texture ||
+					batch->subImageSize.x != subImageSize.x || batch->subImageSize.y != subImageSize.y) {
+					s.batches.push_back(Batch{ texture, subImageSize, s.count, 0 });
+					batch = &s.batches.back();
+				}
+
 				Instance& instance = s.instances[s.count++];
 				instance.center = toRenderSpace(local);
 				instance.size = size;
 				instance.color = color;
+				instance.subUV = properties.hasSubUVIndex
+					? std::max(*particles.attr(properties.subUVIndex, i), 0.0f)
+					: 0.0f;
+				++batch->count;
 				++appended;
 			}
 			return appended;
@@ -153,30 +217,37 @@ namespace ve {
 
 		void flush(const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix) {
 			State& s = state();
-			if (!s.initialized || s.count == 0)
+			if (!s.initialized || s.count == 0) {
+				s.batches.clear();
 				return;
+			}
 
-			const uint32_t count = s.count;
+			const std::vector<Batch> batches = std::move(s.batches);
+			s.batches.clear();
 			s.count = 0;
 
-			const Ref<Texture2D> texture = sprite();
-			if (!texture || !s.shader || !s.shader->isValid())
+			if (!s.shader || !s.shader->isValid())
 				return;
 
 			const glm::mat4 inverseView = glm::inverse(viewMatrix);
 			const glm::vec3 right(inverseView[0]);
 			const glm::vec3 up(inverseView[1]);
 
-			s.instanceBuffer->setData(s.instances.data(), static_cast<uint32_t>(count * sizeof(Instance)));
-
 			s.shader->bind();
 			s.shader->setMat4("u_ViewProjection", projectionMatrix * viewMatrix);
 			s.shader->setFloat3("u_CameraRight", right);
 			s.shader->setFloat3("u_CameraUp", up);
 			s.shader->setInt("u_Texture", 0);
-			texture->bind(0);
 
-			RenderCommand::drawIndexedInstanced(s.vertexArray, count);
+			for (const Batch& batch : batches) {
+				if (batch.count == 0 || !batch.texture)
+					continue;
+				s.instanceBuffer->setData(s.instances.data() + batch.begin,
+					static_cast<uint32_t>(batch.count * sizeof(Instance)));
+				s.shader->setFloat2("u_SubImageSize", batch.subImageSize);
+				batch.texture->bind(0);
+				RenderCommand::drawIndexedInstanced(s.vertexArray, batch.count);
+			}
 		}
 
 		glm::mat3 spaceToWorld() {

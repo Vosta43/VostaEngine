@@ -27,8 +27,13 @@ public:
 
 	// Bottom-up layout pass: resolves this widget's desired size from its children
 	// and caches it. Cheap to call every frame — a valid cache short-circuits the
-	// whole subtree.
-	void prepass();
+	// whole subtree. `layoutScale` is the logical-to-physical factor the tree is
+	// being prepared under (1 when the design is drawn unscaled); text needs it to
+	// rasterise at the size it will actually occupy on screen.
+	void prepass(float layoutScale = 1.0f);
+
+	// The factor this widget was last prepared under.
+	float layoutScale() const { return m_layoutScale; }
 
 	// Arrange top-down: the parent decides the slot, the widget stores it as its
 	// final absolute rect.
@@ -111,6 +116,7 @@ private:
 
 	glm::vec2 m_desiredSize{ 0.0f };              // cache, filled by prepass()
 	bool      m_desiredSizeValid = false;
+	float     m_layoutScale = 1.0f;               // logical -> physical, from prepass()
 };
 
 }

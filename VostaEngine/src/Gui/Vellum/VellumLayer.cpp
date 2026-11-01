@@ -157,9 +157,12 @@ namespace ve::vellum {
         input.timeSeconds = DeltaTime::get().getCurrentTime();
         input.keys = std::move(m_keys);
 
-        m_tree.frame(glm::vec2(static_cast<float>(window->getWidth()),
-                               static_cast<float>(window->getHeight())),
-                     input);
+        const glm::vec2 surface(static_cast<float>(window->getWidth()),
+                                static_cast<float>(window->getHeight()));
+        const LayoutTransform layout = (m_designSize.x > 0.0f && m_designSize.y > 0.0f)
+            ? fitLayout(surface, m_designSize)
+            : LayoutTransform{};
+        m_tree.frame(surface, layout, input);
 
         m_justDown = false;
         m_justUp = false;

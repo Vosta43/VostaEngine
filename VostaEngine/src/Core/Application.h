@@ -60,6 +60,9 @@ namespace ve {
 
         LayerStack m_layerStack;
 
+        // True on Windows when this constructor initialised the thread as an STA.
+        bool m_comInitialized = false;
+
     };
 
 }
