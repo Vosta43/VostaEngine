@@ -71,6 +71,13 @@ public:
 	// True when `p` (absolute screen space) lies in this widget's final rect.
 	bool containsPoint(const glm::vec2& p) const;
 
+	// Hit-testing switch, independent of paint visibility. A container that hides
+	// its child by skipping paint (HudGroup) still has that child in the routed
+	// tree, so the child would keep swallowing hover and clicks; turning this off
+	// removes it from the hover path without dropping its layout.
+	void setHitTestVisible(bool visible) { m_hitTestVisible = visible; }
+	bool isHitTestVisible() const { return m_hitTestVisible; }
+
 	// Router-owned interaction state; widgets read it to pick their visual state.
 	bool isHovered() const { return m_hovered; }
 	bool isPressed() const { return m_pressed; }
@@ -110,6 +117,7 @@ protected:
 	bool                     m_hovered = false;   // set by the router
 	bool                     m_pressed = false;   // set while this widget holds capture
 	bool                     m_focused = false;   // set while this widget owns keyboard focus
+	bool                     m_hitTestVisible = true;  // false keeps it out of the hover path
 
 private:
 	friend class WidgetTree;

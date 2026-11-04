@@ -233,6 +233,119 @@ namespace ve {
 		config.customDecodingBackendCount = 1;
 	}
 
+	namespace {
+
+		// ma_decoder_init callbacks: the pUserData is the AudioMemorySource the
+		// caller holds, so nothing here owns the bytes.
+		ma_result memoryRead(ma_decoder* pDecoder, void* pBufferOut, size_t bytesToRead,
+			size_t* pBytesRead) {
+			AudioMemorySource* source = static_cast<AudioMemorySource*>(pDecoder->pUserData);
+			if (!source || !pBufferOut) return MA_INVALID_ARGS;
+
+			const size_t available = source->size - source->position;
+			const size_t count = bytesToRead < available ? bytesToRead : available;
+			if (count > 0) {
+				std::memcpy(pBufferOut, source->data + source->position, count);
+				source->position += count;
+			}
+			if (pBytesRead) *pBytesRead = count;
+			return MA_SUCCESS;
+		}
+
+		ma_result memorySeek(ma_decoder* pDecoder, ma_int64 byteOffset, ma_seek_origin origin) {
+			AudioMemorySource* source = static_cast<AudioMemorySource*>(pDecoder->pUserData);
+			if (!source) return MA_INVALID_ARGS;
+
+			ma_int64 base = 0;
+			if (origin == ma_seek_origin_current)
+				base = static_cast<ma_int64>(source->position);
+			else if (origin == ma_seek_origin_end)
+				base = static_cast<ma_int64>(source->size);
+
+			const ma_int64 target = base + byteOffset;
+			if (target < 0 || static_cast<ma_uint64>(target) > source->size)
+				return MA_BAD_SEEK;
+			source->position = static_cast<size_t>(target);
+			return MA_SUCCESS;
+		}
+
+		bool readDecoderInfo(ma_decoder& decoder, double& outDurationSeconds,
+			uint32_t& outSampleRate, uint32_t& outChannels) {
+			ma_format format = ma_format_unknown;
+			ma_uint32 channels = 0;
+			ma_uint32 sampleRate = 0;
+			ma_uint64 lengthInFrames = 0;
+			const ma_result formatResult = ma_decoder_get_data_format(&decoder, &format,
+				&channels, &sampleRate, nullptr, 0);
+			const ma_result lengthResult = ma_decoder_get_length_in_pcm_frames(&decoder, &lengthInFrames);
+			(void)format;
+
+			if (formatResult != MA_SUCCESS || lengthResult != MA_SUCCESS)
+				return false;
+			if (lengthInFrames == 0 || sampleRate == 0 || channels == 0)
+				return false;
+
+			outDurationSeconds = (double)lengthInFrames / (double)sampleRate;
+			outSampleRate = sampleRate;
+			outChannels = channels;
+			return true;
+		}
+
+		// Decodes until the backend runs dry. The caller owns decoder cleanup.
+		bool readAllPcm(ma_decoder& decoder, DecodedAudio& out) {
+			ma_format format = ma_format_unknown;
+			ma_uint32 channels = 0;
+			ma_uint32 sampleRate = 0;
+			if (ma_decoder_get_data_format(&decoder, &format, &channels, &sampleRate, nullptr, 0) != MA_SUCCESS
+				|| channels == 0 || sampleRate == 0)
+				return false;
+			(void)format;
+
+			ma_uint64 lengthInFrames = 0;
+			if (ma_decoder_get_length_in_pcm_frames(&decoder, &lengthInFrames) == MA_SUCCESS
+				&& lengthInFrames > 0) {
+				out.samples.reserve((size_t)lengthInFrames * channels);
+			}
+
+			constexpr ma_uint64 kChunkFrames = 4096;
+			std::vector<float> chunk((size_t)kChunkFrames * channels);
+			for (;;) {
+				ma_uint64 framesRead = 0;
+				const ma_result result = ma_decoder_read_pcm_frames(&decoder, chunk.data(),
+					kChunkFrames, &framesRead);
+				if (framesRead > 0) {
+					const size_t count = (size_t)framesRead * channels;
+					out.samples.insert(out.samples.end(), chunk.begin(), chunk.begin() + count);
+				}
+				if (framesRead < kChunkFrames)
+					break;
+				if (result != MA_SUCCESS && result != MA_AT_END)
+					break;
+			}
+
+			if (out.samples.empty())
+				return false;
+
+			out.channels = channels;
+			out.sampleRate = sampleRate;
+			out.durationSeconds = (double)out.frameCount() / (double)sampleRate;
+			return true;
+		}
+
+	} // namespace
+
+	bool initAudioMemoryDecoder(const void* data, size_t size, AudioMemorySource& source,
+		ma_decoder* decoder) {
+		if (!data || size == 0 || !decoder) return false;
+
+		source.data = static_cast<const uint8_t*>(data);
+		source.size = size;
+		source.position = 0;
+
+		ma_decoder_config config = makeDecoderConfig();
+		return ma_decoder_init(memoryRead, memorySeek, &source, &config, decoder) == MA_SUCCESS;
+	}
+
 	bool probeAudioFile(const std::string& absolutePath, double& outDurationSeconds,
 		uint32_t& outSampleRate, uint32_t& outChannels) {
 		ma_decoder decoder;
@@ -240,25 +353,21 @@ namespace ve {
 		if (ma_decoder_init_file(absolutePath.c_str(), &config, &decoder) != MA_SUCCESS)
 			return false;
 
-		ma_format format = ma_format_unknown;
-		ma_uint32 channels = 0;
-		ma_uint32 sampleRate = 0;
-		ma_uint64 lengthInFrames = 0;
-		const ma_result formatResult = ma_decoder_get_data_format(&decoder, &format,
-			&channels, &sampleRate, nullptr, 0);
-		const ma_result lengthResult = ma_decoder_get_length_in_pcm_frames(&decoder, &lengthInFrames);
+		const bool ok = readDecoderInfo(decoder, outDurationSeconds, outSampleRate, outChannels);
 		ma_decoder_uninit(&decoder);
-		(void)format;
+		return ok;
+	}
 
-		if (formatResult != MA_SUCCESS || lengthResult != MA_SUCCESS)
-			return false;
-		if (lengthInFrames == 0 || sampleRate == 0 || channels == 0)
+	bool probeAudioMemory(const void* data, size_t size, double& outDurationSeconds,
+		uint32_t& outSampleRate, uint32_t& outChannels) {
+		ma_decoder decoder;
+		AudioMemorySource source;
+		if (!initAudioMemoryDecoder(data, size, source, &decoder))
 			return false;
 
-		outDurationSeconds = (double)lengthInFrames / (double)sampleRate;
-		outSampleRate = sampleRate;
-		outChannels = channels;
-		return true;
+		const bool ok = readDecoderInfo(decoder, outDurationSeconds, outSampleRate, outChannels);
+		ma_decoder_uninit(&decoder);
+		return ok;
 	}
 
 	bool decodeAudioFile(const std::string& absolutePath, DecodedAudio& out) {
@@ -267,46 +376,20 @@ namespace ve {
 		if (ma_decoder_init_file(absolutePath.c_str(), &config, &decoder) != MA_SUCCESS)
 			return false;
 
-		ma_format format = ma_format_unknown;
-		ma_uint32 channels = 0;
-		ma_uint32 sampleRate = 0;
-		if (ma_decoder_get_data_format(&decoder, &format, &channels, &sampleRate, nullptr, 0) != MA_SUCCESS
-			|| channels == 0 || sampleRate == 0) {
-			ma_decoder_uninit(&decoder);
-			return false;
-		}
-		(void)format;
-
-		ma_uint64 lengthInFrames = 0;
-		if (ma_decoder_get_length_in_pcm_frames(&decoder, &lengthInFrames) == MA_SUCCESS
-			&& lengthInFrames > 0) {
-			out.samples.reserve((size_t)lengthInFrames * channels);
-		}
-
-		constexpr ma_uint64 kChunkFrames = 4096;
-		std::vector<float> chunk((size_t)kChunkFrames * channels);
-		for (;;) {
-			ma_uint64 framesRead = 0;
-			const ma_result result = ma_decoder_read_pcm_frames(&decoder, chunk.data(),
-				kChunkFrames, &framesRead);
-			if (framesRead > 0) {
-				const size_t count = (size_t)framesRead * channels;
-				out.samples.insert(out.samples.end(), chunk.begin(), chunk.begin() + count);
-			}
-			if (framesRead < kChunkFrames)
-				break;
-			if (result != MA_SUCCESS && result != MA_AT_END)
-				break;
-		}
+		const bool ok = readAllPcm(decoder, out);
 		ma_decoder_uninit(&decoder);
+		return ok;
+	}
 
-		if (out.samples.empty())
+	bool decodeAudioMemory(const void* data, size_t size, DecodedAudio& out) {
+		ma_decoder decoder;
+		AudioMemorySource source;
+		if (!initAudioMemoryDecoder(data, size, source, &decoder))
 			return false;
 
-		out.channels = channels;
-		out.sampleRate = sampleRate;
-		out.durationSeconds = (double)out.frameCount() / (double)sampleRate;
-		return true;
+		const bool ok = readAllPcm(decoder, out);
+		ma_decoder_uninit(&decoder);
+		return ok;
 	}
 
 }

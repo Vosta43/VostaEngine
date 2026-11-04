@@ -3,10 +3,12 @@
 #include <functional>
 #include <fstream>
 #include <filesystem>
+#include <sstream>
 
 #include <glm.hpp>
 
 #include "Core/Core.h"
+#include "Core/Vfs.h"
 
 namespace ve {
     class VE_API Archive {
@@ -92,6 +94,23 @@ namespace ve {
                 m_out.open(filename);
                 m_isGood = m_out.is_open();
             }
+            else if (vfs::isArchived(filename)) {
+                // Loose text is read in text mode, which folds CRLF to LF; apply
+                // the same fold to packed bytes so string fields match a loose read.
+                std::string text;
+                if (vfs::readText(filename, text)) {
+                    std::string normalized;
+                    normalized.reserve(text.size());
+                    for (size_t i = 0; i < text.size(); ++i) {
+                        if (text[i] == '\r' && i + 1 < text.size() && text[i + 1] == '\n')
+                            continue;
+                        normalized.push_back(text[i]);
+                    }
+                    m_memIn.str(normalized);
+                    m_useMemory = true;
+                    m_isGood = true;
+                }
+            }
             else {
                 m_in.open(filename);
                 m_isGood = m_in.is_open();
@@ -109,7 +128,7 @@ namespace ve {
         }
 
         Archive& operator>>(int32_t& val) override {
-            if (m_in.is_open()) m_in >> val;
+            if (readable()) in() >> val;
             return *this;
         }
 
@@ -119,7 +138,7 @@ namespace ve {
         }
 
         Archive& operator>>(float& val) override {
-            if (m_in.is_open()) m_in >> val;
+            if (readable()) in() >> val;
             return *this;
         }
 
@@ -133,12 +152,13 @@ namespace ve {
         }
 
         Archive& operator>>(std::string& val) override {
-            if (m_in.is_open()) {
+            if (readable()) {
+                std::istream& src = in();
                 size_t len = 0;
-                m_in >> len;
-                m_in.get();
+                src >> len;
+                src.get();
                 val.resize(len);
-                m_in.read(&val[0], len);
+                src.read(&val[0], static_cast<std::streamsize>(len));
             }
             return *this;
         }
@@ -158,8 +178,14 @@ namespace ve {
         bool isGood() const { return m_isGood; }
 
     private:
+        bool readable() const { return m_useMemory || m_in.is_open(); }
+        std::istream& in() { return m_useMemory ? static_cast<std::istream&>(m_memIn)
+                                                : static_cast<std::istream&>(m_in); }
+
         std::ofstream m_out;
         std::ifstream m_in;
+        std::istringstream m_memIn;
+        bool m_useMemory = false;
         bool m_isGood = false;
     };
 

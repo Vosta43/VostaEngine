@@ -3,6 +3,7 @@
 #include "Core/Core.h"
 
 #include <string>
+#include <vector>
 
 namespace ve {
 
@@ -10,10 +11,24 @@ namespace ve {
 // runs by double-clicking <name>.exe -- the player, the engine runtime and its
 // resources, the project's content, and, when the project has one, a Release
 // gameplay module.
+// How the payload is laid out in the output folder. Encryption is the remaining
+// unimplemented mode, refused by name rather than silently writing plain data.
+enum class PackMode {
+    Loose,          // files copied as they are
+    Pak,            // archived into a single package file
+    PakEncrypted,   // archived and encrypted
+};
+
 struct PackageOptions {
     std::string projectRoot;    // absolute project folder
-    std::string outputDir;      // absolute parent; <outputDir>/<projectName>/ is created
+    std::string outputDir;      // absolute parent; <outputDir>/<projectName>[-<version>]/ is created
+    // Run MSBuild on the project's .slnx first. Off by default: a user who just
+    // built the project should not pay for the same build twice, so the existing
+    // Binaries/game.dll ships as-is.
+    bool        rebuildModule = false;
     bool        release = true; // build the shipping module (Release) or a debug one
+    std::string version;        // optional; appended to the output folder name
+    PackMode    mode = PackMode::Loose;
 };
 
 enum class PackageStage {
@@ -27,6 +42,15 @@ struct PackageState {
     std::string  message;           // one line for the progress panel
     std::string  detail;            // result folder on Done, reason on Failed
     bool         running   = false;
+
+    // Console transcript: one line per stage, copy, warning and failure, oldest
+    // first. The job appends under its own mutex, so a snapshot is consistent.
+    std::vector<std::string> log;
+
+    // References in the copied assets that the package does not carry (a path
+    // outside the declared roots, an absolute path). The job still completes;
+    // these are the failures the user would otherwise only see at runtime.
+    std::vector<std::string> warnings;
 };
 
 namespace Packager {

@@ -51,6 +51,15 @@ namespace ve::vellum {
         void setDesignSize(const glm::vec2& size) { m_designSize = size; }
         const glm::vec2& designSize() const { return m_designSize; }
 
+        // Full-window backdrop painted before the tree. Unlike widgets it ignores
+        // the design-space fit: the texture is scaled to cover the surface (uniform
+        // max scale, centred) and its overflow is cropped by the viewport, so
+        // full-screen art reaches every edge at any window aspect instead of leaving
+        // the letterbox bars a design-sized widget cannot cover. The texture must be
+        // registered with this layer so its pixel size is known. 0 removes it.
+        void setBackdrop(TextureId id) { m_backdrop = id; }
+        TextureId backdrop() const { return m_backdrop; }
+
         // The engine's default UI font, borrowed by TextBlocks. Null if unavailable.
         FontAtlas* defaultFont() { return m_fonts.font(FontManager::kDefaultSize); }
         // The default face at an arbitrary pixel size, created on first request.
@@ -100,6 +109,11 @@ namespace ve::vellum {
             glm::vec2 size{ 0.0f };
         };
         std::unordered_map<std::string, UiTexture> m_textures;
+
+        // Pixel sizes by texture id, for the backdrop's cover scale. Populated by
+        // texture() and registerTexture().
+        std::unordered_map<TextureId, glm::vec2> m_textureSizes;
+        TextureId m_backdrop = 0;
     };
 
 }

@@ -3,6 +3,7 @@
 #include "Core.h"
 
 #include <string>
+#include <vector>
 
 namespace ve {
 
@@ -21,6 +22,15 @@ struct VE_API ProjectInfo {
     std::string name;
     std::string defaultScene;   // project-relative, may be empty
     Presentation presentation = Presentation::Scene;
+    std::string version;        // optional; names the package folder and build.json
+
+    // What a packaged build carries, from project.json's "package" block.
+    // Entries are project-relative files or folders; empty include means the
+    // default packageRoots(). A project that keeps runtime data outside content/
+    // (a module with its own layout) declares it here, because the engine cannot
+    // derive those paths from the assets alone.
+    std::vector<std::string> packageInclude;
+    std::vector<std::string> packageExclude;
 };
 
 namespace Project {
@@ -46,6 +56,12 @@ namespace Project {
     // Read project.json from a project folder (absolute path). Missing or
     // malformed metadata is tolerated: the name falls back to the folder name.
     VE_API bool open(const std::string& projectDir, ProjectInfo& out);
+
+    // The project-relative paths a package carries: package.include, or { "content" }
+    // when the project declares none. A packaged build reproduces each of them at
+    // the package root, so a module that resolves assets from the working
+    // directory finds them once the player runs from there.
+    VE_API std::vector<std::string> packageRoots(const ProjectInfo& project);
 
     // Rewrite project.json inside the current project root.
     VE_API bool save(const ProjectInfo& info);

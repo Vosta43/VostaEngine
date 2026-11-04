@@ -54,6 +54,11 @@ namespace ve::vellum {
         // Collects root -> deepest widget containing `pos` into m_path.
         void buildPath(const glm::vec2& pos);
         static void collectPath(Widget* root, const glm::vec2& pos, std::vector<Widget*>& out);
+        // Drops router state pointing at widgets no longer under the root. Lists
+        // rebuild their rows between frames, so a captured or hovered row can be
+        // destroyed while the pointer is still down.
+        void dropStaleRouterState();
+        bool isInTree(const Widget* widget) const;
         void dispatchWheel(float delta);
         // Drives hover/capture/focus from this frame's input and dispatches edges.
         void applyInput(const InputFrame& input);

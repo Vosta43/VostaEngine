@@ -130,6 +130,9 @@
     <Copy SourceFiles="$(VostaBuildOut)VostaEngine.lib" DestinationFolder="$(VostaSdkDir)lib" SkipUnchangedFiles="true" />
     <Copy SourceFiles="$(VostaBuildOut)VostaEngine.dll" DestinationFolder="$(VostaSdkDir)bin" SkipUnchangedFiles="true" />
     <Copy SourceFiles="$(VostaBuildOut)VostaPlayer.exe" DestinationFolder="$(VostaSdkDir)bin" SkipUnchangedFiles="true" />
+    <!-- Symbols are needed by the CPU profiler to resolve engine frames. -->
+    <Copy SourceFiles="$(VostaBuildOut)VostaEngine.pdb" DestinationFolder="$(VostaSdkDir)bin" SkipUnchangedFiles="true" Condition="Exists('$(VostaBuildOut)VostaEngine.pdb')" />
+    <Copy SourceFiles="$(VostaBuildOut)VostaPlayer.pdb" DestinationFolder="$(VostaSdkDir)bin" SkipUnchangedFiles="true" Condition="Exists('$(VostaBuildOut)VostaPlayer.pdb')" />
 
     <Message Importance="high" Text="Vosta engine payload assembled at $(VostaSdkDir)" />
   </Target>

@@ -40,7 +40,7 @@ namespace ve {
 		float evaluate(NoisePlanScratch& scratch, float x, float y, float z) const;
 
 	private:
-		friend NoisePlan buildNoisePlan(const NoiseGraph&);
+		friend VE_API NoisePlan buildNoisePlan(const NoiseGraph&);
 
 		std::vector<NoisePlanSlot> m_slots;
 		int m_outputSlot = -1;

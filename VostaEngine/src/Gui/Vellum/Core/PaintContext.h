@@ -21,6 +21,13 @@ public:
 	void drawQuad(const Rect& rect, const glm::vec2& uv0, const glm::vec2& uv1,
 		TextureId texture, const glm::vec4& color);
 
+	// Same quad with one colour per corner, in top-left, top-right, bottom-right,
+	// bottom-left order. The rasteriser interpolates across the quad, so a single
+	// glyph can carry a vertical or horizontal gradient.
+	void drawQuad(const Rect& rect, const glm::vec2& uv0, const glm::vec2& uv1,
+		TextureId texture, const glm::vec4& topLeft, const glm::vec4& topRight,
+		const glm::vec4& bottomRight, const glm::vec4& bottomLeft);
+
 	void pushClip(const Rect& rect);
 	void popClip();
 
@@ -49,13 +56,19 @@ inline void PaintContext::fillRect(const Rect& rect, const glm::vec4& color) {
 
 inline void PaintContext::drawQuad(const Rect& rect, const glm::vec2& uv0, const glm::vec2& uv1,
 	TextureId texture, const glm::vec4& color) {
+	drawQuad(rect, uv0, uv1, texture, color, color, color, color);
+}
+
+inline void PaintContext::drawQuad(const Rect& rect, const glm::vec2& uv0, const glm::vec2& uv1,
+	TextureId texture, const glm::vec4& topLeft, const glm::vec4& topRight,
+	const glm::vec4& bottomRight, const glm::vec4& bottomLeft) {
 	const uint32_t first = static_cast<uint32_t>(m_list.indices.size());
 	const uint32_t base  = static_cast<uint32_t>(m_list.vertices.size());
 
-	m_list.vertices.push_back({ { rect.pos.x,               rect.pos.y               }, { uv0.x, uv0.y }, color });
-	m_list.vertices.push_back({ { rect.pos.x + rect.size.x, rect.pos.y               }, { uv1.x, uv0.y }, color });
-	m_list.vertices.push_back({ { rect.pos.x + rect.size.x, rect.pos.y + rect.size.y }, { uv1.x, uv1.y }, color });
-	m_list.vertices.push_back({ { rect.pos.x,               rect.pos.y + rect.size.y }, { uv0.x, uv1.y }, color });
+	m_list.vertices.push_back({ { rect.pos.x,               rect.pos.y               }, { uv0.x, uv0.y }, topLeft });
+	m_list.vertices.push_back({ { rect.pos.x + rect.size.x, rect.pos.y               }, { uv1.x, uv0.y }, topRight });
+	m_list.vertices.push_back({ { rect.pos.x + rect.size.x, rect.pos.y + rect.size.y }, { uv1.x, uv1.y }, bottomRight });
+	m_list.vertices.push_back({ { rect.pos.x,               rect.pos.y + rect.size.y }, { uv0.x, uv1.y }, bottomLeft });
 
 	m_list.indices.push_back(base + 0);
 	m_list.indices.push_back(base + 1);

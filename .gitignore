@@ -142,6 +142,13 @@ VostaEngine/thirdparty/miniaudio-master/*
 !VostaEngine/thirdparty/miniaudio-master/miniaudio.c
 !VostaEngine/thirdparty/miniaudio-master/LICENSE
 
+# ── zstd (vendored): only the library sources the engine builds ─────────
+VostaEngine/thirdparty/zstd-dev/*
+!VostaEngine/thirdparty/zstd-dev/lib/
+!VostaEngine/thirdparty/zstd-dev/LICENSE
+!VostaEngine/thirdparty/zstd-dev/COPYING
+!VostaEngine/thirdparty/zstd-dev/README.md
+
 # ── Visual Studio upgrade log (regenerated when the IDE migrates a project) ──
 /VostaEngine/UpgradeLog.htm
 

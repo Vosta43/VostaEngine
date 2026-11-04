@@ -1,6 +1,7 @@
 #include "vepch.h"
 #include "Scene.h"
 #include "Components.h"
+#include "Physics/PhysicsWorld.h"
 
 #include "Renderer/Renderer2D.h"
 #include "Renderer/Renderer3D.h"
@@ -33,9 +34,37 @@ namespace ve {
 	void Scene::onUpdate(float deltaTime){
 
 		m_ecsystemGraph.onUpdate(deltaTime);
+		tickPhysics(deltaTime);
 		tickParticles(deltaTime);
 		updateAudioListener();
 		tickAudio();
+	}
+
+	void Scene::ensurePhysicsWorld() {
+		if (m_physicsWorld)
+			return;
+		if (m_entityRegistry.view<RigidBodyComponent>().empty())
+			return;
+
+		// Simulate around the play area, where float precision is still meaningful.
+		Vec3 origin(0.0);
+		const Entity camera = getPrimaryCameraEntity();
+		if (camera.getId() != 0xFFFFFFFFu && m_entityRegistry.has<TransformComponent>(camera))
+			origin = m_entityRegistry.get<TransformComponent>(camera).position;
+
+		m_physicsWorld = CreateScope<PhysicsWorld>(origin);
+		m_physicsWorld->syncBodies(m_entityRegistry);
+	}
+
+	PhysicsWorld* Scene::getPhysics() {
+		ensurePhysicsWorld();
+		return m_physicsWorld.get();
+	}
+
+	void Scene::tickPhysics(float deltaTime) {
+		ensurePhysicsWorld();
+		if (m_physicsWorld)
+			m_physicsWorld->step(m_entityRegistry, deltaTime);
 	}
 
 	void Scene::tickParticles(float deltaTime) {

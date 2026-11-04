@@ -53,7 +53,7 @@ void Widget::addChild(const Ref<Widget>& child) {
 }
 
 bool Widget::containsPoint(const glm::vec2& p) const {
-	return contains(m_rect, p);
+	return m_hitTestVisible && contains(m_rect, p);
 }
 
 Reply Widget::onMouseDown(const glm::vec2&) {

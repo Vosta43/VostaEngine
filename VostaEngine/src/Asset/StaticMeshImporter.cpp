@@ -5,6 +5,7 @@
 #include "Renderer/Material.h"
 #include "Renderer/SingleMaterial.h"
 #include "Core/ResourceManager.h"
+#include "Core/Vfs.h"
 #include "Scene/Archive.h"
 #include "Core/AssetConfig.h"
 #include "Utils.h"
@@ -185,21 +186,43 @@ namespace ve {
         s.erase(std::find_if(s.rbegin(), s.rend(), notSpace).base(), s.end());
     }
 
+    // Line split for text coming out of an archive, where CRLF arrives verbatim.
+    static void splitLines(const std::string& text, std::vector<std::string>& out) {
+        std::istringstream in(text);
+        std::string line;
+        while (std::getline(in, line)) {
+            if (!line.empty() && line.back() == '\r') line.pop_back();
+            out.push_back(std::move(line));
+        }
+    }
+
     // Parse a single MTL file into the given map.
     static void parseMtlFile(const std::string& mtlPath, MtlDataMap& materials) {
-        std::ifstream file(mtlPath);
-        if (!file.is_open()) {
-            VE_CORE_WARN_PRINT("Failed to open MTL file: %s", mtlPath.c_str());
-            return;
+        std::vector<std::string> lines;
+        if (vfs::isArchived(mtlPath)) {
+            std::string text;
+            if (!vfs::readText(mtlPath, text)) {
+                VE_CORE_WARN_PRINT("Failed to read MTL file from archive: %s", mtlPath.c_str());
+                return;
+            }
+            splitLines(text, lines);
+        }
+        else {
+            std::ifstream file(mtlPath);
+            if (!file.is_open()) {
+                VE_CORE_WARN_PRINT("Failed to open MTL file: %s", mtlPath.c_str());
+                return;
+            }
+            std::string line;
+            while (std::getline(file, line)) lines.push_back(line);
         }
 
         VE_CORE_INFO_PRINT("Parsing MTL file: %s", mtlPath.c_str());
 
         std::filesystem::path mtlDir = std::filesystem::path(mtlPath).parent_path();
         std::string currentMtl;
-        std::string line;
 
-        while (std::getline(file, line)) {
+        for (const std::string& line : lines) {
             // Skip empty and comment lines
             auto firstNonSpace = line.find_first_not_of(" \t\r");
             if (firstNonSpace == std::string::npos) continue;
@@ -325,11 +348,27 @@ namespace ve {
     }
 
     static Ref<StaticMeshResource> importObj(const std::string& filePath) {
-        std::ifstream file(filePath);
         VE_CORE_INFO_PRINT("Try to open OBJ file: %s", filePath.c_str());
-        if (!file.is_open()) {
-            VE_CORE_ERROR_PRINT("Failed to open OBJ file: %s", filePath.c_str());
-            return nullptr;
+
+        std::vector<std::string> allLines;
+        if (vfs::isArchived(filePath)) {
+            std::string text;
+            if (!vfs::readText(filePath, text)) {
+                VE_CORE_ERROR_PRINT("Failed to read OBJ file from archive: %s", filePath.c_str());
+                return nullptr;
+            }
+            splitLines(text, allLines);
+        }
+        else {
+            std::ifstream file(filePath);
+            if (!file.is_open()) {
+                VE_CORE_ERROR_PRINT("Failed to open OBJ file: %s", filePath.c_str());
+                return nullptr;
+            }
+            std::string line;
+            while (std::getline(file, line)) {
+                allLines.push_back(line);
+            }
         }
 
         auto resource = CreateRef<StaticMeshResource>();
@@ -338,12 +377,6 @@ namespace ve {
         std::vector<glm::vec2> uvs;
         std::vector<glm::vec3> normals;
 
-        std::vector<std::string> allLines;
-        std::string line;
-        while (std::getline(file, line)) {
-            allLines.push_back(line);
-        }
-        file.close();
         auto mtlPaths = findMtlFiles(filePath, allLines);
         auto mtlMaterials = parseMtl(mtlPaths);
 
@@ -598,7 +631,15 @@ namespace ve {
         opts.ignore_animation = true;
 
         ufbx_error error;
-        ufbx_scene* scene = ufbx_load_file(filePath.c_str(), &opts, &error);
+        std::vector<uint8_t> bytes;
+        ufbx_scene* scene = nullptr;
+        if (vfs::isArchived(filePath)) {
+            if (vfs::readFile(filePath, bytes) && !bytes.empty())
+                scene = ufbx_load_memory(bytes.data(), bytes.size(), &opts, &error);
+        }
+        else {
+            scene = ufbx_load_file(filePath.c_str(), &opts, &error);
+        }
         if (!scene) {
             char desc[256];
             ufbx_format_error(desc, sizeof(desc), &error);
@@ -716,7 +757,15 @@ namespace ve {
         opts.ignore_animation = true;
 
         ufbx_error error;
-        ufbx_scene* scene = ufbx_load_file(filePath.c_str(), &opts, &error);
+        std::vector<uint8_t> bytes;
+        ufbx_scene* scene = nullptr;
+        if (vfs::isArchived(filePath)) {
+            if (vfs::readFile(filePath, bytes) && !bytes.empty())
+                scene = ufbx_load_memory(bytes.data(), bytes.size(), &opts, &error);
+        }
+        else {
+            scene = ufbx_load_file(filePath.c_str(), &opts, &error);
+        }
         if (!scene)
             return textures;
 

@@ -50,6 +50,11 @@ namespace ve {
         vellum::VellumLayer* getVellumLayer();
 
     private:
+        void pollProfilerHotkey();
+
+        // True while the capture hotkey is held, so one press is one toggle.
+        bool m_captureKeyHeld = false;
+
         static Application* s_instance;
         std::unique_ptr<EventDispatcher> m_dispatcher;
         std::unique_ptr<Window> m_window;

@@ -5,6 +5,7 @@
 
 #include <glm.hpp>
 #include <string>
+#include <vector>
 
 namespace ve::vellum {
 
@@ -33,7 +34,27 @@ namespace ve::vellum {
 
 		void setText(const std::string& text);
 		const std::string& text() const { return m_text; }
-		void setColor(const glm::vec4& color) { m_color = color; }
+		void setColor(const glm::vec4& color) { m_color = color; clearGradient(); }
+
+		// One colour stop on a gradient ramp, at a position in 0..1 along the block.
+		struct GradientStop {
+			float     position = 0.0f;
+			glm::vec4 color{ 1.0f };
+		};
+
+		enum class GradientAxis { Horizontal, Vertical };
+
+		// Replaces the flat colour with a ramp sampled across the block instead of a
+		// per-glyph colour, so tall and short glyphs share one continuous ramp.
+		// Stops must ascend by position. `cyclesPerSecond` scrolls the ramp and is
+		// wrapped, so a stop list whose last colour matches its first animates
+		// seamlessly; 0 paints a static gradient. setColor() clears the ramp.
+		void setGradient(std::vector<GradientStop> stops,
+		                 GradientAxis axis = GradientAxis::Horizontal,
+		                 float cyclesPerSecond = 0.0f);
+		void clearGradient() { m_gradientStops.clear(); }
+
+		void tick(float dt) override;
 
 		void arrange(const Rect& slot) override;
 		void paint(PaintContext& ctx) override;
@@ -46,12 +67,19 @@ namespace ve::vellum {
 		FontAtlas* activeAtlas() const;
 		// Logical units per atlas pixel (1 unless the block resolves its own size).
 		float inverseScale() const;
+		// Samples the ramp at `t`, after scrolling and wrapping to 0..1.
+		glm::vec4 sampleGradient(float t) const;
 
 		FontAtlas* m_font = nullptr;
 		Font*      m_fontChain = nullptr;   // set only for the scale-aware ctor
 		float      m_logicalSize = 0.0f;    // logical pixels, scale-aware ctor only
 		std::string m_text;
 		glm::vec4 m_color;
+
+		std::vector<GradientStop> m_gradientStops;
+		GradientAxis m_gradientAxis = GradientAxis::Horizontal;
+		float m_gradientSpeed = 0.0f;   // ramp positions per second
+		float m_gradientPhase = 0.0f;   // wrapped scroll offset, in ramp positions
 	};
 
 }

@@ -3,6 +3,7 @@
 
 #include "FontAtlas.h"
 #include "Core/Log.h"
+#include "Core/Vfs.h"
 #include "Gui/Vellum/VellumRenderer.h"
 
 #include "stb_truetype.h"
@@ -34,18 +35,27 @@ namespace ve::vellum {
 					return live;
 			}
 
-			std::ifstream file(path, std::ios::binary | std::ios::ate);
-			if (!file) {
-				VE_CORE_ERROR_PRINT("Vellum: font not found: %s", path.c_str());
-				return nullptr;
+			std::vector<unsigned char> bytes;
+			if (vfs::isArchived(path)) {
+				if (!vfs::readFile(path, bytes)) {
+					VE_CORE_ERROR_PRINT("Vellum: failed to read font from archive: %s", path.c_str());
+					return nullptr;
+				}
 			}
-			const std::streamsize size = file.tellg();
-			file.seekg(0, std::ios::beg);
+			else {
+				std::ifstream file(path, std::ios::binary | std::ios::ate);
+				if (!file) {
+					VE_CORE_ERROR_PRINT("Vellum: font not found: %s", path.c_str());
+					return nullptr;
+				}
+				const std::streamsize size = file.tellg();
+				file.seekg(0, std::ios::beg);
 
-			std::vector<unsigned char> bytes(static_cast<std::size_t>(size));
-			if (!file.read(reinterpret_cast<char*>(bytes.data()), size)) {
-				VE_CORE_ERROR_PRINT("Vellum: failed to read font: %s", path.c_str());
-				return nullptr;
+				bytes.resize(static_cast<std::size_t>(size));
+				if (!file.read(reinterpret_cast<char*>(bytes.data()), size)) {
+					VE_CORE_ERROR_PRINT("Vellum: failed to read font: %s", path.c_str());
+					return nullptr;
+				}
 			}
 
 			auto face = std::make_shared<FaceData>();

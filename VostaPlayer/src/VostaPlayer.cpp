@@ -12,6 +12,7 @@
 #include <Core/GameModuleHost.h>
 #include <Core/Layers/Layers.h>
 #include <Core/Project.h>
+#include <Core/Vfs.h>
 #include <Renderer/SceneView.h>
 
 #include <filesystem>
@@ -147,6 +148,38 @@ int main(int argc, char** argv) {
         : (std::filesystem::exists(ve::getAssetRoot() / "project.json")
                ? ve::getAssetRoot()
                : ve::getAssetRoot() / "SandBox");
+
+    // A module-owned layout resolves its data from the working directory, so the
+    // project folder must be the cwd rather than wherever the player happened to
+    // be launched from. A packaged build gets this for free (the exe sits at the
+    // package root); this makes the assumption explicit for every other launch.
+    std::error_code cwdEc;
+    std::filesystem::current_path(projectDir, cwdEc);
+    if (cwdEc)
+        VE_CORE_WARN_PRINT("Player: could not switch to the project folder (%s)",
+                           cwdEc.message().c_str());
+
+    // A PAK build ships its content as <project name>.pak beside the exe. Mount
+    // before any layer runs: once a scene or asset loads, lookups check the
+    // archive first. A loose build simply has no archive and stays untouched.
+    {
+        ve::ProjectInfo project;
+        if (ve::Project::open(projectDir.string(), project)) {
+            const std::filesystem::path archive =
+                projectDir / (project.name + ".pak");
+            std::error_code pakEc;
+            if (std::filesystem::exists(archive, pakEc)) {
+                std::string error;
+                if (ve::vfs::mountPak(archive.string(), &error))
+                    VE_CORE_SUCCESS_PRINT("Player: mounted %s",
+                                          archive.filename().string().c_str());
+                else
+                    VE_CORE_ERROR_PRINT("Player: cannot mount %s (%s)",
+                                        archive.filename().string().c_str(),
+                                        error.c_str());
+            }
+        }
+    }
 
     VostaPlayerApp* app = new VostaPlayerApp(projectDir);
     ve::Logger::Get().printAllToConsole();

@@ -59,6 +59,7 @@ namespace ve::vellum {
 
         m_layout = layout;
         m_logicalSize = layout.logicalSize(surfaceSize);
+        dropStaleRouterState();
 
         // Animation step, taken from the host clock so a paused or backwards clock
         // yields 0 (which snaps animations to their target instead of stalling).
@@ -89,6 +90,37 @@ namespace ve::vellum {
         paintTooltip();
 
         m_renderer.render(m_paint.list(), surfaceSize, layout);
+    }
+
+    bool WidgetTree::isInTree(const Widget* widget) const {
+        // Compares pointers during the walk only: a stale target may already be
+        // freed, so its own fields must never be read.
+        std::vector<const Widget*> stack{ m_root.get() };
+        while (!stack.empty()) {
+            const Widget* node = stack.back();
+            stack.pop_back();
+            if (!node)
+                continue;
+            if (node == widget)
+                return true;
+            for (const auto& child : node->children())
+                stack.push_back(child.get());
+        }
+        return false;
+    }
+
+    void WidgetTree::dropStaleRouterState() {
+        // Flags on the dropped widgets are not cleared: the widget may be freed.
+        if (m_hoverTarget && !isInTree(m_hoverTarget))
+            m_hoverTarget = nullptr;
+        if (m_captureTarget && !isInTree(m_captureTarget))
+            m_captureTarget = nullptr;
+        if (m_focusTarget && !isInTree(m_focusTarget))
+            m_focusTarget = nullptr;
+        if (m_tooltipSource && !isInTree(m_tooltipSource)) {
+            m_tooltipSource = nullptr;
+            m_tooltipVisible = false;
+        }
     }
 
     void WidgetTree::buildPath(const glm::vec2& pos) {

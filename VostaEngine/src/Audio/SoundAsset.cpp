@@ -4,6 +4,7 @@
 #include "Audio/AudioDecode.h"
 #include "Core/AssetConfig.h"
 #include "Core/Log.h"
+#include "Core/Vfs.h"
 
 namespace ve {
 
@@ -23,10 +24,24 @@ namespace ve {
 		auto payload = CreateRef<SoundPayload>();
 		payload->filePath = absolute;
 
+		// A packed clip is read whole here. Both the probe and every streamed
+		// voice decode from these bytes, so the archive is never re-read.
+		if (vfs::isArchived(absolute)) {
+			payload->encoded = CreateRef<std::vector<uint8_t>>();
+			if (!vfs::readFile(absolute, *payload->encoded) || payload->encoded->empty()) {
+				VE_CORE_ERROR_PRINT("SoundAsset: cannot read %s from the archive", path.c_str());
+				return nullptr;
+			}
+		}
+		const uint8_t* bytes = payload->encoded ? payload->encoded->data() : nullptr;
+		const size_t byteCount = payload->encoded ? payload->encoded->size() : 0;
+
 		double seconds = 0.0;
 		uint32_t sampleRate = 0;
 		uint32_t channels = 0;
-		const bool probed = probeAudioFile(absolute, seconds, sampleRate, channels);
+		const bool probed = payload->encoded
+			? probeAudioMemory(bytes, byteCount, seconds, sampleRate, channels)
+			: probeAudioFile(absolute, seconds, sampleRate, channels);
 		if (probed) {
 			payload->sampleRate = sampleRate;
 			payload->channels = channels;
@@ -41,7 +56,10 @@ namespace ve {
 		// (headerless MP3 streams and the like) also lands here: decoding is the
 		// only way to learn its duration, and it is already resident afterwards.
 		DecodedAudio decoded;
-		if (!decodeAudioFile(absolute, decoded)) {
+		const bool decodedOk = payload->encoded
+			? decodeAudioMemory(bytes, byteCount, decoded)
+			: decodeAudioFile(absolute, decoded);
+		if (!decodedOk) {
 			VE_CORE_ERROR_PRINT("SoundAsset: cannot decode %s", path.c_str());
 			return nullptr;
 		}
@@ -60,6 +78,7 @@ namespace ve {
 
 		auto asset = CreateRef<SoundAsset>();
 		asset->filePath = std::move(payload->filePath);
+		asset->encoded = payload->streamed ? std::move(payload->encoded) : nullptr;
 		asset->sampleRate = payload->sampleRate;
 		asset->channels = payload->channels;
 		asset->durationSeconds = payload->durationSeconds;

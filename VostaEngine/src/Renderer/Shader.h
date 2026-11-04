@@ -70,6 +70,13 @@ namespace ve {
 
 	};
 
+	// m_shaders is private and only touched through exported methods, and clients
+	// build with the same toolchain and CRT as the engine, so the layout matches.
+	// C4251 fires on any STL member of an exported class regardless.
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable: 4251)
+#endif
 	class VE_API ShaderLibrary {
 	public:
 		void add(const Ref<Shader>& shader);
@@ -80,6 +87,9 @@ namespace ve {
 	private:
 		std::unordered_map<std::string,Ref<Shader>> m_shaders;
 	};
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 
 }

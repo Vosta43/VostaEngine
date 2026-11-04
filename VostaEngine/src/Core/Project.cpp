@@ -4,6 +4,7 @@
 #include "Json.h"
 #include "Log.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -78,6 +79,43 @@ namespace {
                 return false;
         }
         return name.back() != '.' && name.back() != ' ';
+    }
+
+    // A package entry becomes a copy destination under the output folder, so it
+    // must stay inside the project: absolute paths and ".." components are
+    // rejected rather than silently escaping the package.
+    std::string normalizePackageEntry(const std::string& entry) {
+        std::string s = entry;
+        std::replace(s.begin(), s.end(), '\\', '/');
+        while (s.rfind("./", 0) == 0) s.erase(0, 2);
+        while (!s.empty() && s.back() == '/') s.pop_back();
+        if (s.empty() || s.front() == '/') return {};
+        if (s.find(':') != std::string::npos) return {};
+
+        size_t start = 0;
+        for (;;) {
+            const size_t end = s.find('/', start);
+            const std::string part = s.substr(start, end == std::string::npos ? std::string::npos : end - start);
+            if (part.empty() || part == "." || part == "..") return {};
+            if (end == std::string::npos) break;
+            start = end + 1;
+        }
+        return s;
+    }
+
+    void readPackageList(const JsonReader& reader, const char* key,
+                         std::vector<std::string>& out) {
+        const size_t count = reader.arraySize(key);
+        for (size_t i = 0; i < count; ++i) {
+            const std::string raw = reader.at(key, i).asString();
+            const std::string entry = normalizePackageEntry(raw);
+            if (entry.empty()) {
+                VE_CORE_WARN_PRINT("Project: ignoring unusable package.%s entry '%s'",
+                                   key, raw.c_str());
+                continue;
+            }
+            out.push_back(entry);
+        }
     }
 
     // The artifacts a new project cannot run without. SDK/ is assembled by a build
@@ -282,7 +320,18 @@ bool open(const std::string& projectDir, ProjectInfo& out) {
     out.defaultScene = haveMeta ? r.getString("defaultScene", "") : "";
     out.presentation = haveMeta ? parsePresentation(r.getString("presentation", "scene"))
                                 : Presentation::Scene;
+    out.version      = haveMeta ? r.getString("version", "") : "";
+    if (haveMeta) {
+        const JsonReader pkg = r.child("package");
+        readPackageList(pkg, "include", out.packageInclude);
+        readPackageList(pkg, "exclude", out.packageExclude);
+    }
     return true;
+}
+
+std::vector<std::string> packageRoots(const ProjectInfo& project) {
+    if (!project.packageInclude.empty()) return project.packageInclude;
+    return { "content" };
 }
 
 bool save(const ProjectInfo& info) {
@@ -294,6 +343,23 @@ bool save(const ProjectInfo& info) {
     w.set("name", info.name);
     w.set("defaultScene", info.defaultScene);
     w.set("presentation", presentationName(info.presentation));
+    if (!info.version.empty()) w.set("version", info.version);
+    // The package block is authored by hand, so it has to survive a rewrite from
+    // the editor (an unsaved field would silently drop the project's layout).
+    if (!info.packageInclude.empty() || !info.packageExclude.empty()) {
+        w.beginObject("package");
+        if (!info.packageInclude.empty()) {
+            w.beginArray("include", info.packageInclude.size());
+            for (const std::string& entry : info.packageInclude) w.push(entry);
+            w.end();
+        }
+        if (!info.packageExclude.empty()) {
+            w.beginArray("exclude", info.packageExclude.size());
+            for (const std::string& entry : info.packageExclude) w.push(entry);
+            w.end();
+        }
+        w.end();
+    }
     if (!w.writeToFile(metaPath(getProjectRoot()).string())) {
         VE_CORE_ERROR_PRINT("Project::save: could not write project.json");
         return false;

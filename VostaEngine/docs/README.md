@@ -12,7 +12,7 @@ ship as one version, so they stay in step.
 
 ## Applies to
 
-Engine **0.2.12** — `VE_GAME_MODULE_API_VERSION` **2**.
+Engine **0.2.13** — `VE_GAME_MODULE_API_VERSION` **3**.
 
 The module interface is versioned. A host refuses to load a `game.dll` built
 against a different version, so if you upgrade `engine/`, rebuild the module too.

@@ -1,6 +1,7 @@
 #include "vepch.h"
 #include "Core/Json.h"
 #include "Core/Log.h"
+#include "Core/Vfs.h"
 
 #include <algorithm>
 #include <cctype>
@@ -55,6 +56,11 @@ namespace ve {
 	void JsonWriter::end() {
 		if (m_impl->stack.size() > 1)
 			m_impl->stack.pop_back();
+	}
+
+	void JsonWriter::push(const std::string& v) {
+		nlohmann::json& cur = *m_impl->stack.back();
+		if (cur.is_array()) cur.push_back(v);
 	}
 
 	void JsonWriter::set(const char* key, float v)              { (*m_impl->stack.back())[key] = v; }
@@ -188,15 +194,26 @@ namespace ve {
 	bool JsonReader::load(const std::string& path, JsonReader& out) {
 		out.m_impl.reset();
 		try {
-			std::ifstream in(path, std::ios::binary);
-			if (!in.is_open()) {
-				VE_CORE_ERROR_PRINT("JsonReader::load: cannot open '%s'", path.c_str());
-				return false;
+			nlohmann::json doc;
+			if (vfs::isArchived(path)) {
+				std::string text;
+				if (!vfs::readText(path, text)) {
+					VE_CORE_ERROR_PRINT("JsonReader::load: cannot read '%s'", path.c_str());
+					return false;
+				}
+				doc = nlohmann::json::parse(text, nullptr, false);
 			}
+			else {
+				std::ifstream in(path, std::ios::binary);
+				if (!in.is_open()) {
+					VE_CORE_ERROR_PRINT("JsonReader::load: cannot open '%s'", path.c_str());
+					return false;
+				}
 
-			// allow_exceptions = false: a malformed document yields `discarded`
-			// rather than throwing out of the parser.
-			nlohmann::json doc = nlohmann::json::parse(in, nullptr, false);
+				// allow_exceptions = false: a malformed document yields `discarded`
+				// rather than throwing out of the parser.
+				doc = nlohmann::json::parse(in, nullptr, false);
+			}
 			if (doc.is_discarded()) {
 				VE_CORE_ERROR_PRINT("JsonReader::load: '%s' is not valid JSON", path.c_str());
 				return false;
@@ -808,15 +825,22 @@ namespace ve {
 		// invalid, not a stale copy of the previous file.
 		m_impl = std::make_shared<Impl>();
 
-		std::ifstream in(path, std::ios::binary);
-		if (!in.is_open()) {
-			if (error)
-				*error = "cannot open " + path;
-			return false;
+		std::string text;
+		if (vfs::isArchived(path)) {
+			if (!vfs::readText(path, text, error))
+				return false;
 		}
+		else {
+			std::ifstream in(path, std::ios::binary);
+			if (!in.is_open()) {
+				if (error)
+					*error = "cannot open " + path;
+				return false;
+			}
 
-		const std::string text((std::istreambuf_iterator<char>(in)),
-							   std::istreambuf_iterator<char>());
+			text.assign((std::istreambuf_iterator<char>(in)),
+						std::istreambuf_iterator<char>());
+		}
 		if (!parseText(text, error))
 			return false;
 

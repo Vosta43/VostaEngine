@@ -32,6 +32,7 @@ std::string formatFileSize(uintmax_t bytes) {
 void EditorDialogs::setContext(const std::string& currentSceneName, const ProjectInfo& project) {
     m_currentSceneName = currentSceneName;
     m_projectName = project.name;
+    m_projectVersion = project.version;
 }
 
 void EditorDialogs::openSave() {
@@ -63,6 +64,8 @@ void EditorDialogs::openPackage() {
     if (m_packageOutputBuffer[0] == '\0')
         std::snprintf(m_packageOutputBuffer, sizeof(m_packageOutputBuffer),
                       "%s", (getAssetRoot() / "Build").string().c_str());
+    std::snprintf(m_packageVersionBuffer, sizeof(m_packageVersionBuffer),
+                  "%s", m_projectVersion.c_str());
     m_packageError.clear();
     m_packageState = Packager::snapshot();
     m_showPackagePopup = true;
@@ -318,21 +321,93 @@ void EditorDialogs::onGuiRender() {
 
         ImGui::OpenPopup("Package Project");
         ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        if (ImGui::BeginPopupModal("Package Project", &m_showPackagePopup, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::SetNextWindowSize(ImVec2(920.0f, 560.0f), ImGuiCond_Appearing);
+        if (ImGui::BeginPopupModal("Package Project", &m_showPackagePopup,
+                                   ImGuiWindowFlags_NoSavedSettings)) {
+            // The job writes the folder itself, so the dialog only mirrors the
+            // name it will produce.
+            const std::string version = m_packageVersionBuffer;
+            const std::string folderName = version.empty() ? m_projectName : m_projectName + "-" + version;
+
+            // Left: console transcript. Right: settings and progress.
+            const float consoleWidth = ImGui::GetContentRegionAvail().x * 0.58f;
+
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.06f, 0.065f, 0.075f, 1.0f));
+            ImGui::BeginChild("##package_console", ImVec2(consoleWidth, 0.0f), ImGuiChildFlags_Borders);
+            const bool stickToBottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1.0f;
+            if (m_packageState.log.empty()) {
+                ImGui::TextDisabled("Waiting to start.");
+            } else {
+                for (const std::string& line : m_packageState.log) {
+                    if (line.rfind("ERROR", 0) == 0)
+                        ImGui::TextColored(ImVec4(1.00f, 0.45f, 0.45f, 1.0f), "%s", line.c_str());
+                    else if (line.rfind("WARN", 0) == 0)
+                        ImGui::TextColored(ImVec4(1.00f, 0.78f, 0.35f, 1.0f), "%s", line.c_str());
+                    else if (line.rfind("DONE", 0) == 0)
+                        ImGui::TextColored(ImVec4(0.45f, 0.90f, 0.50f, 1.0f), "%s", line.c_str());
+                    else
+                        ImGui::TextUnformatted(line.c_str());
+                }
+            }
+            if (stickToBottom)
+                ImGui::SetScrollHereY(1.0f);
+            ImGui::EndChild();
+            ImGui::PopStyleColor();
+
+            ImGui::SameLine();
+            ImGui::BeginChild("##package_options", ImVec2(0.0f, 0.0f), ImGuiChildFlags_None);
+
             ImGui::Text("Project: %s", m_projectName.c_str());
+            ImGui::Spacing();
 
             ImGui::BeginDisabled(running);
-            ImGui::SetNextItemWidth(360.0f);
-            ImGui::InputText("Output", m_packageOutputBuffer, sizeof(m_packageOutputBuffer));
+            const float browseWidth = ImGui::GetFrameHeight() + ImGui::CalcTextSize("Browse...").x + 8.0f;
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browseWidth);
+            ImGui::InputTextWithHint("##package_output", "Output folder",
+                                     m_packageOutputBuffer, sizeof(m_packageOutputBuffer));
             ImGui::SameLine();
             if (ImGui::Button("Browse...")) {
                 const std::string picked = pickFolderDialog(m_packageOutputBuffer);
                 if (!picked.empty())
                     std::snprintf(m_packageOutputBuffer, sizeof(m_packageOutputBuffer), "%s", picked.c_str());
             }
-            ImGui::Checkbox("Release", &m_packageRelease);
+
+            ImGui::SetNextItemWidth(160.0f);
+            ImGui::InputTextWithHint("##package_version", "Version (optional)",
+                                     m_packageVersionBuffer, sizeof(m_packageVersionBuffer));
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("On: build the shipping Release module. Off: Debug (links the debug CRT)");
+                ImGui::SetTooltip("Appended to the output folder name; recorded in build.json");
+
+            ImGui::TextDisabled("%s", (std::filesystem::path(m_packageOutputBuffer) / folderName).string().c_str());
+            ImGui::Spacing();
+
+            ImGui::Checkbox("Rebuild gameplay module", &m_packageRebuildModule);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("On: run MSBuild on the project's .slnx first. "
+                                  "Off: package the existing Binaries/game.dll");
+
+            ImGui::BeginDisabled(!m_packageRebuildModule);
+            ImGui::Checkbox("Release", &m_packageRelease);
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip(m_packageRebuildModule
+                    ? "On: build the shipping Release module. Off: Debug (links the debug CRT)"
+                    : "Only used when rebuilding the gameplay module");
+
+            ImGui::Spacing();
+            ImGui::TextUnformatted("Layout");
+            ImGui::RadioButton("Loose files", &m_packageMode, 0);
+            ImGui::SameLine();
+            ImGui::RadioButton("PAK", &m_packageMode, 1);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("One VEGPAK archive with zstd-compressed 64 KiB chunks. "
+                                  "The player mounts it automatically at startup");
+            ImGui::SameLine();
+            ImGui::BeginDisabled(true);
+            ImGui::RadioButton("PAK encrypted", &m_packageMode, 2);
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("Not implemented yet: archives are written unencrypted");
             ImGui::EndDisabled();
 
             ImGui::Separator();
@@ -360,29 +435,32 @@ void EditorDialogs::onGuiRender() {
 
             ImGui::Separator();
 
-            if (done) {
-                const std::string outDir = m_packageState.detail;
-                if (ImGui::Button("Open Folder"))
-                    runProcess({ "explorer", outDir });
-                ImGui::SameLine();
-                if (ImGui::Button("Launch"))
-                    runProcess({ (std::filesystem::path(outDir) / (m_projectName + ".exe")).string() },
-                               outDir, /*wait=*/false);
-                ImGui::SameLine();
-            }
-
             ImGui::BeginDisabled(running);
             if (ImGui::Button("Package")) {
                 PackageOptions opts;
-                opts.projectRoot = getProjectRoot().string();
-                opts.outputDir   = m_packageOutputBuffer;
-                opts.release     = m_packageRelease;
+                opts.projectRoot   = getProjectRoot().string();
+                opts.outputDir     = m_packageOutputBuffer;
+                opts.rebuildModule = m_packageRebuildModule;
+                opts.release       = m_packageRelease;
+                opts.version     = m_packageVersionBuffer;
+                opts.mode        = static_cast<PackMode>(m_packageMode);
                 std::string error;
                 if (!Packager::start(opts, error))
                     m_packageError = "Could not start: " + error;
                 m_packageState = Packager::snapshot();
             }
             ImGui::EndDisabled();
+
+            if (done) {
+                ImGui::SameLine();
+                const std::string& outDir = m_packageState.detail;
+                if (ImGui::Button("Open Folder"))
+                    runProcess({ "explorer", outDir });
+                ImGui::SameLine();
+                if (ImGui::Button("Launch"))
+                    runProcess({ (std::filesystem::path(outDir) / (m_projectName + ".exe")).string() },
+                               outDir, /*wait=*/false);
+            }
 
             ImGui::SameLine();
             if (ImGui::Button("Close")) {
@@ -391,6 +469,7 @@ void EditorDialogs::onGuiRender() {
                 m_showPackagePopup = false;
             }
 
+            ImGui::EndChild();
             ImGui::EndPopup();
         }
     }

@@ -5,6 +5,7 @@ set(ENGINE_SOURCES
     # Core
     src/Core/Application.cpp
     src/Core/ComponentRegistry.cpp
+    src/Core/Compression.cpp
     src/Core/GameModuleHost.cpp
     src/Core/AssetConfig.cpp
     src/Core/AssetLoadQueue.cpp
@@ -19,6 +20,7 @@ set(ENGINE_SOURCES
     src/Core/Reflection.cpp
     src/Core/ResourceManager.cpp
     src/Core/ResourceMemory.cpp
+    src/Core/Vfs.cpp
     src/Core/Window.cpp
     src/Core/vepch.cpp
 
@@ -121,6 +123,9 @@ set(ENGINE_SOURCES
     src/Particle/ProgramBuilder.cpp
     src/Particle/VM.cpp
 
+    # Physics (Jolt facade)
+    src/Physics/PhysicsWorld.cpp
+
     # Scene / ECS
     src/Scene/Archive.cpp
     src/Scene/BuiltinPrefabs.cpp
@@ -143,6 +148,7 @@ set(ENGINE_SOURCES
     src/Asset/AssetLibrary.cpp
     src/Asset/BuiltinReousrces.cpp
     src/Asset/ImportManager.cpp
+    src/Asset/PakReader.cpp
     src/Asset/StaticMeshImporter.cpp
     src/Asset/TextureImporter.cpp
 
@@ -179,12 +185,14 @@ set(ENGINE_SOURCES
     src/Gui/Vellum/Text/GlyphAtlas.cpp
     src/Gui/Vellum/Text/FontManager.cpp
     src/Gui/Vellum/Widgets/Button.cpp
+    src/Gui/Vellum/Widgets/Checkbox.cpp
     src/Gui/Vellum/Widgets/ColoredBox.cpp
     src/Gui/Vellum/Widgets/Column.cpp
     src/Gui/Vellum/Widgets/Image.cpp
     src/Gui/Vellum/Widgets/InputBox.cpp
     src/Gui/Vellum/Widgets/NineGridImage.cpp
     src/Gui/Vellum/Widgets/ScrollPanel.cpp
+    src/Gui/Vellum/Widgets/Slider.cpp
     src/Gui/Vellum/Widgets/Splitter.cpp
     src/Gui/Vellum/Widgets/Stack.cpp
     src/Gui/Vellum/Widgets/TextBlock.cpp
@@ -224,6 +232,33 @@ set(ENGINE_SOURCES
     thirdparty/stb_truetype/stb_truetype.cpp
     thirdparty/stb_vorbis/stb_vorbis.c
     thirdparty/ufbx/ufbx.c
+    # zstd: compression only for the packager (no dictBuilder / legacy)
+    thirdparty/zstd-dev/lib/common/debug.c
+    thirdparty/zstd-dev/lib/common/entropy_common.c
+    thirdparty/zstd-dev/lib/common/error_private.c
+    thirdparty/zstd-dev/lib/common/fse_decompress.c
+    thirdparty/zstd-dev/lib/common/pool.c
+    thirdparty/zstd-dev/lib/common/threading.c
+    thirdparty/zstd-dev/lib/common/xxhash.c
+    thirdparty/zstd-dev/lib/common/zstd_common.c
+    thirdparty/zstd-dev/lib/compress/fse_compress.c
+    thirdparty/zstd-dev/lib/compress/hist.c
+    thirdparty/zstd-dev/lib/compress/huf_compress.c
+    thirdparty/zstd-dev/lib/compress/zstd_compress.c
+    thirdparty/zstd-dev/lib/compress/zstd_compress_literals.c
+    thirdparty/zstd-dev/lib/compress/zstd_compress_sequences.c
+    thirdparty/zstd-dev/lib/compress/zstd_compress_superblock.c
+    thirdparty/zstd-dev/lib/compress/zstd_double_fast.c
+    thirdparty/zstd-dev/lib/compress/zstd_fast.c
+    thirdparty/zstd-dev/lib/compress/zstd_lazy.c
+    thirdparty/zstd-dev/lib/compress/zstd_ldm.c
+    thirdparty/zstd-dev/lib/compress/zstd_opt.c
+    thirdparty/zstd-dev/lib/compress/zstd_preSplit.c
+    thirdparty/zstd-dev/lib/compress/zstdmt_compress.c
+    thirdparty/zstd-dev/lib/decompress/huf_decompress.c
+    thirdparty/zstd-dev/lib/decompress/zstd_ddict.c
+    thirdparty/zstd-dev/lib/decompress/zstd_decompress.c
+    thirdparty/zstd-dev/lib/decompress/zstd_decompress_block.c
 )
 
 # Packaging drives MSBuild on a project's .slnx, so the packager itself is
@@ -231,6 +266,7 @@ set(ENGINE_SOURCES
 if(WIN32)
     list(APPEND ENGINE_SOURCES
         src/Build/Packager.cpp
+        src/Build/PakWriter.cpp
         src/Platform/Windows/ProcessWindows.cpp
     )
 else()
@@ -239,8 +275,40 @@ else()
     )
 endif()
 
+# ── CPU sampling profiler (Windows x64 for now) ─────────────────────────
+if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    list(APPEND ENGINE_SOURCES
+        src/Core/Diagnostics/Profiler.cpp
+        src/Core/Diagnostics/ProfilerExporter.cpp
+        src/Core/Diagnostics/Platform/Windows/ProfilerBackendWin64.cpp
+    )
+endif()
+
 # ── Engine shared library ───────────────────────────────────────────────
 add_library(VostaEngine SHARED ${ENGINE_SOURCES})
+
+# ── Profiler smoke test ─────────────────────────────────────────────────
+if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    add_executable(ProfilerSmoke
+        tests/ProfilerSmoke/main.cpp
+        src/Core/Diagnostics/Profiler.cpp
+        src/Core/Diagnostics/ProfilerExporter.cpp
+        src/Core/Diagnostics/Platform/Windows/ProfilerBackendWin64.cpp
+    )
+    target_include_directories(ProfilerSmoke PRIVATE
+        ${ENGINE_ROOT}/src
+        ${ENGINE_ROOT}/src/Core
+    )
+    target_compile_definitions(ProfilerSmoke PRIVATE
+        NOMINMAX
+        _CRT_SECURE_NO_WARNINGS
+        VE_PROFILER_STATIC
+    )
+    target_compile_options(ProfilerSmoke PRIVATE
+        /W3 /utf-8 /MP /bigobj /Zc:preprocessor
+    )
+    target_link_libraries(ProfilerSmoke PRIVATE dbghelp ntdll)
+endif()
 
 # ── Jolt Physics (vendored, see THIRD_PARTY_NOTICES.md) ─────────────────
 add_subdirectory(thirdparty/Jolt)
@@ -263,6 +331,7 @@ target_include_directories(VostaEngine
         ${ENGINE_ROOT}/thirdparty/FastNoiseLite
         ${ENGINE_ROOT}/thirdparty/miniaudio-master
         ${ENGINE_ROOT}/thirdparty/stb_vorbis
+        ${ENGINE_ROOT}/thirdparty/zstd-dev/lib
 )
 
 # ── GLFW (pre-built binary, vendored) ───────────────────────────────────
@@ -293,7 +362,7 @@ target_link_libraries(VostaEngine
 
 # ── WinHTTP — transport for the AI client (system library, ties to no source) ─
 if(WIN32)
-    target_link_libraries(VostaEngine PRIVATE winhttp)
+    target_link_libraries(VostaEngine PRIVATE winhttp dbghelp ntdll)
 endif()
 
 # ── libdl — dlopen/dlsym for GameModuleHost (empty on macOS) ─────────────
@@ -334,6 +403,39 @@ set_source_files_properties(
         SKIP_PRECOMPILE_HEADERS ON
 )
 
+# zstd 是 C 实现，跳过预编译头；huf_decompress_amd64.S 未纳入源列表，
+# 因此必须关掉汇编路径，否则 x86-64 上会引用未定义的符号。
+set_source_files_properties(
+    thirdparty/zstd-dev/lib/common/debug.c
+    thirdparty/zstd-dev/lib/common/entropy_common.c
+    thirdparty/zstd-dev/lib/common/error_private.c
+    thirdparty/zstd-dev/lib/common/fse_decompress.c
+    thirdparty/zstd-dev/lib/common/pool.c
+    thirdparty/zstd-dev/lib/common/threading.c
+    thirdparty/zstd-dev/lib/common/xxhash.c
+    thirdparty/zstd-dev/lib/common/zstd_common.c
+    thirdparty/zstd-dev/lib/compress/fse_compress.c
+    thirdparty/zstd-dev/lib/compress/hist.c
+    thirdparty/zstd-dev/lib/compress/huf_compress.c
+    thirdparty/zstd-dev/lib/compress/zstd_compress.c
+    thirdparty/zstd-dev/lib/compress/zstd_compress_literals.c
+    thirdparty/zstd-dev/lib/compress/zstd_compress_sequences.c
+    thirdparty/zstd-dev/lib/compress/zstd_compress_superblock.c
+    thirdparty/zstd-dev/lib/compress/zstd_double_fast.c
+    thirdparty/zstd-dev/lib/compress/zstd_fast.c
+    thirdparty/zstd-dev/lib/compress/zstd_lazy.c
+    thirdparty/zstd-dev/lib/compress/zstd_ldm.c
+    thirdparty/zstd-dev/lib/compress/zstd_opt.c
+    thirdparty/zstd-dev/lib/compress/zstd_preSplit.c
+    thirdparty/zstd-dev/lib/compress/zstdmt_compress.c
+    thirdparty/zstd-dev/lib/decompress/huf_decompress.c
+    thirdparty/zstd-dev/lib/decompress/zstd_ddict.c
+    thirdparty/zstd-dev/lib/decompress/zstd_decompress.c
+    thirdparty/zstd-dev/lib/decompress/zstd_decompress_block.c
+    PROPERTIES
+        SKIP_PRECOMPILE_HEADERS ON
+)
+
 # ── Compile definitions ─────────────────────────────────────────────────
 target_compile_definitions(VostaEngine
     PUBLIC
@@ -342,13 +444,16 @@ target_compile_definitions(VostaEngine
         NOMINMAX
         _CRT_SECURE_NO_WARNINGS
         VE_BUILD_DLL
+        ZSTD_DISABLE_ASM
 )
 
 # ── Warnings ────────────────────────────────────────────────────────────
 if(MSVC)
     # /bigobj: the umbrella header and the largest translation units (SceneView,
     # Terrain, SceneViewRenderer) exceed the default 65535-section object limit.
-    target_compile_options(VostaEngine PRIVATE /W3 /wd4251 /utf-8 /MP /bigobj)
+    # /arch:AVX2 must match Jolt's build: the JPH_USE_* macros in its headers
+    # select AVX2 code paths that the compiler will not emit otherwise.
+    target_compile_options(VostaEngine PRIVATE /W3 /wd4251 /utf-8 /MP /bigobj /arch:AVX2)
 else()
     target_compile_options(VostaEngine PRIVATE -Wall -Wextra)
 endif()

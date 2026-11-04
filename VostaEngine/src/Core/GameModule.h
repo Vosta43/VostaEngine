@@ -3,8 +3,12 @@
 #include "Core.h"
 
 // Bump when the GameModule virtual interface changes in a way that is not
-// append-only. A host refuses to load a module built against a different value.
-#define VE_GAME_MODULE_API_VERSION 2
+// append-only, or when a module-facing class layout changes (modules compile
+// inline accessors such as Scene::getRegistry against engine headers, so a
+// module built from older headers reads members at the wrong offset instead of
+// failing cleanly). A host refuses to load a module built against a different
+// value.
+#define VE_GAME_MODULE_API_VERSION 3
 
 namespace ve {
 

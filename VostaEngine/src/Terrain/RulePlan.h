@@ -41,7 +41,7 @@ namespace ve {
 			float* outWeights, int maxOut) const;
 
 	private:
-		friend RulePlan buildRulePlan(const RuleGraph&);
+		friend VE_API RulePlan buildRulePlan(const RuleGraph&);
 
 		std::vector<RulePlanSlot> m_slots;
 		int                       m_terminalCount = 0;

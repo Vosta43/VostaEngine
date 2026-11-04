@@ -34,6 +34,10 @@ namespace ve {
 		void beginArray(const char* key, size_t count);
 		void end();
 
+		// Appends a scalar element to the enclosing array -- the key-less
+		// counterpart of beginObject(). The enclosing container must be an array.
+		void push(const std::string& v);
+
 		void set(const char* key, float v);
 		void set(const char* key, int v);
 		void set(const char* key, bool v);

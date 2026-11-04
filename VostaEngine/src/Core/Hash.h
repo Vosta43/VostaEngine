@@ -1,10 +1,13 @@
 #pragma once
 
+#include "Core/Vfs.h"
+
 #include <cstdint>
 #include <fstream>
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <vector>
 
 namespace ve {
 
@@ -67,6 +70,13 @@ namespace ve {
 	// Hash a file's contents. Missing or unreadable files return the seed, so a
 	// caller that failed to open the asset still gets a stable (if empty) hash.
 	inline uint64_t hashFileBytes(const std::string& path, uint64_t seed = kFnvOffset) {
+		if (vfs::isArchived(path)) {
+			std::vector<uint8_t> bytes;
+			if (!vfs::readFile(path, bytes))
+				return seed;
+			return hashBytes(bytes.data(), bytes.size(), seed);
+		}
+
 		std::ifstream in(path, std::ios::binary);
 		if (!in)
 			return seed;

@@ -8,6 +8,14 @@ namespace ve {
     BinaryArchive::BinaryArchive(const std::string& filename, ArchiveMode mode)
         : m_mode(mode), m_isGood(true), m_bufferPos(0)
     {
+        // Reads are served entirely from m_buffer, so an archived entry is
+        // decoded into it up front, same as the file slurp below.
+        if (mode == ArchiveMode::read && vfs::isArchived(filename)) {
+            if (!vfs::readFile(filename, m_buffer))
+                m_isGood = false;
+            return;
+        }
+
         std::ios::openmode flags = 0;
         if (mode == ArchiveMode::read) {
             flags = std::ios::in | std::ios::binary;

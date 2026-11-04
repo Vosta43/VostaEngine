@@ -61,15 +61,23 @@
     <Link>
       <AdditionalLibraryDirectories>$(VostaEngineRoot)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>VostaEngine.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <!-- freetype.lib is a prebuilt /MT static library. Ignore its static-CRT
+           directive so it binds to the shared /MD runtime the engine DLL and
+           this module use, instead of pulling in a second CRT heap (LNK4098). -->
+      <IgnoreDefaultLibraries>LIBCMT;LIBCMTD;%(IgnoreDefaultLibraries)</IgnoreDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
     <ClCompile>
+      <!-- Pin the CRT to the same /MD runtime the engine DLL uses, so the two
+           sides share one heap across the DLL boundary. -->
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>

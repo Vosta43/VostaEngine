@@ -12,6 +12,8 @@
 #include <typeindex>
 
 namespace ve {
+	class PhysicsWorld;
+
 	class VE_API Scene {
 	public:
 		Scene();
@@ -87,6 +89,10 @@ namespace ve {
         // invalid handle (id 0xFFFFFFFF) when the scene has no camera at all.
         Entity getPrimaryCameraEntity();
 
+        // Null when the scene has no RigidBodyComponent; otherwise the world is
+        // created on first use with its bodies already in place.
+        PhysicsWorld* getPhysics();
+
         void addSystem(const Ref<ECSystemBase>& system) {
             m_ecsystemGraph.addSystem(system);
         }
@@ -112,11 +118,17 @@ namespace ve {
         // registry's JSON dependency.
         void onComponentAssigned(std::type_index type, Entity entity);
 
+        void ensurePhysicsWorld();
+        void tickPhysics(float deltaTime);
+
         // CameraController is at Editor exe. Intermediate variable
         ve::Vec3 m_cameraPosition{ 0.0 };
         glm::mat4 m_viewMatrix = glm::mat4(1.0f);
         glm::mat4 m_projMatrix = glm::mat4(1.0f);
-		
+
+        // Declared before the registry so components are destroyed first.
+        Scope<PhysicsWorld> m_physicsWorld;
+
         EntityRegistry m_entityRegistry;
         ECSytemGraph m_ecsystemGraph;
 	};

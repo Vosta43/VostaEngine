@@ -1,8 +1,10 @@
 #pragma once
 
 #include "Core/Core.h"
+#include "Core/Vfs.h"
 
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -48,27 +50,30 @@ namespace ve {
 		// archives length-prefix the token: text writes ASCII digits, binary a
 		// little-endian uint32. Used to tell asset kinds apart cheaply.
 		inline std::string peekAssetToken(const std::string& path) {
-			std::ifstream file(path, std::ios::binary);
-			if (!file.is_open()) return {};
+			uint8_t head[128] = {};
+			size_t got = 0;
+			if (!vfs::readPrefix(path, head, sizeof(head), got) || got == 0)
+				return {};
 
-			unsigned char first = 0;
-			file.read(reinterpret_cast<char*>(&first), 1);
-			if (!file) return {};
-			file.seekg(0, std::ios::beg);
-
+			size_t pos = 0;
 			uint32_t len = 0;
-			if (first >= 0x20 && first < 0x7F) {
-				file >> len;   // text: "<len> <token>"
-				file.get();    // consume the single space
+			if (head[0] >= 0x20 && head[0] < 0x7F) {
+				while (pos < got && head[pos] >= '0' && head[pos] <= '9') {
+					len = len * 10 + static_cast<uint32_t>(head[pos] - '0');
+					if (len > 64) return {};
+					++pos;
+				}
+				if (pos >= got || head[pos] != ' ') return {};
+				++pos;         // consume the single space
 			}
 			else {
-				file.read(reinterpret_cast<char*>(&len), sizeof(len));
+				if (got < sizeof(len)) return {};
+				std::memcpy(&len, head, sizeof(len));
+				pos = sizeof(len);
 			}
 
-			if (len == 0 || len > 64) return {};
-			std::string token(len, '\0');
-			file.read(token.data(), static_cast<std::streamsize>(len));
-			return file ? token : std::string();
+			if (len == 0 || len > 64 || pos + len > got) return {};
+			return std::string(reinterpret_cast<const char*>(head + pos), len);
 		}
 
 	}

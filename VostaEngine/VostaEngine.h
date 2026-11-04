@@ -6,6 +6,7 @@
 #pragma warning(disable : 4251)
 
 #include "src/Core/Application.h"
+#include "src/Core/AssetConfig.h"
 #include "src/Core/Layers/Layers.h"
 #include "src/Core/Log.h"
 #include "src/Core/Reflection.h"
@@ -34,6 +35,7 @@
 
 #include "src/Scene/Components.h"
 #include "src/Scene/Scene.h"
+#include "src/Physics/PhysicsWorld.h"
 #include "src/Scene/SceneSerializer.h"
 #include "src/Scene/PrefabRegistry.h"
 
@@ -69,9 +71,11 @@
 #include "src/Gui/Vellum/Widgets/InputBox.h"
 #include "src/Gui/Vellum/Widgets/NineGridImage.h"
 #include "src/Gui/Vellum/Widgets/ScrollPanel.h"
+#include "src/Gui/Vellum/Widgets/Slider.h"
 #include "src/Gui/Vellum/Widgets/Splitter.h"
 #include "src/Gui/Vellum/Widgets/Stack.h"
 #include "src/Gui/Vellum/Widgets/Button.h"
+#include "src/Gui/Vellum/Widgets/Checkbox.h"
 #include "src/Gui/Vellum/Widgets/TextBlock.h"
 #include "src/Gui/Vellum/Widgets/TooltipBox.h"
 #include "src/Gui/Vellum/Text/Font.h"

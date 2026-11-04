@@ -126,7 +126,9 @@ namespace ve {
 	}
 
 	size_t estimateBytes(const SoundAsset& sound) {
-		// Streamed assets carry no payload; only resident PCM is accounted.
-		return sound.samples.size() * sizeof(float);
+		// Streamed loose assets carry no payload; a packed one keeps its encoded
+		// bytes resident to feed the voice's decoder.
+		return sound.samples.size() * sizeof(float)
+			+ (sound.encoded ? sound.encoded->size() : 0);
 	}
 }

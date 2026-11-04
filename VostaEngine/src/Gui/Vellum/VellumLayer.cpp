@@ -128,6 +128,7 @@ namespace ve::vellum {
             glm::vec2(static_cast<float>(tex->getWidth()), static_cast<float>(tex->getHeight()))
         };
         sizeOut = entry.size;
+        m_textureSizes[entry.id] = entry.size;
         m_textures.emplace(path, entry);
         return entry.id;
     }
@@ -138,10 +139,14 @@ namespace ve::vellum {
 
     void VellumLayer::registerTexture(TextureId id, const Ref<Texture2D>& texture) {
         m_tree.renderer().registerTexture(id, texture);
+        if (texture)
+            m_textureSizes[id] = { static_cast<float>(texture->getWidth()),
+                                   static_cast<float>(texture->getHeight()) };
     }
 
     void VellumLayer::releaseTexture(TextureId id) {
         m_tree.renderer().unregisterTexture(id);
+        m_textureSizes.erase(id);
     }
 
     void VellumLayer::onUIRender() {
@@ -159,6 +164,23 @@ namespace ve::vellum {
 
         const glm::vec2 surface(static_cast<float>(window->getWidth()),
                                 static_cast<float>(window->getHeight()));
+
+        // Before the tree, in surface pixels: the design-space fit letterboxes the
+        // surplus axis, so a backdrop laid out as a widget would stop at the bars.
+        // Cover instead (uniform max scale, centred) and let the viewport crop.
+        const auto backdropSize = m_textureSizes.find(m_backdrop);
+        if (m_backdrop != 0 && backdropSize != m_textureSizes.end() &&
+            backdropSize->second.x > 0.0f && backdropSize->second.y > 0.0f) {
+            const float cover = (std::max)(surface.x / backdropSize->second.x,
+                                           surface.y / backdropSize->second.y);
+            const glm::vec2 quad = backdropSize->second * cover;
+            PaintContext backdropPaint;
+            backdropPaint.beginFrame(surface);
+            backdropPaint.drawQuad({ (surface - quad) * 0.5f, quad },
+                                   { 0.0f, 0.0f }, { 1.0f, 1.0f }, m_backdrop, glm::vec4(1.0f));
+            m_tree.renderer().render(backdropPaint.list(), surface);
+        }
+
         const LayoutTransform layout = (m_designSize.x > 0.0f && m_designSize.y > 0.0f)
             ? fitLayout(surface, m_designSize)
             : LayoutTransform{};

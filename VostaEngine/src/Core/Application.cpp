@@ -14,6 +14,7 @@
 #include "Deltatime.h"
 #include "Core/AssetLoadQueue.h"
 #include "Core/ResourceManager.h"
+#include "Core/Diagnostics/Profiler.h"
 
 #include "Gui/Gui.h"
 #include "Gui/Vellum/VellumLayer.h"
@@ -60,7 +61,7 @@ namespace ve {
         m_dispatcher = std::make_unique<EventDispatcher>();
         VE_CORE_SUCCESS("Event dispatcher initialized");
 
-        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.12 dev", m_dispatcher.get());
+        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.13 dev", m_dispatcher.get());
         VE_CORE_SUCCESS("Window created");
 
         m_shaderLibrary = std::make_unique<ShaderLibrary>();
@@ -110,6 +111,8 @@ namespace ve {
                 continue;
             }
 
+            pollProfilerHotkey();
+
             DeltaTime::get().update();
 
             // Workers finished some loads; GPU upload and storage writes must
@@ -139,6 +142,41 @@ namespace ve {
         }
 
         VE_CORE_SUCCESS("Application closed");
+    }
+
+    void Application::pollProfilerHotkey() {
+        const bool down = Input::isKeyPressed(VE_KEY_F11);
+        const bool pressed = down && !m_captureKeyHeld;
+        m_captureKeyHeld = down;
+        if (!pressed) {
+            return;
+        }
+
+        auto& profiler = profiler::Profiler::Get();
+        std::string error;
+        if (!profiler.IsRunning()) {
+            if (profiler.Start(profiler::CaptureOptions{}, error)) {
+                VE_CORE_INFO_PRINT("CPU capture started at %u Hz, press F11 to stop",
+                                   profiler.Options().sampleRateHz);
+            }
+            else {
+                VE_CORE_ERROR_PRINT("CPU capture failed to start: %s", error.c_str());
+            }
+            return;
+        }
+
+        profiler.Stop();
+        std::string path;
+        if (profiler.WriteCaptureFile("Saved/Profiler", path, error)) {
+            const profiler::ProfilerStats stats = profiler.Stats();
+            VE_CORE_SUCCESS_PRINT(
+                "CPU capture written: %s (%llu samples, %llu failed)", path.c_str(),
+                static_cast<unsigned long long>(stats.samples),
+                static_cast<unsigned long long>(stats.failedCaptures));
+        }
+        else {
+            VE_CORE_ERROR_PRINT("CPU capture export failed: %s", error.c_str());
+        }
     }
 
     Window* Application::getWindow() const {

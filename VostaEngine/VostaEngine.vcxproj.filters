@@ -27,6 +27,9 @@
     <ClCompile Include="src\Core\ComponentRegistry.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Core\Compression.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Core\GameModuleHost.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -69,6 +72,9 @@
     <ClCompile Include="src\Gui\Vellum\Widgets\Button.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Widgets\Checkbox.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Gui\Vellum\Widgets\ColoredBox.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -85,6 +91,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Gui\Vellum\Widgets\ScrollPanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Widgets\Slider.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Gui\Vellum\Widgets\Splitter.cpp">
@@ -180,6 +189,12 @@
     <ClCompile Include="src\Build\Packager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Build\PakWriter.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Asset\PakReader.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Platform\Windows\ProcessWindows.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -216,6 +231,15 @@
     <ClCompile Include="src\Core\Deltatime.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Core\Diagnostics\Profiler.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Core\Diagnostics\ProfilerExporter.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Core\Diagnostics\Platform\Windows\ProfilerBackendWin64.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Platform\OpenGL\OpenGLShader.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -240,6 +264,84 @@
     <ClCompile Include="thirdparty\ufbx\ufbx.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\common\debug.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\common\entropy_common.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\common\error_private.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\common\fse_decompress.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\common\pool.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\common\threading.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\common\xxhash.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\common\zstd_common.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\compress\fse_compress.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\compress\hist.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\compress\huf_compress.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\compress\zstd_compress.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\compress\zstd_compress_literals.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\compress\zstd_compress_sequences.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\compress\zstd_compress_superblock.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\compress\zstd_double_fast.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\compress\zstd_fast.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\compress\zstd_lazy.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\compress\zstd_ldm.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\compress\zstd_opt.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\compress\zstd_preSplit.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\compress\zstdmt_compress.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\decompress\huf_decompress.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\decompress\zstd_ddict.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\decompress\zstd_decompress.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd-dev\lib\decompress\zstd_decompress_block.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Renderer\CameraController.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -262,6 +364,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Scene\Scene.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Physics\PhysicsWorld.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Scene\EntityRegistry.cpp">
@@ -310,6 +415,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Core\ResourceMemory.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Core\Vfs.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderer\StaticMesh.cpp">
@@ -659,6 +767,9 @@
     <ClInclude Include="src\Gui\Vellum\Widgets\Button.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Widgets\Checkbox.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Gui\Vellum\Widgets\ColoredBox.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -675,6 +786,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Gui\Vellum\Widgets\ScrollPanel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Widgets\Slider.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Gui\Vellum\Widgets\Splitter.h">
@@ -788,6 +902,15 @@
     <ClInclude Include="src\Build\Packager.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Build\PakWriter.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Asset\PakReader.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Asset\PakFormat.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Platform\Process.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -837,6 +960,18 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Core\Deltatime.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core\Diagnostics\Profiler.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core\Diagnostics\ProfilerBackend.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core\Diagnostics\ProfilerExporter.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core\Diagnostics\ProfilerTypes.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Platform\OpenGL\OpenGLShader.h">
@@ -921,6 +1056,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Core\ResourceMemory.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core\Vfs.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Core\AssetConfig.h">
@@ -1172,6 +1310,9 @@
     <ClInclude Include="src\Core\ComponentRegistry.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Core\Compression.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Renderer\SplashScreen.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -1302,6 +1443,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Particle\Modules.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Physics\PhysicsWorld.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

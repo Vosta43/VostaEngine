@@ -78,8 +78,12 @@ private:
 
     // Package.
     bool m_showPackagePopup = false;
+    bool m_packageRebuildModule = false;
     bool m_packageRelease = true;
+    int m_packageMode = 0;   // PackMode: loose files, PAK, PAK encrypted
     std::string m_packageError;
+    std::string m_projectVersion;   // prefills the dialog from project.json
+    char m_packageVersionBuffer[64] = "";
     char m_packageOutputBuffer[512] = "";
     PackageState m_packageState;
 };

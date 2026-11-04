@@ -1,6 +1,7 @@
 #include "vepch.h"
 #include "TextureImporter.h"
 #include "Core/Log.h"
+#include "Core/Vfs.h"
 #include "Scene/Archive.h"
 
 #include <glad/glad.h>
@@ -18,9 +19,29 @@ namespace ve {
         TextureResource texutre2DResource;
         stbi_set_flip_vertically_on_load(1);
 
+        // A packed image is decoded from the archive bytes; a loose one keeps
+        // stb's own file IO.
+        std::vector<uint8_t> bytes;
+        const bool archived = vfs::isArchived(filePath);
+        const stbi_uc* memory = nullptr;
+        int memorySize = 0;
+        if (archived) {
+            if (!vfs::readFile(filePath, bytes)) {
+                VE_CORE_ERROR_PRINT("Failed to read texture from archive: %s", filePath.c_str());
+                return nullptr;
+            }
+            memory = bytes.data();
+            memorySize = static_cast<int>(bytes.size());
+        }
+
         // HDR path (Radiance .hdr files)
-        if (stbi_is_hdr(filePath.c_str())) {
-            float* data = stbi_loadf(filePath.c_str(), &width, &height, &channels, 0);
+        const bool isHdr = archived
+            ? (memorySize > 0 && stbi_is_hdr_from_memory(memory, memorySize))
+            : stbi_is_hdr(filePath.c_str());
+        if (isHdr) {
+            float* data = archived
+                ? stbi_loadf_from_memory(memory, memorySize, &width, &height, &channels, 0)
+                : stbi_loadf(filePath.c_str(), &width, &height, &channels, 0);
 
             if (!data) {
                 VE_CORE_ERROR_PRINT("Failed to load HDR texture: %s", filePath.c_str());
@@ -52,7 +73,9 @@ namespace ve {
         }
 
         // LDR path
-        unsigned char* data = stbi_load(filePath.c_str(), &width, &height, &channels, 0);
+        unsigned char* data = archived
+            ? stbi_load_from_memory(memory, memorySize, &width, &height, &channels, 0)
+            : stbi_load(filePath.c_str(), &width, &height, &channels, 0);
 
         if (!data) {
             VE_CORE_ERROR_PRINT("Failed to load texture: %s", filePath.c_str());
@@ -203,7 +226,19 @@ namespace ve {
         stbi_set_flip_vertically_on_load(1);
 
         // stbi_loadf handles both HDR and LDR - LDR gets normalized to [0,1]
-        float* srcData = stbi_loadf(filePath.c_str(), &srcWidth, &srcHeight, &channels, 0);
+        std::vector<uint8_t> bytes;
+        float* srcData = nullptr;
+        if (vfs::isArchived(filePath)) {
+            if (!vfs::readFile(filePath, bytes) || bytes.empty()) {
+                VE_CORE_ERROR_PRINT("Failed to read cubemap source from archive: %s", filePath.c_str());
+                return nullptr;
+            }
+            srcData = stbi_loadf_from_memory(bytes.data(), static_cast<int>(bytes.size()),
+                                             &srcWidth, &srcHeight, &channels, 0);
+        }
+        else {
+            srcData = stbi_loadf(filePath.c_str(), &srcWidth, &srcHeight, &channels, 0);
+        }
         if (!srcData) {
             VE_CORE_ERROR_PRINT("Failed to load cubemap source: %s", filePath.c_str());
             return nullptr;

@@ -864,5 +864,82 @@ VECOMPONENT(AudioSourceComponent, "Audio Source", "Audio")
 		reg.get<TerrainComponent>(e).bDirty = true;
 	})
 
+	// Simulated by the scene's PhysicsWorld in play mode. Collider sizes are in
+	// world units; TransformComponent's scale does not affect physics.
+	VESTRUCT(RigidBodyComponent)
+	struct RigidBodyComponent {
+		// 0=Static 1=Kinematic 2=Dynamic, matching JPH::EMotionType's order.
+		VEPROPERTY(RigidBodyComponent, int, bodyType, "Body Type", "type=combo,options=Static|Kinematic|Dynamic")
+		int bodyType = 2;
+
+		// 0=Box 1=Sphere 2=Capsule.
+		VEPROPERTY(RigidBodyComponent, int, shape, "Shape", "type=combo,options=Box|Sphere|Capsule")
+		int shape = 0;
+
+		VEPROPERTY(RigidBodyComponent, glm::vec3, halfExtents, "Half Extents", "type=drag,minValue=0.01,speed=0.01")
+		glm::vec3 halfExtents{ 0.5f };
+
+		VEPROPERTY(RigidBodyComponent, float, radius, "Radius", "type=drag,minValue=0.01,speed=0.01")
+		float radius = 0.5f;
+
+		// Cylinder half height; the capsule's total height is 2 * (halfHeight + radius).
+		VEPROPERTY(RigidBodyComponent, float, halfHeight, "Capsule Half Height", "type=drag,minValue=0.01,speed=0.01")
+		float halfHeight = 0.5f;
+
+		VEPROPERTY(RigidBodyComponent, float, mass, "Mass", "type=drag,minValue=0.001,speed=0.01")
+		float mass = 1.0f;
+
+		VEPROPERTY(RigidBodyComponent, float, friction, "Friction", "type=drag,minValue=0,maxValue=2,speed=0.01")
+		float friction = 0.5f;
+
+		VEPROPERTY(RigidBodyComponent, float, restitution, "Restitution", "type=drag,minValue=0,maxValue=1,speed=0.01")
+		float restitution = 0.0f;
+
+		VEPROPERTY(RigidBodyComponent, float, linearDamping, "Linear Damping", "type=drag,minValue=0,speed=0.01")
+		float linearDamping = 0.05f;
+
+		VEPROPERTY(RigidBodyComponent, float, angularDamping, "Angular Damping", "type=drag,minValue=0,speed=0.01")
+		float angularDamping = 0.05f;
+
+		VEPROPERTY(RigidBodyComponent, float, gravityFactor, "Gravity Factor", "type=drag,minValue=0,maxValue=4,speed=0.01")
+		float gravityFactor = 1.0f;
+
+		VEPROPERTY(RigidBodyComponent, bool, lockRotation, "Lock Rotation", "type=bool")
+		bool lockRotation = false;
+
+		RigidBodyComponent() = default;
+
+		void serialize(JsonWriter& w) const {
+			w.set("bodyType", bodyType);
+			w.set("shape", shape);
+			w.set("halfExtents", halfExtents);
+			w.set("radius", radius);
+			w.set("halfHeight", halfHeight);
+			w.set("mass", mass);
+			w.set("friction", friction);
+			w.set("restitution", restitution);
+			w.set("linearDamping", linearDamping);
+			w.set("angularDamping", angularDamping);
+			w.set("gravityFactor", gravityFactor);
+			w.set("lockRotation", lockRotation);
+		}
+
+		void deserialize(const JsonReader& r) {
+			bodyType = r.getInt("bodyType", bodyType);
+			shape = r.getInt("shape", shape);
+			halfExtents = r.getVec3("halfExtents", halfExtents);
+			radius = r.getFloat("radius", radius);
+			halfHeight = r.getFloat("halfHeight", halfHeight);
+			mass = r.getFloat("mass", mass);
+			friction = r.getFloat("friction", friction);
+			restitution = r.getFloat("restitution", restitution);
+			linearDamping = r.getFloat("linearDamping", linearDamping);
+			angularDamping = r.getFloat("angularDamping", angularDamping);
+			gravityFactor = r.getFloat("gravityFactor", gravityFactor);
+			lockRotation = r.getBool("lockRotation", lockRotation);
+		}
+	};
+	VECOMPONENT(RigidBodyComponent, "Rigid Body", "Physics")
+
 
 }

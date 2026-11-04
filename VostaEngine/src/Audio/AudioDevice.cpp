@@ -36,11 +36,16 @@ namespace ve {
 		struct Voice {
 			ma_sound sound{};
 			ma_audio_buffer_ref buffer{};
+			// A packed streamed clip decodes through this cursor over the asset's
+			// encoded bytes; both must outlive the sound.
+			ma_decoder decoder{};
+			AudioMemorySource decoderSource{};
 			bool soundReady = false;
 			bool bufferReady = false;
+			bool decoderReady = false;
 			bool spatial = false;
 			Vec3 worldPosition{ 0.0 };
-			// Pins the PCM a buffer reference reads; empty for streamed voices.
+			// Pins the PCM a buffer reference reads and the bytes a decoder reads.
 			Ref<SoundAsset> asset;
 		};
 
@@ -49,6 +54,10 @@ namespace ve {
 				ma_sound_stop(&voice.sound);
 				ma_sound_uninit(&voice.sound);
 				voice.soundReady = false;
+			}
+			if (voice.decoderReady) {
+				ma_decoder_uninit(&voice.decoder);
+				voice.decoderReady = false;
 			}
 			if (voice.bufferReady) {
 				ma_audio_buffer_ref_uninit(&voice.buffer);
@@ -237,8 +246,17 @@ namespace ve {
 
 		ma_result result = MA_ERROR;
 		if (asset->streamed) {
-			result = ma_sound_init_from_file(&m_impl->engine, asset->filePath.c_str(),
-				MA_SOUND_FLAG_STREAM, group, nullptr, &voice->sound);
+			if (asset->encoded && !asset->encoded->empty() &&
+				initAudioMemoryDecoder(asset->encoded->data(), asset->encoded->size(),
+					voice->decoderSource, &voice->decoder)) {
+				voice->decoderReady = true;
+				result = ma_sound_init_from_data_source(&m_impl->engine, &voice->decoder.ds,
+					0, group, &voice->sound);
+			}
+			else {
+				result = ma_sound_init_from_file(&m_impl->engine, asset->filePath.c_str(),
+					MA_SOUND_FLAG_STREAM, group, nullptr, &voice->sound);
+			}
 		}
 		else if (asset->channels > 0 && !asset->samples.empty()) {
 			result = ma_audio_buffer_ref_init(ma_format_f32, asset->channels,
