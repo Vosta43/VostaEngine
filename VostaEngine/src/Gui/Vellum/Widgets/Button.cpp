@@ -42,7 +42,7 @@ namespace ve::vellum {
 		Widget::tick(dt);
 	}
 
-	void Button::paint(PaintContext& ctx) {
+	void Button::onPaint(PaintContext& ctx) {
 		TextureId texture = isPressed() ? m_style.pressedTexture
 		                  : isHovered() ? m_style.hoveredTexture
 		                  : m_style.normalTexture;
@@ -53,7 +53,7 @@ namespace ve::vellum {
 		tint = glm::mix(tint, m_style.pressedTint, m_pressAnim.value);
 		ctx.drawQuad(m_rect, glm::vec2(0.0f), glm::vec2(1.0f), texture, tint);
 
-		Widget::paint(ctx);
+		Widget::onPaint(ctx);
 	}
 
 	Reply Button::onMouseDown(const glm::vec2&) {

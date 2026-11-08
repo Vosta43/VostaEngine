@@ -116,6 +116,18 @@ namespace ve {
 			properties.hasSubUVIndex = true;
 			properties.subUVIndex = subUV->offset;
 		}
+		if (const AttributeDesc* size = asset.particleLayout.find("Size")) {
+			properties.hasSize = true;
+			properties.size = size->offset;
+		}
+		if (const AttributeDesc* color = asset.particleLayout.find("Color"); color && color->comps >= 4) {
+			properties.hasColor = true;
+			properties.color = color->offset;
+		}
+		if (const AttributeDesc* emissive = asset.particleLayout.find("Emissive")) {
+			properties.hasEmissive = true;
+			properties.emissive = emissive->offset;
+		}
 
 		for (uint32_t slot = 0; slot < kMaxSpawnSlots; ++slot) {
 			const std::string prefix = "SpawnInfo" + std::to_string(slot) + ".";

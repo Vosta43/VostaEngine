@@ -39,6 +39,12 @@ namespace ve::vellum {
         void frame(const glm::vec2& surfaceSize, const LayoutTransform& layout,
                    const InputFrame& input);
 
+        // A widget painted after the root and its tooltip, laid out against the
+        // whole logical size. It is not part of the routed tree, so it survives a
+        // root swap and never takes the pointer. Null clears it.
+        void setOverlay(const Ref<Widget>& overlay) { m_overlay = overlay; }
+        Widget* overlay() const { return m_overlay.get(); }
+
         bool wantsWheel(const glm::vec2& pos) const;
 
         // Tooltip support. The tree owns the bubble; leaving the font null keeps
@@ -69,9 +75,11 @@ namespace ve::vellum {
         // Picks the hover path's deepest tooltip text and runs the reveal timer.
         void updateTooltip(const InputFrame& input);
         void paintTooltip();
+        void paintOverlay(float dt);
         Widget* tooltipSource() const;
 
         Ref<Widget>    m_root;
+        Ref<Widget>    m_overlay;                      // painted last, never routed
         PaintContext   m_paint;
         VellumRenderer m_renderer;
 

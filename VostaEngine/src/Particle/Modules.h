@@ -19,7 +19,11 @@ namespace ve::builtin {
 	VE_API const ModuleAsset& shapeRing();
 	VE_API const ModuleAsset& initialVelocity();
 	VE_API const ModuleAsset& lifetimeRange();
+	VE_API const ModuleAsset& initColor();
+	VE_API const ModuleAsset& initEmissive();
+	VE_API const ModuleAsset& initSizeRange();
 	VE_API const ModuleAsset& spawnRate();
+	VE_API const ModuleAsset& spawnBurst();
 	VE_API const ModuleAsset& lifetime();
 	VE_API const ModuleAsset& drag();
 	VE_API const ModuleAsset& speedLimit();

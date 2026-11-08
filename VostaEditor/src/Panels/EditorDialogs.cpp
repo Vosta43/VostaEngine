@@ -403,11 +403,10 @@ void EditorDialogs::onGuiRender() {
                 ImGui::SetTooltip("One VEGPAK archive with zstd-compressed 64 KiB chunks. "
                                   "The player mounts it automatically at startup");
             ImGui::SameLine();
-            ImGui::BeginDisabled(true);
             ImGui::RadioButton("PAK encrypted", &m_packageMode, 2);
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("Not implemented yet: archives are written unencrypted");
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Same archive with every chunk and the index sealed by "
+                                  "XChaCha20-Poly1305 under the runtime's built-in content key");
             ImGui::EndDisabled();
 
             ImGui::Separator();

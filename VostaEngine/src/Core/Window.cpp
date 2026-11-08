@@ -1,6 +1,8 @@
 #include "vepch.h"
 #include "Window.h"
 #include "Log.h"
+#include "Asset/TextureImporter.h"
+#include "Core/AssetConfig.h"
 #include "Events/EventDispatcher.h"
 #include "Events/KeyPressedEvent.h"
 #include "Events/KeyReleasedEvent.h"
@@ -159,6 +161,16 @@ namespace ve {
             return m_cursorMode;
         }
 
+        void setTitle(const std::string& title) {
+            glfwSetWindowTitle(m_window, title.c_str());
+        }
+
+        void setIcon(uint32_t width, uint32_t height, const void* rgba) {
+            GLFWimage image{ static_cast<int>(width), static_cast<int>(height),
+                             const_cast<unsigned char*>(static_cast<const unsigned char*>(rgba)) };
+            glfwSetWindowIcon(m_window, 1, &image);
+        }
+
         bool setRawMouseMotion(bool enabled) {
             if (enabled && !glfwRawMouseMotionSupported()) {
                 VE_CORE_WARN_PRINT("%s", "Window: raw mouse motion is not supported on this platform");
@@ -239,6 +251,55 @@ namespace ve {
 
     CursorMode Window::getCursorMode() const {
         return m_impl->getCursorMode();
+    }
+
+    void Window::setTitle(const std::string& title) {
+        m_impl->setTitle(title);
+    }
+
+    bool Window::setIcon(const std::string& imagePath) {
+        if (imagePath.empty())
+            return false;
+
+        Ref<TextureResource> image = TextureImporter::importFromFile(toAbsolute(imagePath));
+        if (!image || !image->floatPixels.empty() || image->width == 0 || image->height == 0) {
+            VE_CORE_ERROR_PRINT("Window: cannot load icon '%s'", imagePath.c_str());
+            return false;
+        }
+
+        const size_t pixelCount = static_cast<size_t>(image->width) * image->height;
+        if (pixelCount == 0 || image->pixels.size() % pixelCount != 0) {
+            VE_CORE_ERROR_PRINT("Window: malformed icon pixels '%s'", imagePath.c_str());
+            return false;
+        }
+        const size_t stride = image->pixels.size() / pixelCount;   // R8, RGB or RGBA
+        if (stride != 1 && stride != 3 && stride != 4) {
+            VE_CORE_ERROR_PRINT("Window: unsupported icon format '%s'", imagePath.c_str());
+            return false;
+        }
+
+        // The importer stores rows bottom-up for GL; GLFW wants RGBA top-down.
+        std::vector<uint8_t> rgba(pixelCount * 4);
+        for (uint32_t y = 0; y < image->height; ++y) {
+            const uint8_t* src = image->pixels.data()
+                + (static_cast<size_t>(image->height) - 1 - y) * image->width * stride;
+            uint8_t* dst = rgba.data() + static_cast<size_t>(y) * image->width * 4;
+            for (uint32_t x = 0; x < image->width; ++x, src += stride, dst += 4) {
+                if (stride == 1) {
+                    dst[0] = dst[1] = dst[2] = src[0];
+                    dst[3] = 255;
+                }
+                else {
+                    dst[0] = src[0];
+                    dst[1] = src[1];
+                    dst[2] = src[2];
+                    dst[3] = stride == 4 ? src[3] : 255;
+                }
+            }
+        }
+
+        m_impl->setIcon(image->width, image->height, rgba.data());
+        return true;
     }
 
     bool Window::setRawMouseMotion(bool enabled) {

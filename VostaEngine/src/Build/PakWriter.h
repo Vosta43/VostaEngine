@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Asset/PakFormat.h"
+
 #include <cstdint>
 #include <fstream>
 #include <string>
@@ -10,11 +12,20 @@ namespace ve {
 namespace pak {
 
 // Writes one PAK archive: file data chunked and zstd-compressed in place, then an
-// index, then the footer a reader seeks to from the end of the file.
+// index, then the footer a reader seeks to from the end of the file. The
+// encrypted variant seals every compressed chunk and the index with
+// XChaCha20-Poly1305 under the content key named by keyId.
 class Writer {
 public:
+	~Writer();
+
 	// Truncates `path`; fails when the file cannot be created.
 	bool open(const std::string& path, std::string* error = nullptr);
+
+	// Same, but every chunk and the index are sealed. Fails when the key id is
+	// not registered, so an encrypted job can never silently write plain data.
+	bool openEncrypted(const std::string& path, uint32_t keyId,
+	                   std::string* error = nullptr);
 
 	// Adds one source file under pakPath ('/'-separated, package-root-relative).
 	// Paths are unique per archive; a duplicate is an error.
@@ -43,9 +54,14 @@ private:
 		std::vector<Chunk> chunks;
 	};
 
+	void wipeKey();
+
 	std::ofstream m_out;
 	std::vector<Entry> m_entries;
 	std::unordered_set<std::string> m_paths;
+	uint8_t  m_key[kKeySize] = {};
+	uint32_t m_keyId = 0;
+	bool m_encrypted = false;
 	bool m_finished = false;
 };
 

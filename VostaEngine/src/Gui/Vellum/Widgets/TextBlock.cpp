@@ -95,7 +95,7 @@ namespace ve::vellum {
 		m_rect = slot;
 	}
 
-	void TextBlock::paint(PaintContext& ctx) {
+	void TextBlock::onPaint(PaintContext& ctx) {
 		FontAtlas* atlas = activeAtlas();
 		if (!atlas)
 			return;

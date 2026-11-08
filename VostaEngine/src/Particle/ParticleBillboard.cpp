@@ -183,7 +183,12 @@ namespace ve {
 				if (s.count >= State::kMaxInstances)
 					break;
 
-				glm::vec4 color = tint;
+				glm::vec4 color = properties.hasColor
+					? glm::vec4(*particles.attr(properties.color + 0, i),
+						*particles.attr(properties.color + 1, i),
+						*particles.attr(properties.color + 2, i),
+						*particles.attr(properties.color + 3, i))
+					: tint;
 				if (properties.hasFade) {
 					const float life = std::max(*particles.attr(properties.lifetime, i), 1e-3f);
 					color.a *= std::clamp(1.0f - *particles.attr(properties.age, i) / life, 0.05f, 1.0f);
@@ -204,7 +209,9 @@ namespace ve {
 
 				Instance& instance = s.instances[s.count++];
 				instance.center = toRenderSpace(local);
-				instance.size = size;
+				instance.size = properties.hasSize
+					? std::max(*particles.attr(properties.size, i), 0.0f)
+					: size;
 				instance.color = color;
 				instance.subUV = properties.hasSubUVIndex
 					? std::max(*particles.attr(properties.subUVIndex, i), 0.0f)

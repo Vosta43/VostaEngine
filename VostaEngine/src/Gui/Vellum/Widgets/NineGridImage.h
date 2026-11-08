@@ -43,7 +43,7 @@ namespace ve::vellum {
 		glm::vec2 drawnSize() const { return m_rect.size; }
 
 		void arrange(const Rect& slot) override;
-		void paint(PaintContext& ctx) override;
+		void onPaint(PaintContext& ctx) override;
 
 	protected:
 		glm::vec2 computeDesiredSize() const override;

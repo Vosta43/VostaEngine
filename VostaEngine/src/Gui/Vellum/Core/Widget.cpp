@@ -1,5 +1,8 @@
 #include "vepch.h"
 #include "Widget.h"
+#include "PaintContext.h"
+
+#include <algorithm>
 
 namespace ve::vellum {
 
@@ -35,8 +38,49 @@ void Widget::invalidateDesiredSize() {
 }
 
 void Widget::paint(PaintContext& ctx) {
+	if (!m_visible)
+		return;
+
+	const bool transformed = m_hasRenderTransform;
+	if (transformed) {
+		const glm::vec2 pivot = m_rect.pos + m_pivot01 * m_rect.size;
+		ctx.pushTransform(m_translation, m_rotation, m_scale, pivot);
+	}
+	if (m_opacity < 1.0f)
+		ctx.pushOpacity(m_opacity);
+
+	onPaint(ctx);
+
+	if (m_opacity < 1.0f)
+		ctx.popOpacity();
+	if (transformed)
+		ctx.popTransform();
+}
+
+void Widget::onPaint(PaintContext& ctx) {
 	for (auto& child : m_children)
 		child->paint(ctx);
+}
+
+void Widget::setRenderTransform(const glm::vec2& translation, float rotationRad,
+                                const glm::vec2& scale, const glm::vec2& pivot01) {
+	m_translation = translation;
+	m_rotation = rotationRad;
+	m_scale = scale;
+	m_pivot01 = pivot01;
+	m_hasRenderTransform = true;
+}
+
+void Widget::clearRenderTransform() {
+	m_hasRenderTransform = false;
+	m_translation = glm::vec2(0.0f);
+	m_rotation = 0.0f;
+	m_scale = glm::vec2(1.0f);
+	m_pivot01 = glm::vec2(0.0f);
+}
+
+void Widget::setRenderOpacity(float opacity) {
+	m_opacity = std::clamp(opacity, 0.0f, 1.0f);
 }
 
 void Widget::tick(float dt) {
@@ -53,7 +97,7 @@ void Widget::addChild(const Ref<Widget>& child) {
 }
 
 bool Widget::containsPoint(const glm::vec2& p) const {
-	return m_hitTestVisible && contains(m_rect, p);
+	return m_visible && m_hitTestVisible && contains(m_rect, p);
 }
 
 Reply Widget::onMouseDown(const glm::vec2&) {

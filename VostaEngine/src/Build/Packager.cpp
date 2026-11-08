@@ -1,6 +1,7 @@
 #include "vepch.h"
 #include "Packager.h"
 
+#include "Asset/PakKey.h"
 #include "Asset/PakReader.h"
 #include "Build/PakWriter.h"
 #include "Core/AssetConfig.h"
@@ -27,7 +28,7 @@ namespace {
 
     // Mirrors project() VERSION in CMakeLists.txt, recorded in build.json so a
     // shipped folder can be traced back to the engine that produced it.
-    constexpr const char* kEngineVersion = "0.2.13";
+    constexpr const char* kEngineVersion = "0.2.14";
 
     // zstd's default level: packaging stays interactive; shipping size is close
     // enough to level 19 for content that is mostly already-compressed images.
@@ -347,13 +348,6 @@ namespace {
             return;
         }
 
-        // Encryption is still a placeholder: writing a plain archive and calling
-        // it encrypted would be worse than refusing the job.
-        if (opts.mode == PackMode::PakEncrypted) {
-            fail("PAK encryption is not implemented yet; choose Loose files or PAK.");
-            return;
-        }
-
         std::string missing;
         if (!sdkPayloadReady(missing)) {
             fail("Engine SDK payload is incomplete ('" + missing + "' missing under " +
@@ -458,7 +452,7 @@ namespace {
                 manifest.push_back({ root, src });
             }
 
-            const std::string verb = opts.mode == PackMode::Pak ? "pack " : "copy ";
+            const std::string verb = opts.mode == PackMode::Loose ? "copy " : "pack ";
             logLine("  " + verb + root + (directory ? "/" : "") + " (" +
                     std::to_string(manifest.size() - before) + " files)");
         }
@@ -478,10 +472,17 @@ namespace {
             manifest.swap(unique);
         }
 
-        if (opts.mode == PackMode::Pak) {
+        if (opts.mode != PackMode::Loose) {
             const fs::path archive = outRoot / (project.name + ".pak");
             pak::Writer writer;
-            if (!writer.open(archive.string(), &err)) {
+            if (opts.mode == PackMode::PakEncrypted) {
+                if (!writer.openEncrypted(archive.string(), pak::kBuiltinKeyId, &err)) {
+                    fail("Could not create " + archive.filename().string() + ": " + err);
+                    return;
+                }
+                logLine("  encrypted with content key #" +
+                        std::to_string(pak::kBuiltinKeyId));
+            } else if (!writer.open(archive.string(), &err)) {
                 fail("Could not create " + archive.filename().string() + ": " + err);
                 return;
             }
@@ -613,8 +614,9 @@ namespace {
             b.set("engineVersion", kEngineVersion);
             b.set("configuration", opts.release ? std::string("Release") : std::string("Debug"));
             b.set("builtUtc", utcNow());
-            b.set("layout", opts.mode == PackMode::Pak ? std::string("pak")
-                                                       : std::string("loose"));
+            b.set("layout", opts.mode == PackMode::Loose ? std::string("loose")
+                     : opts.mode == PackMode::PakEncrypted ? std::string("pak-encrypted")
+                                                           : std::string("pak"));
             if (!opts.version.empty()) b.set("version", opts.version);
             b.writeToFile((outRoot / "build.json").string());
         }

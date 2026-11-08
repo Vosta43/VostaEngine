@@ -35,12 +35,12 @@ namespace ve::vellum {
 		m_rect = slot;
 	}
 
-	void Image::paint(PaintContext& ctx) {
+	void Image::onPaint(PaintContext& ctx) {
 		if (!m_hasTexture)
 			return;
 
 		ctx.drawQuad(m_rect, m_uv0, m_uv1, m_texture, m_tint);
-		Widget::paint(ctx);
+		Widget::onPaint(ctx);
 	}
 
 }

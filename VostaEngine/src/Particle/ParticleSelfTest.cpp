@@ -333,6 +333,12 @@ namespace ve {
 			spawn.push_back({ &builtin::shapeRing(), { 23, 23 }, {} });
 			spawn.push_back({ &builtin::initialVelocity(), { 24, 24 }, {} });
 			spawn.push_back({ &builtin::lifetimeRange(), { 25, 25 }, {} });
+			spawn.push_back({ &builtin::initColor(), { 31, 31 }, {} });
+			spawn.push_back({ &builtin::initEmissive(), { 32, 32 }, {} });
+			spawn.push_back({ &builtin::initSizeRange(), { 33, 33 }, {} });
+
+			asset.stages[static_cast<uint32_t>(Stage::EmitterUpdate)].push_back(
+				{ &builtin::spawnBurst(), { 34, 34 }, {} });
 
 			std::vector<ModuleEntry>& update = asset.stages[static_cast<uint32_t>(Stage::ParticleUpdate)];
 			update.push_back({ &builtin::drag(), { 26, 26 }, {} });
@@ -448,6 +454,48 @@ namespace ve {
 			return ok;
 		}
 
+		bool testBurstAndAppearanceModules() {
+			EmitterAsset asset;
+			asset.stages[static_cast<uint32_t>(Stage::EmitterSpawn)].push_back(
+				{ &builtin::initEmitter(), { 50, 50 }, {} });
+			asset.stages[static_cast<uint32_t>(Stage::EmitterUpdate)].push_back(
+				{ &builtin::spawnBurst(), { 51, 51 }, { 7.0f, 0.0f } });
+			asset.stages[static_cast<uint32_t>(Stage::ParticleSpawn)].push_back(
+				{ &builtin::initParticle(), { 52, 52 }, {} });
+			asset.stages[static_cast<uint32_t>(Stage::ParticleSpawn)].push_back(
+				{ &builtin::initColor(), { 53, 53 }, { 0.0f, 1.0f, 0.5f, 1.0f } });
+			asset.stages[static_cast<uint32_t>(Stage::ParticleSpawn)].push_back(
+				{ &builtin::initEmissive(), { 54, 54 }, { 2.0f } });
+			asset.stages[static_cast<uint32_t>(Stage::ParticleSpawn)].push_back(
+				{ &builtin::initSizeRange(), { 55, 55 }, { 3.0f, 3.0f } });
+			asset.stages[static_cast<uint32_t>(Stage::ParticleUpdate)].push_back(
+				{ &builtin::lifetime(), { 56, 56 }, {} });
+
+			bool ok = check(compileEmitter(asset), "burst and appearance modules compile");
+			if (!ok)
+				return false;
+
+			const ParticlePropertiesOffsetsLayout& properties = asset.compiled->particleProperties;
+			ok &= check(properties.hasColor && properties.hasSize && properties.hasEmissive,
+				"appearance offsets resolved");
+
+			ParticleSystemInstance system;
+			ParticleEmitterInstance& emitter = system.addEmitter(asset);
+			system.tick(1.0f / 60.0f);
+			{
+				const ParticleDataSet& set = emitter.renderDataSet();
+				ok &= check(set.num == 7, "burst spawns exactly Count particles");
+				ok &= check(*set.attr(properties.size, 0) == 3.0f, "size attribute written");
+				ok &= check(*set.attr(properties.emissive, 0) == 2.0f, "emissive attribute written");
+				ok &= check(*set.attr(properties.color + 1, 0) == 1.0f &&
+					*set.attr(properties.color + 2, 0) == 0.5f, "color attribute written");
+			}
+
+			system.tick(1.0f / 60.0f);
+			ok &= check(emitter.renderDataSet().num == 7, "one-shot burst does not repeat");
+			return ok;
+		}
+
 	}
 
 	bool ParticleSelfTest::runAll() {
@@ -458,6 +506,7 @@ namespace ve {
 		ok &= testModules();
 		ok &= testRuntime();
 		ok &= testNewModules();
+		ok &= testBurstAndAppearanceModules();
 		ok &= testMotionModules();
 		ok &= testShapeLocation();
 

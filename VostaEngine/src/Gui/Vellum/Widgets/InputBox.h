@@ -52,7 +52,7 @@ namespace ve::vellum {
 		void setOnSubmit(std::function<void(const std::string&)> fn) { m_onSubmit = std::move(fn); }
 
 		void arrange(const Rect& slot) override;
-		void paint(PaintContext& ctx) override;
+		void onPaint(PaintContext& ctx) override;
 
 		Reply onMouseDown(const glm::vec2& pos) override;
 

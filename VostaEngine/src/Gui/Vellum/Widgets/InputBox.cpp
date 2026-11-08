@@ -211,7 +211,7 @@ namespace ve::vellum {
 		updateCaretMetrics();
 	}
 
-	void InputBox::paint(PaintContext& ctx) {
+	void InputBox::onPaint(PaintContext& ctx) {
 		const Rect inner = innerRect();
 		if (m_bgTexture) {
 			// Pixel-art background: the focus accent is a tint, never a new border.

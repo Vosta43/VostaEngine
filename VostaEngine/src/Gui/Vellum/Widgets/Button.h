@@ -80,7 +80,7 @@ namespace ve::vellum {
         }
 
         void arrange(const Rect& slot) override;
-        void paint(PaintContext& ctx) override;
+        void onPaint(PaintContext& ctx) override;
         void tick(float dt) override;
 
         Reply onMouseDown(const glm::vec2& pos) override;

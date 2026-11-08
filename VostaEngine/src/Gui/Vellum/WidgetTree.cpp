@@ -51,7 +51,7 @@ namespace ve::vellum {
 
     void WidgetTree::frame(const glm::vec2& surfaceSize, const LayoutTransform& layout,
                            const InputFrame& input) {
-        if (!m_root || surfaceSize.x <= 0.0f || surfaceSize.y <= 0.0f) {
+        if (surfaceSize.x <= 0.0f || surfaceSize.y <= 0.0f) {
             m_tooltipSource = nullptr;
             m_tooltipVisible = false;
             return;
@@ -69,27 +69,51 @@ namespace ve::vellum {
             dt = glm::min(input.timeSeconds - m_lastTimeSeconds, 0.1f);
         m_lastTimeSeconds = input.timeSeconds;
 
-        // Two-pass layout: prepass bottom-up to cache desired sizes, then arrange
-        // top-down so every widget ends up with its final absolute rect. The root
-        // is pinned to the whole surface, matching how a view constrains its child.
-        m_root->prepass(layout.scale);
-        m_root->arrange({ { 0.0f, 0.0f }, m_logicalSize });
+        if (m_root) {
+            // Two-pass layout: prepass bottom-up to cache desired sizes, then arrange
+            // top-down so every widget ends up with its final absolute rect. The root
+            // is pinned to the whole surface, matching how a view constrains its child.
+            m_root->prepass(layout.scale);
+            m_root->arrange({ { 0.0f, 0.0f }, m_logicalSize });
 
-        // Rects are final now, so hit-testing is valid; route before painting so
-        // the state this frame's widgets read is already up to date. The router and
-        // every handler work in logical units, so the pointer is mapped once here.
-        InputFrame local = input;
-        local.pos = layout.toLogical(input.pos);
-        applyInput(local);
-        // After input: a hover state set above is what this frame's animation sees.
-        m_root->tick(dt);
-        updateTooltip(local);
+            // Rects are final now, so hit-testing is valid; route before painting so
+            // the state this frame's widgets read is already up to date. The router and
+            // every handler work in logical units, so the pointer is mapped once here.
+            InputFrame local = input;
+            local.pos = layout.toLogical(input.pos);
+            applyInput(local);
+            // After input: a hover state set above is what this frame's animation sees.
+            m_root->tick(dt);
+            updateTooltip(local);
+        }
+        else {
+            m_tooltipSource = nullptr;
+            m_tooltipVisible = false;
+        }
+
+        // The overlay is not part of the tree, so an empty tree still paints it.
+        if (!m_root && !m_overlay)
+            return;
 
         m_paint.beginFrame(m_logicalSize);
-        m_root->paint(m_paint);
-        paintTooltip();
+        if (m_root) {
+            m_root->paint(m_paint);
+            paintTooltip();
+        }
+        paintOverlay(dt);
 
         m_renderer.render(m_paint.list(), surfaceSize, layout);
+    }
+
+    void WidgetTree::paintOverlay(float dt) {
+        if (!m_overlay)
+            return;
+        // Laid out against the whole surface and painted after everything else, so
+        // a panel cannot cut it off and nothing in the tree can paint over it.
+        m_overlay->prepass(m_layout.scale);
+        m_overlay->arrange({ { 0.0f, 0.0f }, m_logicalSize });
+        m_overlay->tick(dt);
+        m_overlay->paint(m_paint);
     }
 
     bool WidgetTree::isInTree(const Widget* widget) const {

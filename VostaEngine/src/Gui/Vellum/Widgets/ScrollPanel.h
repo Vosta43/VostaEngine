@@ -18,7 +18,7 @@ namespace ve::vellum {
         float maxScrollOffset() const { return m_maxScroll; }
 
         void arrange(const Rect& slot) override;
-        void paint(PaintContext& ctx) override;
+        void onPaint(PaintContext& ctx) override;
 
         Reply onMouseWheel(float delta) override;
         bool canConsumeWheel() const override { return m_maxScroll > 0.0f; }

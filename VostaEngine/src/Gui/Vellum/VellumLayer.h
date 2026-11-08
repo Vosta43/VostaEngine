@@ -44,6 +44,13 @@ namespace ve::vellum {
         }
         Widget* root() const { return m_tree.root(); }
 
+        // A widget painted after the tree and its tooltip, laid out against the same
+        // design size and never hit-tested. It is not part of the tree, so it keeps
+        // painting across root swaps: a banner that outlives every screen's content.
+        // Null clears it.
+        void setOverlay(const Ref<Widget>& overlay) { m_tree.setOverlay(overlay); }
+        Widget* overlay() const { return m_tree.overlay(); }
+
         // Design resolution the tree lays out in. {0,0} (the default) keeps layout
         // in window pixels. When set, the root is arranged once at this size and the
         // whole UI is scaled and centred to fit the window, so resizing never

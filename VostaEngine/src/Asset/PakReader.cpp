@@ -2,9 +2,11 @@
 #include "Asset/PakReader.h"
 
 #include "Asset/PakFormat.h"
+#include "Asset/PakKey.h"
 #include "Core/Compression.h"
 
 #include "common/xxhash.h"
+#include "monocypher.h"
 
 #include <algorithm>
 #include <cstring>
@@ -91,6 +93,18 @@ namespace pak {
 			return true;
 		}
 
+		bool decrypt(const std::vector<uint8_t>& sealed, const uint8_t key[kKeySize],
+		             const std::vector<uint8_t>& aad, std::vector<uint8_t>& plain) {
+			if (sealed.size() < kSealOverhead) return false;
+			const size_t plainSize = sealed.size() - kSealOverhead;
+			plain.resize(plainSize);
+			const uint8_t* nonce = sealed.data();
+			const uint8_t* cipher = sealed.data() + kNonceSize;
+			const uint8_t* mac = cipher + plainSize;
+			return crypto_aead_unlock(plain.data(), mac, key, nonce,
+			                          aad.data(), aad.size(), cipher, plainSize) == 0;
+		}
+
 	} // namespace
 
 	Reader::~Reader() {
@@ -122,21 +136,38 @@ namespace pak {
 
 		Cursor footer(footerBytes, kFooterSize);
 		const uint8_t* magic = nullptr;
-		uint32_t version = 0, flags = 0, fileCount = 0, reserved = 0;
+		uint32_t version = 0, flags = 0, keyId = 0, fileCount = 0, reserved = 0;
 		uint64_t indexOffset = 0, indexSize = 0;
 		if (!footer.bytes(magic, sizeof(kMagic)) ||
 		    std::memcmp(magic, kMagic, sizeof(kMagic)) != 0) {
 			setError(error, "not a VEGPAK archive: " + path);
 			return false;
 		}
-		if (!footer.u32(version) || version != kFormatVersion) {
-			setError(error, "unsupported VEGPAK version: " + path);
-			return false;
-		}
-		if (!footer.u32(flags) || !footer.u64(indexOffset) || !footer.u64(indexSize) ||
-		    !footer.u32(fileCount) || !footer.u32(reserved) || !footer.atEnd()) {
+		if (!footer.u32(version)) {
 			setError(error, "corrupt archive footer: " + path);
 			return false;
+		}
+		if (version != kFormatVersion) {
+			setError(error, "unsupported VEGPAK version " + std::to_string(version) + ": " + path);
+			return false;
+		}
+		if (!footer.u32(flags) || !footer.u32(keyId) || !footer.u64(indexOffset) ||
+		    !footer.u64(indexSize) || !footer.u32(fileCount) || !footer.u32(reserved) ||
+		    !footer.atEnd()) {
+			setError(error, "corrupt archive footer: " + path);
+			return false;
+		}
+
+		const bool indexEncrypted   = (flags & kFooterIndexEncrypted) != 0;
+		const bool payloadEncrypted = (flags & kFooterPayloadEncrypted) != 0;
+		if (indexEncrypted || payloadEncrypted) {
+			if (!keyById(keyId, m_key)) {
+				setError(error, "archive needs content key #" + std::to_string(keyId) +
+				                ", which is not available: " + path);
+				return false;
+			}
+			m_keyId   = keyId;
+			m_haveKey = true;
 		}
 
 		const uint64_t contentLimit = static_cast<uint64_t>(fileSize) - kFooterSize;
@@ -145,12 +176,25 @@ namespace pak {
 			return false;
 		}
 
-		std::vector<uint8_t> index(static_cast<size_t>(indexSize));
+		std::vector<uint8_t> storedIndex(static_cast<size_t>(indexSize));
 		file.seekg(static_cast<std::streamoff>(indexOffset), std::ios::beg);
-		file.read(reinterpret_cast<char*>(index.data()), static_cast<std::streamsize>(index.size()));
-		if (static_cast<size_t>(file.gcount()) != index.size()) {
+		file.read(reinterpret_cast<char*>(storedIndex.data()),
+		          static_cast<std::streamsize>(storedIndex.size()));
+		if (static_cast<size_t>(file.gcount()) != storedIndex.size()) {
 			setError(error, "cannot read the archive index: " + path);
 			return false;
+		}
+
+		std::vector<uint8_t> index;
+		if (indexEncrypted) {
+			const std::vector<uint8_t> aad = indexAad(indexOffset, fileCount);
+			if (!decrypt(storedIndex, m_key, aad, index) || index.size() < 4) {
+				setError(error, "cannot decrypt the archive index (wrong content key or "
+				                "corrupt file): " + path);
+				return false;
+			}
+		} else {
+			index = std::move(storedIndex);
 		}
 
 		Cursor cursor(index.data(), index.size());
@@ -179,6 +223,12 @@ namespace pak {
 				setError(error, "corrupt archive entry '" + entryPath + "'");
 				return false;
 			}
+			const bool entryEncrypted = (entryFlags & kEntryEncrypted) != 0;
+			if (entryEncrypted && !m_haveKey) {
+				setError(error, "entry '" + entryPath + "' is encrypted but the content "
+				                "key is unavailable");
+				return false;
+			}
 
 			const uint64_t expectedChunks = rawSize / chunkSize +
 			                                (rawSize % chunkSize != 0 ? 1 : 0);
@@ -193,6 +243,7 @@ namespace pak {
 				return false;
 			}
 
+			entry.path       = entryPath;
 			entry.rawSize    = rawSize;
 			entry.dataOffset = dataOffset;
 			entry.chunkSize  = chunkSize;
@@ -221,8 +272,10 @@ namespace pak {
 					setError(error, "unknown compression method in '" + entryPath + "'");
 					return false;
 				}
+				if (entryEncrypted) limit += kSealOverhead;
 
-				if (rawChunk == 0 || storedSize == 0 || storedSize > limit) {
+				if (rawChunk == 0 || storedSize == 0 || storedSize > limit ||
+				    (entryEncrypted && storedSize <= kSealOverhead)) {
 					setError(error, "corrupt chunk in '" + entryPath + "'");
 					return false;
 				}
@@ -259,7 +312,10 @@ namespace pak {
 		m_file.close();
 		m_entries.clear();
 		m_path.clear();
-		m_open = false;
+		crypto_wipe(m_key, sizeof(m_key));
+		m_keyId   = 0;
+		m_haveKey = false;
+		m_open    = false;
 	}
 
 	const Reader::Entry* Reader::find(const std::string& path) const {
@@ -395,6 +451,17 @@ namespace pak {
 		}
 
 		const uint64_t rawSize = entry.chunkRawSize(index);
+		if ((entry.flags & kEntryEncrypted) != 0) {
+			const std::vector<uint8_t> aad = chunkAad(entry.path, index, rawSize);
+			std::vector<uint8_t> plain;
+			if (!decrypt(stored, m_key, aad, plain)) {
+				setError(error, "cannot decrypt '" + entry.path + "' (wrong content key "
+				                "or corrupt data)");
+				return false;
+			}
+			stored = std::move(plain);
+		}
+
 		if (chunk.method == static_cast<uint8_t>(Method::Stored)) {
 			if (stored.size() != rawSize) {
 				setError(error, "stored chunk size mismatch");

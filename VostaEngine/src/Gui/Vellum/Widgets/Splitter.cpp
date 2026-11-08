@@ -20,7 +20,7 @@ namespace ve::vellum {
 		// The owner reaches the protected invalidateDesiredSize() through this.
 		void refreshDesiredSize() { invalidateDesiredSize(); }
 
-		void paint(PaintContext& ctx) override {
+		void onPaint(PaintContext& ctx) override {
 			const glm::vec4& color = isPressed() ? m_owner.m_handlePressedColor
 				: isHovered() ? m_owner.m_handleHoverColor
 				: m_owner.m_handleColor;
@@ -171,11 +171,11 @@ namespace ve::vellum {
 		}
 	}
 
-	void Splitter::paint(PaintContext& ctx) {
+	void Splitter::onPaint(PaintContext& ctx) {
 		// Slots are clipped to the splitter so an over-constrained layout (minimums
 		// summing past the available space) cannot bleed over its neighbours.
 		ctx.pushClip(m_rect);
-		Widget::paint(ctx);
+		Widget::onPaint(ctx);
 		ctx.popClip();
 	}
 

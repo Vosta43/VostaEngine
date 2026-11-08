@@ -111,7 +111,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;$(VostaEngineDir)thirdparty\miniaudio-master;$(VostaEngineDir)thirdparty\stb_vorbis;$(VostaEngineDir)thirdparty\zstd-dev\lib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;$(VostaEngineDir)thirdparty\miniaudio-master;$(VostaEngineDir)thirdparty\stb_vorbis;$(VostaEngineDir)thirdparty\zstd-dev\lib;$(VostaEngineDir)thirdparty\Monocypher;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>vepch.h</PrecompiledHeaderFile>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
@@ -135,7 +135,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;$(VostaEngineDir)thirdparty\miniaudio-master;$(VostaEngineDir)thirdparty\stb_vorbis;$(VostaEngineDir)thirdparty\zstd-dev\lib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;$(VostaEngineDir)thirdparty\miniaudio-master;$(VostaEngineDir)thirdparty\stb_vorbis;$(VostaEngineDir)thirdparty\zstd-dev\lib;$(VostaEngineDir)thirdparty\Monocypher;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>vepch.h</PrecompiledHeaderFile>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
@@ -153,6 +153,7 @@
     <ClCompile Include="src\Asset\AssetLibrary.cpp" />
     <ClCompile Include="src\Asset\BuiltinReousrces.cpp" />
     <ClCompile Include="src\Asset\ImportManager.cpp" />
+    <ClCompile Include="src\Asset\PakKey.cpp" />
     <ClCompile Include="src\Asset\PakReader.cpp" />
     <ClCompile Include="src\Asset\StaticMeshImporter.cpp" />
     <ClCompile Include="src\Asset\TextureImporter.cpp" />
@@ -214,6 +215,7 @@
     <ClCompile Include="src\Graph\NodeGraph.cpp" />
     <ClCompile Include="src\Gui\Gui.cpp" />
     <ClCompile Include="src\Gui\UIRenderTarget.cpp" />
+    <ClCompile Include="src\Gui\Vellum\Core\Curve.cpp" />
     <ClCompile Include="src\Gui\Vellum\Core\Widget.cpp" />
     <ClCompile Include="src\Gui\Vellum\Text\Font.cpp" />
     <ClCompile Include="src\Gui\Vellum\Text\FontAtlas.cpp" />
@@ -371,6 +373,9 @@
     <ClCompile Include="thirdparty\ufbx\ufbx.c">
       <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="thirdparty\Monocypher\monocypher.c">
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="thirdparty\zstd-dev\lib\common\debug.c">
       <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -456,7 +461,9 @@
   <ItemGroup>
     <ClInclude Include="src\Asset\AssetAuthoring.h" />
     <ClInclude Include="src\Asset\PakFormat.h" />
+    <ClInclude Include="src\Asset\PakKey.h" />
     <ClInclude Include="src\Asset\PakReader.h" />
+    <ClInclude Include="thirdparty\Monocypher\monocypher.h" />
     <ClInclude Include="src\Build\Packager.h" />
     <ClInclude Include="src\Build\PakWriter.h" />
     <ClInclude Include="src\Particle\AttributeRegistry.h" />
@@ -535,7 +542,9 @@
     <ClInclude Include="src\Gui\Gui.h" />
     <ClInclude Include="src\Gui\UIRenderTarget.h" />
     <ClInclude Include="src\Gui\Vellum\Core\Animated.h" />
+    <ClInclude Include="src\Gui\Vellum\Core\Curve.h" />
     <ClInclude Include="src\Gui\Vellum\Core\DrawList.h" />
+    <ClInclude Include="src\Gui\Vellum\Core\Easing.h" />
     <ClInclude Include="src\Gui\Vellum\Core\InputFrame.h" />
     <ClInclude Include="src\Gui\Vellum\Core\Layout.h" />
     <ClInclude Include="src\Gui\Vellum\Core\PaintContext.h" />

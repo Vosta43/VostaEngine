@@ -70,10 +70,13 @@ namespace ve::builtin {
 			builder.storeAttr("Position", builder.add(position, builder.mul(velocity, dt)));
 		}
 
-		// SpawnRate reads SpawnCarry before writing it, so the attribute has to exist in the
-		// emitter layout before EmitterUpdate compiles; this module declares it once per activation.
+		// SpawnRate and SpawnBurst read their carry attributes before writing them, so the
+		// attributes have to exist in the emitter layout before EmitterUpdate compiles;
+		// this module declares them once per activation.
 		void initEmitterEmit(ProgramBuilder& builder, const ModuleEntry&) {
 			builder.storeAttr("SpawnCarry", builder.imm(0.0f));
+			builder.storeAttr("BurstCarry", builder.imm(0.0f));
+			builder.storeAttr("BurstFired", builder.imm(0.0f));
 		}
 
 		void initParticleEmit(ProgramBuilder& builder, const ModuleEntry&) {
@@ -231,6 +234,48 @@ namespace ve::builtin {
 			builder.storeAttr("SpawnInfo0.InterpStartDt", builder.imm(0.0f));
 			builder.storeAttr("SpawnInfo0.IntervalDt", builder.div(dt, builder.max(count, builder.imm(1.0f))));
 			builder.storeAttr("SpawnInfo0.SpawnGroup", builder.imm(0.0f));
+		}
+
+		// Count > 0 with Interval <= 0 emits one burst on the first update tick.
+		// Interval > 0 repeats the burst every Interval seconds. Uses slot 1 so a
+		// SpawnRate can run in the same emitter without overwriting the burst.
+		void spawnBurstEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
+			const Reg count = builder.param(entry, "Count");
+			const Reg interval = builder.param(entry, "Interval");
+			const Reg dt = builder.implicit(Implicit::Dt);
+
+			const Reg carry = builder.loadAttr("BurstCarry");
+			const Reg total = builder.add(carry, dt);
+			const Reg repeated = builder.less(interval, total);
+			const Reg repeating = builder.less(builder.imm(0.0f), interval);
+			const Reg firedOnce = builder.less(builder.loadAttr("BurstFired"), builder.imm(0.5f));
+
+			// fired = repeating ? repeated : firedOnce
+			const Reg oneShot = builder.mul(builder.sub(builder.imm(1.0f), repeating), firedOnce);
+			const Reg fired = builder.add(builder.mul(repeating, repeated), oneShot);
+
+			builder.storeAttr("BurstFired", builder.imm(1.0f));
+			builder.storeAttr("BurstCarry", builder.sub(total, builder.mul(interval, repeated)));
+			builder.storeAttr("SpawnInfo1.Count", builder.mul(count, fired));
+			builder.storeAttr("SpawnInfo1.InterpStartDt", builder.imm(0.0f));
+			builder.storeAttr("SpawnInfo1.IntervalDt", builder.imm(0.0f));
+			builder.storeAttr("SpawnInfo1.SpawnGroup", builder.imm(0.0f));
+		}
+
+		void initColorEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
+			builder.storeAttr("Color", builder.param(entry, "Color"));
+		}
+
+		void initEmissiveEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
+			builder.storeAttr("Emissive", builder.param(entry, "Emissive"));
+		}
+
+		void initSizeRangeEmit(ProgramBuilder& builder, const ModuleEntry& entry) {
+			const Reg minSize = builder.param(entry, "Min");
+			const Reg maxSize = builder.param(entry, "Max");
+			const Reg t = builder.random(builder.implicit(Implicit::SpawnRandom), 14);
+
+			builder.storeAttr("Size", builder.add(minSize, builder.mul(builder.sub(maxSize, minSize), t)));
 		}
 
 		// Every velocity module integrates Position, matching Gravity and the other
@@ -394,10 +439,36 @@ namespace ve::builtin {
 			&lifetimeRangeEmit
 		};
 
+		const ModuleAsset kInitColor = {
+			"InitColor", 1, stageBit(Stage::ParticleSpawn),
+			{ { "Color", { 1.0f, 1.0f, 1.0f, 1.0f }, 4 } },
+			&initColorEmit
+		};
+
+		const ModuleAsset kInitEmissive = {
+			"InitEmissive", 1, stageBit(Stage::ParticleSpawn),
+			{ { "Emissive", { 0.0f, 0.0f, 0.0f, 0.0f }, 1 } },
+			&initEmissiveEmit
+		};
+
+		const ModuleAsset kInitSizeRange = {
+			"InitSizeRange", 1, stageBit(Stage::ParticleSpawn),
+			{ { "Min", { 10.0f, 0.0f, 0.0f, 0.0f }, 1 },
+			  { "Max", { 20.0f, 0.0f, 0.0f, 0.0f }, 1 } },
+			&initSizeRangeEmit
+		};
+
 		const ModuleAsset kSpawnRate = {
 			"SpawnRate", 1, stageBit(Stage::EmitterUpdate),
 			{ { "Rate", { 100.0f, 0.0f, 0.0f, 0.0f }, 1 } },
 			&spawnRateEmit
+		};
+
+		const ModuleAsset kSpawnBurst = {
+			"SpawnBurst", 1, stageBit(Stage::EmitterUpdate),
+			{ { "Count", { 10.0f, 0.0f, 0.0f, 0.0f }, 1 },
+			  { "Interval", { 0.0f, 0.0f, 0.0f, 0.0f }, 1 } },
+			&spawnBurstEmit
 		};
 
 		const ModuleAsset kLifetime = {
@@ -452,7 +523,11 @@ namespace ve::builtin {
 	const ModuleAsset& shapeRing() { return kShapeRing; }
 	const ModuleAsset& initialVelocity() { return kInitialVelocity; }
 	const ModuleAsset& lifetimeRange() { return kLifetimeRange; }
+	const ModuleAsset& initColor() { return kInitColor; }
+	const ModuleAsset& initEmissive() { return kInitEmissive; }
+	const ModuleAsset& initSizeRange() { return kInitSizeRange; }
 	const ModuleAsset& spawnRate() { return kSpawnRate; }
+	const ModuleAsset& spawnBurst() { return kSpawnBurst; }
 	const ModuleAsset& lifetime() { return kLifetime; }
 	const ModuleAsset& drag() { return kDrag; }
 	const ModuleAsset& speedLimit() { return kSpeedLimit; }
@@ -462,9 +537,9 @@ namespace ve::builtin {
 
 	const std::vector<const ModuleAsset*>& builtinModules() {
 		static const std::vector<const ModuleAsset*> modules = {
-			&kInitEmitter, &kSpawnRate, &kInitParticle,
+			&kInitEmitter, &kSpawnRate, &kSpawnBurst, &kInitParticle,
 			&kShapeLocation, &kShapeBox, &kShapeDisc, &kShapeCone, &kShapeRing,
-			&kInitialVelocity, &kLifetimeRange,
+			&kInitialVelocity, &kLifetimeRange, &kInitColor, &kInitEmissive, &kInitSizeRange,
 			&kGravity, &kLinearForce, &kPointForce, &kLifetime,
 			&kDrag, &kSpeedLimit, &kVortex, &kKillSphere, &kKillBox
 		};

@@ -148,6 +148,7 @@ set(ENGINE_SOURCES
     src/Asset/AssetLibrary.cpp
     src/Asset/BuiltinReousrces.cpp
     src/Asset/ImportManager.cpp
+    src/Asset/PakKey.cpp
     src/Asset/PakReader.cpp
     src/Asset/StaticMeshImporter.cpp
     src/Asset/TextureImporter.cpp
@@ -179,6 +180,7 @@ set(ENGINE_SOURCES
     src/Gui/UIRenderTarget.cpp
 
     # Vellum (retained-mode UI)
+    src/Gui/Vellum/Core/Curve.cpp
     src/Gui/Vellum/Core/Widget.cpp
     src/Gui/Vellum/Text/Font.cpp
     src/Gui/Vellum/Text/FontAtlas.cpp
@@ -232,6 +234,7 @@ set(ENGINE_SOURCES
     thirdparty/stb_truetype/stb_truetype.cpp
     thirdparty/stb_vorbis/stb_vorbis.c
     thirdparty/ufbx/ufbx.c
+    thirdparty/Monocypher/monocypher.c
     # zstd: compression only for the packager (no dictBuilder / legacy)
     thirdparty/zstd-dev/lib/common/debug.c
     thirdparty/zstd-dev/lib/common/entropy_common.c
@@ -332,6 +335,7 @@ target_include_directories(VostaEngine
         ${ENGINE_ROOT}/thirdparty/miniaudio-master
         ${ENGINE_ROOT}/thirdparty/stb_vorbis
         ${ENGINE_ROOT}/thirdparty/zstd-dev/lib
+        ${ENGINE_ROOT}/thirdparty/Monocypher
 )
 
 # ── GLFW (pre-built binary, vendored) ───────────────────────────────────
@@ -384,6 +388,7 @@ set_source_files_properties(
 # ufbx.c 保持 C 编译，同样跳过预编译头
 set_source_files_properties(
     thirdparty/ufbx/ufbx.c
+    thirdparty/Monocypher/monocypher.c
     PROPERTIES
         SKIP_PRECOMPILE_HEADERS ON
 )

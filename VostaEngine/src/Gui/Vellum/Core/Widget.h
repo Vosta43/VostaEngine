@@ -39,8 +39,9 @@ public:
 	// final absolute rect.
 	virtual void arrange(const Rect& slot) = 0;
 
-	// Default recurses children; leaves override to draw themselves.
-	virtual void paint(PaintContext& ctx);
+	// Applies this widget's render state, paints it, then restores. Not virtual:
+	// subclasses draw in onPaint(), so opacity and transform cover the subtree.
+	void paint(PaintContext& ctx);
 
 	// Per-frame animation step, in seconds. The tree drives it after routing input
 	// and before painting, so a state change made this frame animates this frame.
@@ -72,11 +73,24 @@ public:
 	bool containsPoint(const glm::vec2& p) const;
 
 	// Hit-testing switch, independent of paint visibility. A container that hides
-	// its child by skipping paint (HudGroup) still has that child in the routed
-	// tree, so the child would keep swallowing hover and clicks; turning this off
-	// removes it from the hover path without dropping its layout.
+	// its child by skipping paint still has that child in the routed tree, so the
+	// child would keep swallowing hover and clicks; turning this off removes it
+	// from the hover path without dropping its layout.
 	void setHitTestVisible(bool visible) { m_hitTestVisible = visible; }
 	bool isHitTestVisible() const { return m_hitTestVisible; }
+
+	// Render channels. Painting only: layout and hit-testing keep using the
+	// arranged rect, as in Slate, so an animation never moves the click area.
+	void setRenderTransform(const glm::vec2& translation, float rotationRad = 0.0f,
+	                        const glm::vec2& scale = glm::vec2(1.0f),
+	                        const glm::vec2& pivot01 = glm::vec2(0.0f));
+	void clearRenderTransform();
+	void setRenderOpacity(float opacity);
+	float renderOpacity() const { return m_opacity; }
+
+	// False skips painting and hit-testing but keeps the arranged slot.
+	void setVisible(bool visible) { m_visible = visible; }
+	bool visible() const { return m_visible; }
 
 	// Router-owned interaction state; widgets read it to pick their visual state.
 	bool isHovered() const { return m_hovered; }
@@ -102,6 +116,9 @@ public:
 	virtual void onBlur();
 
 protected:
+	// Draws this widget. The default recurses children; leaves override.
+	virtual void onPaint(PaintContext& ctx);
+
 	// Intrinsic size derived from the children's desiredSize(). Runs after the
 	// children were prepped and before any arrange(), so it must not read m_rect.
 	virtual glm::vec2 computeDesiredSize() const = 0;
@@ -125,6 +142,14 @@ private:
 	glm::vec2 m_desiredSize{ 0.0f };              // cache, filled by prepass()
 	bool      m_desiredSizeValid = false;
 	float     m_layoutScale = 1.0f;               // logical -> physical, from prepass()
+
+	bool      m_visible = true;
+	float     m_opacity = 1.0f;
+	bool      m_hasRenderTransform = false;
+	glm::vec2 m_translation{ 0.0f };
+	glm::vec2 m_scale{ 1.0f };
+	glm::vec2 m_pivot01{ 0.0f };
+	float     m_rotation = 0.0f;
 };
 
 }

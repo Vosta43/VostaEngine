@@ -67,7 +67,7 @@ namespace ve::vellum {
 		m_rect = { slot.pos, { cols * cell, rows * cell } };
 	}
 
-	void NineGridImage::paint(PaintContext& ctx) {
+	void NineGridImage::onPaint(PaintContext& ctx) {
 		if (!m_hasTexture)
 			return;
 
@@ -92,7 +92,7 @@ namespace ve::vellum {
 			}
 		}
 
-		Widget::paint(ctx);
+		Widget::onPaint(ctx);
 	}
 
 }

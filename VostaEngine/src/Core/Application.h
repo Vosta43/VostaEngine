@@ -49,6 +49,10 @@ namespace ve {
         GuiLayer* getGuiLayer();
         vellum::VellumLayer* getVellumLayer();
 
+        // Drops the Vellum tree a gameplay module installed. Hosts call it before
+        // unloading the module: widget vtables and callbacks may live in its DLL.
+        void clearGameUi();
+
     private:
         void pollProfilerHotkey();
 

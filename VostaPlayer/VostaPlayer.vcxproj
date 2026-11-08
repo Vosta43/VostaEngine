@@ -74,6 +74,11 @@
     <LocalDebuggerWorkingDirectory>$(VostaRepoRoot)</LocalDebuggerWorkingDirectory>
     <LocalDebuggerEnvironment>VOSTA_ENGINE_ROOT=$(VostaRepoRoot)</LocalDebuggerEnvironment>
   </PropertyGroup>
+  <!-- Pinned so a solution build (SolutionDir = VostaEngine\) and the SDK's
+       direct ProjectReference build land in the same folder the SDK copies from. -->
+  <PropertyGroup>
+    <OutDir>$(VostaEngineDir)$(Platform)\$(Configuration)\</OutDir>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>

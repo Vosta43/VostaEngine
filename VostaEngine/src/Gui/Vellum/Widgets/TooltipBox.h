@@ -31,7 +31,7 @@ namespace ve::vellum {
 		void setTextColor(const glm::vec4& color);
 
 		void arrange(const Rect& slot) override;
-		void paint(PaintContext& ctx) override;
+		void onPaint(PaintContext& ctx) override;
 
 	protected:
 		glm::vec2 computeDesiredSize() const override;

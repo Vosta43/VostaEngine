@@ -64,6 +64,7 @@
 #include "src/Gui/UIRenderTarget.h"
 #include "src/Gui/Vellum/VellumLayer.h"
 #include "src/Gui/Vellum/Core/Animated.h"
+#include "src/Gui/Vellum/Core/Curve.h"
 #include "src/Gui/Vellum/WidgetTree.h"
 #include "src/Gui/Vellum/Widgets/ColoredBox.h"
 #include "src/Gui/Vellum/Widgets/Column.h"

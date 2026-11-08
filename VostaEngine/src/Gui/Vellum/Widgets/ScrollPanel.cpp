@@ -54,11 +54,11 @@ namespace ve::vellum {
         });
     }
 
-    void ScrollPanel::paint(PaintContext& ctx) {
+    void ScrollPanel::onPaint(PaintContext& ctx) {
         ctx.pushClip(m_rect);
         if (m_background.a > 0.0f)
             ctx.fillRect(m_rect, m_background);
-        Widget::paint(ctx);
+        Widget::onPaint(ctx);
         ctx.popClip();
     }
 

@@ -29,7 +29,7 @@ namespace ve::vellum {
 		bool hasTexture() const { return m_hasTexture; }
 
 		void arrange(const Rect& slot) override;
-		void paint(PaintContext& ctx) override;
+		void onPaint(PaintContext& ctx) override;
 
 	protected:
 		glm::vec2 computeDesiredSize() const override;

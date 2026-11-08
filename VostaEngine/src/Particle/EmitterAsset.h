@@ -50,9 +50,15 @@ namespace ve {
 		uint16_t age = 0;
 		uint16_t lifetime = 0;
 		uint16_t subUVIndex = 0;
+		uint16_t size = 0;
+		uint16_t color = 0;
+		uint16_t emissive = 0;
 		bool valid = false;
 		bool hasFade = false;
 		bool hasSubUVIndex = false;
+		bool hasSize = false;
+		bool hasColor = false;
+		bool hasEmissive = false;
 	};
 
 	struct EmitterCompiled {

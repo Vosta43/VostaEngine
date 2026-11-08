@@ -11,12 +11,12 @@ namespace ve {
 // runs by double-clicking <name>.exe -- the player, the engine runtime and its
 // resources, the project's content, and, when the project has one, a Release
 // gameplay module.
-// How the payload is laid out in the output folder. Encryption is the remaining
-// unimplemented mode, refused by name rather than silently writing plain data.
+// How the payload is laid out in the output folder. PakEncrypted seals with the
+// content key the runtime already carries, so the package runs without asking.
 enum class PackMode {
     Loose,          // files copied as they are
     Pak,            // archived into a single package file
-    PakEncrypted,   // archived and encrypted
+    PakEncrypted,   // archived, chunks and index sealed
 };
 
 struct PackageOptions {

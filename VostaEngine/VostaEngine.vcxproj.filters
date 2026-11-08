@@ -54,6 +54,9 @@
     <ClCompile Include="src\Gui\UIRenderTarget.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Gui\Vellum\Core\Curve.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Gui\Vellum\Core\Widget.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -192,6 +195,9 @@
     <ClCompile Include="src\Build\PakWriter.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Asset\PakKey.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Asset\PakReader.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -262,6 +268,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="thirdparty\ufbx\ufbx.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\Monocypher\monocypher.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="thirdparty\zstd-dev\lib\common\debug.c">
@@ -731,7 +740,13 @@
     <ClInclude Include="src\Gui\Vellum\Core\Animated.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Core\Curve.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Gui\Vellum\Core\DrawList.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Gui\Vellum\Core\Easing.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Gui\Vellum\Core\InputFrame.h">
@@ -909,6 +924,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Asset\PakFormat.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Asset\PakKey.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\Monocypher\monocypher.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Platform\Process.h">

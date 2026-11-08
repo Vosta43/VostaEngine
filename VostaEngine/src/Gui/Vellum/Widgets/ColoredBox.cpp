@@ -24,9 +24,9 @@ void ColoredBox::arrange(const Rect& slot) {
 	m_rect = slot;
 }
 
-void ColoredBox::paint(PaintContext& ctx) {
+void ColoredBox::onPaint(PaintContext& ctx) {
 	ctx.fillRect(m_rect, m_color);
-	Widget::paint(ctx);  // children (if any) draw on top
+	Widget::onPaint(ctx);  // children (if any) draw on top
 }
 
 }

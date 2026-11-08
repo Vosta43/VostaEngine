@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Asset/PakFormat.h"
+
 #include <cstdint>
 #include <fstream>
 #include <mutex>
@@ -14,6 +16,10 @@ namespace pak {
 // is decompressed per 64 KiB chunk so random access only pays for the chunks it
 // touches. Methods are const and internally serialised: one Reader can be shared
 // across loading threads.
+//
+// An encrypted archive resolves its content key through the key ring by the id
+// recorded in the footer. A missing or wrong key is a clean open/read failure;
+// there is no fallback to reading sealed bytes as plaintext.
 class Reader {
 public:
 	Reader() = default;
@@ -46,6 +52,7 @@ private:
 	};
 
 	struct Entry {
+		std::string path;  // stored key, bound into every chunk's associated data
 		uint64_t rawSize = 0;
 		uint64_t dataOffset = 0;
 		uint32_t chunkSize = 0;
@@ -71,6 +78,9 @@ private:
 	mutable std::mutex m_mutex;
 	std::unordered_map<std::string, Entry> m_entries;
 	std::string m_path;
+	uint8_t  m_key[kKeySize] = {};
+	uint32_t m_keyId = 0;
+	bool m_haveKey = false;
 	bool m_open = false;
 };
 

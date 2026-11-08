@@ -23,6 +23,10 @@ struct VE_API ProjectInfo {
     std::string defaultScene;   // project-relative, may be empty
     Presentation presentation = Presentation::Scene;
     std::string version;        // optional; names the package folder and build.json
+    // Scene-presentation render pipeline, as an asset path ("content/..." is
+    // project-local). Empty means the engine default; a menu/launcher project
+    // points it at a leaner pipeline than the full deferred one.
+    std::string pipeline;
 
     // What a packaged build carries, from project.json's "package" block.
     // Entries are project-relative files or folders; empty include means the

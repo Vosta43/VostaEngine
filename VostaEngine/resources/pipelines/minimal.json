@@ -1,0 +1,37 @@
+{
+  "shaders": [
+    { "name": "gbuffer",     "path": "VostaEngine/resources/shaders/gbuffer.glsl" },
+    { "name": "postprocess", "path": "VostaEngine/resources/shaders/postprocess.glsl" },
+    { "name": "screen",      "path": "VostaEngine/resources/shaders/screen.glsl" }
+  ],
+
+  "framebuffers": [
+    {
+      "name": "gbuffer",
+      "depth": true,
+      "attachments": [ { "slot": 0, "internalFormat": "RGBA8" } ]
+    },
+    {
+      "name": "post",
+      "attachments": [ { "slot": 0, "internalFormat": "RGBA8" } ]
+    }
+  ],
+
+  "passes": [
+    { "name": "gbuffer", "type": "gbuffer", "target": "gbuffer", "shader": "gbuffer" },
+
+    {
+      "name": "post", "type": "post", "target": "post", "shader": "postprocess",
+      "inputs": [
+        { "uniform": "u_HDRColor", "unit": 0, "source": "gbuffer", "attachment": 0 }
+      ]
+    },
+
+    {
+      "name": "present", "type": "present", "target": "@default", "shader": "screen",
+      "inputs": [
+        { "uniform": "u_ScreenTexture", "unit": 0, "source": "post" }
+      ]
+    }
+  ]
+}

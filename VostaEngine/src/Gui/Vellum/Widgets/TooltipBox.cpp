@@ -60,7 +60,7 @@ namespace ve::vellum {
 		m_text->arrange({ pos + glm::vec2(kBorder) + m_padding, m_text->desiredSize() });
 	}
 
-	void TooltipBox::paint(PaintContext& ctx) {
+	void TooltipBox::onPaint(PaintContext& ctx) {
 		if (m_rect.size.x <= 0.0f || m_rect.size.y <= 0.0f)
 			return;
 
@@ -72,7 +72,7 @@ namespace ve::vellum {
 		ctx.fillRect({ { p.x, p.y }, { kBorder, s.y } }, m_border);
 		ctx.fillRect({ { p.x + s.x - kBorder, p.y }, { kBorder, s.y } }, m_border);
 
-		Widget::paint(ctx);
+		Widget::onPaint(ctx);
 	}
 
 }

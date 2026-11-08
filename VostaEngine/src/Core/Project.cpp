@@ -321,6 +321,7 @@ bool open(const std::string& projectDir, ProjectInfo& out) {
     out.presentation = haveMeta ? parsePresentation(r.getString("presentation", "scene"))
                                 : Presentation::Scene;
     out.version      = haveMeta ? r.getString("version", "") : "";
+    out.pipeline     = haveMeta ? r.getString("pipeline", "") : "";
     if (haveMeta) {
         const JsonReader pkg = r.child("package");
         readPackageList(pkg, "include", out.packageInclude);
@@ -344,6 +345,7 @@ bool save(const ProjectInfo& info) {
     w.set("defaultScene", info.defaultScene);
     w.set("presentation", presentationName(info.presentation));
     if (!info.version.empty()) w.set("version", info.version);
+    if (!info.pipeline.empty()) w.set("pipeline", info.pipeline);
     // The package block is authored by hand, so it has to survive a rewrite from
     // the editor (an unsaved field would silently drop the project's layout).
     if (!info.packageInclude.empty() || !info.packageExclude.empty()) {

@@ -57,7 +57,7 @@ namespace ve::vellum {
 		void tick(float dt) override;
 
 		void arrange(const Rect& slot) override;
-		void paint(PaintContext& ctx) override;
+		void onPaint(PaintContext& ctx) override;
 
 	protected:
 		glm::vec2 computeDesiredSize() const override;

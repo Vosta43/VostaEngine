@@ -32,7 +32,7 @@ namespace ve::vellum {
 		void setHandlePressedColor(const glm::vec4& color) { m_handlePressedColor = color; }
 
 		void arrange(const Rect& slot) override;
-		void paint(PaintContext& ctx) override;
+		void onPaint(PaintContext& ctx) override;
 
 	protected:
 		glm::vec2 computeDesiredSize() const override;

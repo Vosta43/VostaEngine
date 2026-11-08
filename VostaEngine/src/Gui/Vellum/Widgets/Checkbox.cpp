@@ -33,7 +33,7 @@ namespace ve::vellum {
 		Widget::tick(dt);
 	}
 
-	void Checkbox::paint(PaintContext& ctx) {
+	void Checkbox::onPaint(PaintContext& ctx) {
 		TextureId texture = m_value ? m_style.onTexture : m_style.offTexture;
 		if (texture == 0)
 			texture = m_value ? m_style.offTexture : m_style.onTexture;
@@ -42,7 +42,7 @@ namespace ve::vellum {
 		tint = glm::mix(tint, m_style.pressedTint, m_pressAnim.value);
 		ctx.drawQuad(m_rect, glm::vec2(0.0f), glm::vec2(1.0f), texture, tint);
 
-		Widget::paint(ctx);
+		Widget::onPaint(ctx);
 	}
 
 	Reply Checkbox::onMouseDown(const glm::vec2&) {

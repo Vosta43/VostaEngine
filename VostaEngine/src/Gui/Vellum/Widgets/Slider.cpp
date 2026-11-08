@@ -45,7 +45,7 @@ namespace ve::vellum {
 		Widget::tick(dt);
 	}
 
-	void Slider::paint(PaintContext& ctx) {
+	void Slider::onPaint(PaintContext& ctx) {
 		glm::vec4 tint = glm::mix(m_style.normalTint, m_style.hoveredTint, m_hoverAnim.value);
 		tint = glm::mix(tint, m_style.pressedTint, m_pressAnim.value);
 
@@ -57,7 +57,7 @@ namespace ve::vellum {
 		ctx.drawQuad({ { knobX, knobY }, { knobSize, knobSize } },
 		             glm::vec2(0.0f), glm::vec2(1.0f), m_style.knobTexture, tint);
 
-		Widget::paint(ctx);
+		Widget::onPaint(ctx);
 	}
 
 	void Slider::applyDrag(float x) {

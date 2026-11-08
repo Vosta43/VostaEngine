@@ -2,9 +2,11 @@
 #include "Build/PakWriter.h"
 
 #include "Asset/PakFormat.h"
+#include "Asset/PakKey.h"
 #include "Core/Compression.h"
 
 #include "common/xxhash.h"
+#include "monocypher.h"
 
 #include <algorithm>
 #include <cstring>
@@ -47,6 +49,15 @@ namespace pak {
 
 	} // namespace
 
+	Writer::~Writer() {
+		wipeKey();
+	}
+
+	void Writer::wipeKey() {
+		crypto_wipe(m_key, sizeof(m_key));
+		m_encrypted = false;
+	}
+
 	bool Writer::open(const std::string& path, std::string* error) {
 		if (m_out.is_open()) {
 			setError(error, "archive is already open");
@@ -58,6 +69,25 @@ namespace pak {
 			setError(error, "cannot create " + path);
 			return false;
 		}
+		return true;
+	}
+
+	bool Writer::openEncrypted(const std::string& path, uint32_t keyId,
+	                           std::string* error) {
+		if (m_out.is_open()) {
+			setError(error, "archive is already open");
+			return false;
+		}
+		if (!keyById(keyId, m_key)) {
+			setError(error, "content key #" + std::to_string(keyId) + " is not available");
+			return false;
+		}
+		if (!open(path, error)) {
+			wipeKey();
+			return false;
+		}
+		m_keyId     = keyId;
+		m_encrypted = true;
 		return true;
 	}
 
@@ -92,6 +122,7 @@ namespace pak {
 		entry.path      = path;
 		entry.rawSize   = static_cast<uint64_t>(end);
 		entry.chunkSize = kChunkSize;
+		entry.flags     = m_encrypted ? kEntryEncrypted : 0;
 		const uint64_t chunkCount = entry.rawSize / kChunkSize +
 		                            (entry.rawSize % kChunkSize != 0 ? 1 : 0);
 		if (chunkCount > 0xFFFFFFFFull) {
@@ -115,6 +146,7 @@ namespace pak {
 
 		std::vector<uint8_t> raw(kChunkSize);
 		std::vector<uint8_t> compressed;
+		std::vector<uint8_t> sealed;
 		uint64_t remaining = entry.rawSize;
 		while (remaining > 0) {
 			const size_t n = static_cast<size_t>(std::min<uint64_t>(remaining, kChunkSize));
@@ -134,17 +166,35 @@ namespace pak {
 			}
 
 			Chunk chunk;
+			const uint8_t* payload = raw.data();
+			size_t payloadSize = n;
+			chunk.method = static_cast<uint8_t>(Method::Stored);
 			if (!compressed.empty() && compressed.size() < n) {
-				chunk.method     = static_cast<uint8_t>(Method::Zstd);
-				chunk.storedSize = static_cast<uint32_t>(compressed.size());
-				m_out.write(reinterpret_cast<const char*>(compressed.data()),
-				            static_cast<std::streamsize>(compressed.size()));
-			} else {
-				chunk.method     = static_cast<uint8_t>(Method::Stored);
-				chunk.storedSize = static_cast<uint32_t>(n);
-				m_out.write(reinterpret_cast<const char*>(raw.data()),
-				            static_cast<std::streamsize>(n));
+				payload     = compressed.data();
+				payloadSize = compressed.size();
+				chunk.method = static_cast<uint8_t>(Method::Zstd);
 			}
+
+			if (m_encrypted) {
+				const uint32_t chunkIndex = static_cast<uint32_t>(entry.chunks.size());
+				sealed.resize(kSealOverhead + payloadSize);
+				if (!randomBytes(sealed.data(), kNonceSize)) {
+					XXH64_freeState(hash);
+					setError(error, "the system random number generator failed");
+					return false;
+				}
+				const std::vector<uint8_t> aad = chunkAad(path, chunkIndex, n);
+				uint8_t* cipher = sealed.data() + kNonceSize;
+				uint8_t* mac    = cipher + payloadSize;
+				crypto_aead_lock(cipher, mac, m_key, sealed.data(),
+				                 aad.data(), aad.size(), payload, payloadSize);
+				payload     = sealed.data();
+				payloadSize = sealed.size();
+			}
+
+			chunk.storedSize = static_cast<uint32_t>(payloadSize);
+			m_out.write(reinterpret_cast<const char*>(payload),
+			            static_cast<std::streamsize>(payloadSize));
 			if (!m_out) {
 				XXH64_freeState(hash);
 				setError(error, "write failed for " + path);
@@ -177,38 +227,66 @@ namespace pak {
 			return false;
 		}
 
-		writeU32(m_out, static_cast<uint32_t>(m_entries.size()));
+		std::vector<uint8_t> index;
+		appendU32(index, static_cast<uint32_t>(m_entries.size()));
 		for (const Entry& entry : m_entries) {
-			writeString(m_out, entry.path);
-			writeU64(m_out, entry.rawSize);
-			writeU64(m_out, entry.dataOffset);
-			writeU32(m_out, entry.chunkSize);
-			writeU32(m_out, entry.chunkCount);
-			writeU8(m_out, entry.flags);
-			writeU64(m_out, entry.rawHash);
+			appendString(index, entry.path);
+			appendU64(index, entry.rawSize);
+			appendU64(index, entry.dataOffset);
+			appendU32(index, entry.chunkSize);
+			appendU32(index, entry.chunkCount);
+			appendU8(index, entry.flags);
+			appendU64(index, entry.rawHash);
 			for (const Chunk& chunk : entry.chunks) {
-				writeU32(m_out, chunk.storedSize);
-				writeU8(m_out, chunk.method);
-				writeU8(m_out, 0);
-				writeU8(m_out, 0);
-				writeU8(m_out, 0);
+				appendU32(index, chunk.storedSize);
+				appendU8(index, chunk.method);
+				appendU8(index, 0);
+				appendU8(index, 0);
+				appendU8(index, 0);
 			}
 		}
 
-		const std::streampos indexEnd = m_out.tellp();
-		if (indexEnd < indexOffset) {
-			setError(error, "cannot size the index");
+		const uint32_t fileCount = static_cast<uint32_t>(m_entries.size());
+		std::vector<uint8_t> storedIndex;
+		uint32_t footerFlags = 0;
+		if (m_encrypted) {
+			footerFlags = kFooterIndexEncrypted | kFooterPayloadEncrypted;
+			storedIndex.resize(kSealOverhead + index.size());
+			if (!randomBytes(storedIndex.data(), kNonceSize)) {
+				setError(error, "the system random number generator failed");
+				return false;
+			}
+			const std::vector<uint8_t> aad =
+				indexAad(static_cast<uint64_t>(static_cast<std::streamoff>(indexOffset)),
+				         fileCount);
+			uint8_t* cipher = storedIndex.data() + kNonceSize;
+			uint8_t* mac    = cipher + index.size();
+			crypto_aead_lock(cipher, mac, m_key, storedIndex.data(),
+			                 aad.data(), aad.size(), index.data(), index.size());
+		} else {
+			storedIndex = std::move(index);
+		}
+
+		m_out.write(reinterpret_cast<const char*>(storedIndex.data()),
+		            static_cast<std::streamsize>(storedIndex.size()));
+		if (!m_out) {
+			setError(error, "write failed while writing the index");
 			return false;
 		}
-		const uint64_t indexSize = static_cast<uint64_t>(indexEnd - indexOffset);
 
-		writeMagic(m_out);
-		writeU32(m_out, kFormatVersion);
-		writeU32(m_out, 0);  // flags: reserved for a compressed/encrypted index
-		writeU64(m_out, static_cast<uint64_t>(static_cast<std::streamoff>(indexOffset)));
-		writeU64(m_out, indexSize);
-		writeU32(m_out, static_cast<uint32_t>(m_entries.size()));
-		writeU32(m_out, 0);
+		std::vector<uint8_t> footer;
+		footer.reserve(kFooterSize);
+		footer.insert(footer.end(), kMagic, kMagic + sizeof(kMagic));
+		appendU32(footer, kFormatVersion);
+		appendU32(footer, footerFlags);
+		appendU32(footer, m_keyId);
+		appendU64(footer, static_cast<uint64_t>(static_cast<std::streamoff>(indexOffset)));
+		appendU64(footer, storedIndex.size());
+		appendU32(footer, fileCount);
+		appendU32(footer, 0);
+
+		m_out.write(reinterpret_cast<const char*>(footer.data()),
+		            static_cast<std::streamsize>(footer.size()));
 
 		m_out.flush();
 		if (!m_out) {
@@ -217,6 +295,7 @@ namespace pak {
 		}
 		m_out.close();
 		m_finished = true;
+		wipeKey();
 		return true;
 	}
 

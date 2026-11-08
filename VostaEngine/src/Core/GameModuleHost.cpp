@@ -241,6 +241,11 @@ namespace ve {
 				catch (...) {
 					VE_CORE_ERROR_PRINT("module threw during onUnload");
 				}
+
+				// Vellum widgets built by the module (and the callbacks they hold)
+				// dispatch through its DLL. Drop the engine's references while the
+				// module is still mapped, or teardown calls into freed code.
+				m_app->clearGameUi();
 			}
 
 			if (m_destroyFn)

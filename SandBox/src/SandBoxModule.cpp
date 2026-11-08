@@ -76,6 +76,7 @@ public:
 		startPreview(layer);
 		bindHud();
 		m_page = buildPage(layer);
+		setupAnimation();
 		layer->setRoot(m_page);
 	}
 
@@ -85,6 +86,7 @@ public:
 			if (auto* title = m_hud->text("Title"))
 				title->setText("HUD Document  " + std::to_string(static_cast<int>(m_elapsed)));
 		}
+		tickAnimation();
 		renderPreview(deltaTime);
 	}
 
@@ -184,6 +186,41 @@ private:
 			input->setOnSubmit([](const std::string& value) {
 				VE_CORE_INFO_PRINT("[SandBox] submitted '%s'", value.c_str());
 			});
+		}
+	}
+
+	void setupAnimation() {
+		m_intro = vl::CurveSequence(0.0f);
+		m_fadeCurve = m_intro.addCurve(0.00f, 0.25f, vl::Ease::CubicOut);
+		m_riseCurve = m_intro.addCurve(0.00f, 0.35f, vl::Ease::CubicOut);
+		m_popCurve = m_intro.addCurve(0.12f, 0.45f, vl::Ease::BackOut);
+		m_intro.play(m_elapsed);
+
+		m_loop = vl::CurveSequence(0.9f);
+		m_loopCurve = m_loop.addCurve(0.0f, 0.9f, vl::Ease::QuadInOut);
+		m_loop.pingPong(m_elapsed);
+	}
+
+	void tickAnimation() {
+		m_intro.update(m_elapsed);
+		m_loop.update(m_elapsed);
+
+		if (m_fadeGroup) {
+			const float rise = m_intro.value(m_riseCurve, m_elapsed);
+			m_fadeGroup->setRenderOpacity(m_intro.value(m_fadeCurve, m_elapsed));
+			m_fadeGroup->setRenderTransform({ 0.0f, (1.0f - rise) * 28.0f });
+		}
+		if (m_popGroup) {
+			const float pop = m_intro.value(m_popCurve, m_elapsed);
+			m_popGroup->setRenderTransform({ 0.0f, 0.0f }, 0.0f,
+			                               glm::vec2(0.6f + 0.4f * pop), glm::vec2(0.5f));
+			m_popGroup->setRenderOpacity(0.2f + 0.8f * pop);
+		}
+		if (m_loopGroup) {
+			const float t = m_loop.value(m_loopCurve, m_elapsed);
+			m_loopGroup->setRenderTransform({ 0.0f, 0.0f }, (t - 0.5f) * 0.5f,
+			                               glm::vec2(1.0f), glm::vec2(0.5f));
+			m_loopGroup->setRenderOpacity(0.35f + 0.65f * t);
 		}
 	}
 
@@ -381,12 +418,58 @@ private:
 		splitSection->add(split, { 12.0f, 36.0f });
 		content->add(splitSection, { 500.0f, 882.0f });
 
+		// ---- Animation -----------------------------------------------------
+		auto animSection = section(740.0f, 300.0f);
+		animSection->add(text(18, "Animation: render transform + opacity, layout untouched", captionColor),
+		                 { 12.0f, 8.0f });
+
+		auto animCard = [&](const glm::vec4& color, const glm::vec2& size, const std::string& label) {
+			auto card = ve::CreateRef<vl::Stack>();
+			card->add(ve::CreateRef<vl::ColoredBox>(color, size));
+			card->add(text(15, label, titleColor), { 12.0f, size.y * 0.5f - 9.0f });
+			return card;
+		};
+
+		m_fadeGroup = animCard(glm::vec4(0.16f, 0.42f, 0.72f, 1.0f), glm::vec2(260.0f, 120.0f),
+		                       "opacity + rise");
+		m_popGroup = animCard(glm::vec4(0.66f, 0.34f, 0.16f, 1.0f), glm::vec2(120.0f, 120.0f), "pop");
+		m_loopGroup = animCard(glm::vec4(0.20f, 0.52f, 0.34f, 1.0f), glm::vec2(120.0f, 120.0f), "loop");
+
+		animSection->add(m_fadeGroup, { 12.0f, 44.0f });
+		animSection->add(m_popGroup, { 292.0f, 44.0f });
+		animSection->add(m_loopGroup, { 430.0f, 44.0f });
+
+		animSection->add(text(13, "CurveSequence, cubicOut", captionColor), { 12.0f, 176.0f });
+		animSection->add(text(13, "backOut from pivot 0.5", captionColor), { 292.0f, 176.0f });
+		animSection->add(text(13, "ping-pong + rotation", captionColor), { 430.0f, 176.0f });
+
+		auto replay = ve::CreateRef<vl::Button>(glm::vec2(150.0f, 44.0f),
+		                                        glm::vec4(0.22f, 0.30f, 0.44f, 1.0f));
+		replay->addChild(text(16, "Replay intro"));
+		replay->setTooltip("play(now) restarts from the absolute clock; nothing to reset by hand");
+		replay->setOnClick([this] { m_intro.play(m_elapsed); });
+		animSection->add(replay, { 574.0f, 44.0f });
+
+		animSection->add(text(13, "transforms apply at paint time; hit-testing stays untransformed",
+		                      captionColor),
+		                 { 12.0f, 262.0f });
+		content->add(animSection, { 24.0f, 1186.0f });
+
 		page->addChild(content);
 		return page;
 	}
 
 	ve::Ref<ve::HudInstance> m_hud;
 	ve::Ref<vl::ScrollPanel> m_page;
+	vl::CurveSequence m_intro{ 0.0f };
+	vl::CurveSequence m_loop{ 0.9f };
+	int m_fadeCurve = 0;
+	int m_riseCurve = 1;
+	int m_popCurve = 2;
+	int m_loopCurve = 0;
+	ve::Ref<vl::Stack> m_fadeGroup;
+	ve::Ref<vl::Stack> m_popGroup;
+	ve::Ref<vl::Stack> m_loopGroup;
 	ve::Ref<ve::UIRenderTarget> m_preview;
 	ve::Ref<ve::StaticMesh>  m_previewMesh;
 	ve::AssetHandle m_previewMeshHandle;

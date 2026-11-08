@@ -29,12 +29,15 @@ extern "C" {
 namespace {
 
     // Same scene scaffolding the editor and the old SandBox host used. The asset
-    // paths are engine-root-relative (resolved through the asset root).
-    ve::SceneViewConfig playerViewConfig() {
+    // paths are engine-root-relative (resolved through the asset root); the
+    // pipeline is the project's own when it names one.
+    ve::SceneViewConfig playerViewConfig(const ve::ProjectInfo& project) {
         ve::SceneViewConfig cfg;
         cfg.width        = 1280;
         cfg.height       = 720;
-        cfg.pipelinePath = "VostaEngine/resources/pipelines/default.json";
+        cfg.pipelinePath = project.pipeline.empty()
+            ? "VostaEngine/resources/pipelines/default.json"
+            : project.pipeline;
         cfg.perspective  = true;
         cfg.sceneShaders = { "VostaEngine/resources/shaders/Model.glsl",
                              "VostaEngine/resources/shaders/Texture.glsl" };
@@ -69,7 +72,7 @@ namespace {
             // object still exists, because the module API is expressed in terms
             // of it.
             if (project.presentation == ve::Presentation::Scene) {
-                m_sceneView = ve::CreateRef<ve::SceneView>(m_scene, playerViewConfig());
+                m_sceneView = ve::CreateRef<ve::SceneView>(m_scene, playerViewConfig(project));
                 m_sceneView->onAttach();
 
                 if (project.defaultScene.empty()) {
