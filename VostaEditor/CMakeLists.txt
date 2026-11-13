@@ -7,7 +7,7 @@ set(EDITOR_SOURCES
     src/EditorCameraStore.cpp
     src/EditorMcpTools.cpp
     src/SceneDocument.cpp
-    src/PlaySession.cpp
+    src/PieSession.cpp
 
     src/Graph/GeometryEditorSchema.cpp
     src/Graph/MaterialEditorSchema.cpp

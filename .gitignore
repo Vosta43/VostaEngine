@@ -6,6 +6,7 @@ SDK/
 [Dd]ebug/
 [Rr]elease/
 x64/
+obj/
 # Name collision on case-insensitive filesystems: this is source, not output.
 !VostaEngine/src/Build/
 
@@ -69,6 +70,9 @@ loc_chart.py
 loc_chart.png
 chinese_in_cpp.txt
 ve_build_check.bat
+ve_demo_build.bat
+ve_netsmoke_build.bat
+ve_sdk_build.bat
 import_sanmiguel.py
 migrate_scene_transform.py
 
@@ -112,6 +116,7 @@ Projects/
 # ── Editor session state (machine-generated, not for distribution) ──────
 /Saved/
 SandBox/Saved/
+VostaEngine/Saved/
 
 # ── Stray nested build/artifact dir ────────────────────────────────────
 SandBox/SandBox/

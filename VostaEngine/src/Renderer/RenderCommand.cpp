@@ -113,6 +113,10 @@ namespace ve {
         s_RendererAPI->invalidateStateCache();
     }
 
+    RenderStateDesc RenderCommand::currentState() {
+        return s_RendererAPI->currentState();
+    }
+
     void RenderCommand::setDepthFunc(CompareOp func) {
         s_RendererAPI->setDepthFunc(func);
     }

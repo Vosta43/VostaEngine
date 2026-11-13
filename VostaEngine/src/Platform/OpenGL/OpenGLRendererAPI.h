@@ -44,6 +44,7 @@ namespace ve {
         void drawArrays(uint32_t count, uint32_t firstVertex = 0) override;
         void applyPipelineState(const RenderStateDesc& state) override;
         void invalidateStateCache() override;
+        RenderStateDesc currentState() const override { return m_current; }
         void setDepthFunc(CompareOp func) override;
         void setDepthMask(bool enabled) override;
         void setBlend(bool enabled) override;

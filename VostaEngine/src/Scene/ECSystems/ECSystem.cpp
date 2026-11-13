@@ -29,6 +29,7 @@ namespace ve {
 		m_collector->collectAllMesh(ctx);
 		m_collector->collectAllLight(ctx);
 		m_collector->collectAllSprites(ctx);
+		m_collector->collectAllParticles(ctx);
 
 		m_renderPipeline.render(ctx);
 	}

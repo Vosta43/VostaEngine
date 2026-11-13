@@ -21,6 +21,9 @@
     <ClCompile Include="src\Core\Window.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Network\RepLayout.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\Core\Application.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -31,6 +34,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Core\GameModuleHost.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Core\InputGate.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Core\WorldContext.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Core\AssetConfig.cpp">
@@ -273,6 +282,33 @@
     <ClCompile Include="thirdparty\Monocypher\monocypher.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="thirdparty\enet\callbacks.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\compress.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\host.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\list.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\packet.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\peer.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\protocol.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\unix.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\win32.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="thirdparty\zstd-dev\lib\common\debug.c">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -459,7 +495,7 @@
     <ClCompile Include="src\Renderer\RenderPass\ShadowPass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="src\Renderer\RenderPass\GBufferPass.cpp">
+    <ClCompile Include="src\Renderer\RenderPass\DrawPass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderer\RenderPass\HDRBufferPass.cpp">
@@ -705,6 +741,21 @@
     <ClCompile Include="src\Particle\ParticleDataSet.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Network\RepConnection.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Network\NetClock.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Network\NetSession.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Network\Rpc.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Network\SnapshotView.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Core\Window.h">
@@ -717,6 +768,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Core\GameModuleHost.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core\InputGate.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core\WorldContext.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Core\Core.h">
@@ -1190,10 +1247,13 @@
     <ClInclude Include="src\Renderer\RenderPass\RenderPassBase.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Renderer\RenderPass\RenderPassRegistry.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="src\Renderer\RenderContext.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="src\Renderer\RenderPass\GBufferPass.h">
+    <ClInclude Include="src\Renderer\RenderPass\DrawPass.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderer\RenderPass\HDRBufferPass.h">
@@ -1467,6 +1527,33 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Physics\PhysicsWorld.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Network\BitReader.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Network\BitWriter.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Network\NetClock.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Network\NetHandle.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Network\NetSession.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Network\RepConnection.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Network\RepLayout.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Network\Rpc.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Network\SnapshotView.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

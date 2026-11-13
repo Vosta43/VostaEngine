@@ -28,6 +28,7 @@ namespace ve {
                 cmd.worldPosition = transform.position;
                 cmd.meshHandle = meshComp.staticMeshHandle;
                 cmd.materialHandle = meshComp.materialHandle;
+                cmd.renderLayer = (uint32_t)meshComp.renderLayer;
 
                 ctx.drawMeshCommands.push_back(cmd);
             }
@@ -38,6 +39,7 @@ namespace ve {
                     cmd.transform = transform.matrixRS();
                     cmd.worldPosition = transform.position;
                     cmd.meshHandle = meshComp.staticMeshHandle;
+                    cmd.renderLayer = (uint32_t)meshComp.renderLayer;
                     cmd.startIndex = submeshes[i].firstIndex;
                     cmd.indexCount = submeshes[i].indexCount;
 
@@ -173,7 +175,24 @@ namespace ve {
             cmd.worldPosition = transform.position;
             cmd.size = sprite.size;
             cmd.textureHandle = sprite.textureHandle;
+            cmd.renderLayer = (uint32_t)sprite.renderLayer;
             ctx.drawSpriteCommands.push_back(cmd);
+        }
+    }
+    void SceneRenderer::collectAllParticles(RenderContext& ctx) {
+        auto particleGroup = m_scene->getRegistry().group<TransformComponent, ParticleComponent>();
+        for (auto& et : particleGroup) {
+            auto& comp = m_scene->getComponent<ParticleComponent>(et);
+
+            DrawParticleCommand cmd;
+            cmd.asset = comp.emitterAsset();
+            cmd.data = comp.particleData();
+            if (!cmd.asset || !cmd.data) continue;
+
+            cmd.origin = m_scene->getComponent<TransformComponent>(et).position;
+            cmd.tint = comp.tint;
+            cmd.size = comp.particleSize;
+            ctx.drawParticleCommands.push_back(cmd);
         }
     }
 }

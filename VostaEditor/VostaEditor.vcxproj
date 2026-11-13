@@ -155,7 +155,7 @@
     <ClCompile Include="src\EditorLayer.cpp" />
     <ClCompile Include="src\EditorMcpTools.cpp" />
     <ClCompile Include="src\EditorViewController.cpp" />
-    <ClCompile Include="src\PlaySession.cpp" />
+    <ClCompile Include="src\PieSession.cpp" />
     <ClCompile Include="src\SceneDocument.cpp" />
     <ClCompile Include="src\Graph\NodeGraphPanel.cpp" />
     <ClCompile Include="src\Graph\MaterialEditorSchema.cpp" />
@@ -196,7 +196,7 @@
     <ClInclude Include="src\EditorMcpTools.h" />
     <ClInclude Include="src\EditorPaths.h" />
     <ClInclude Include="src\EditorViewController.h" />
-    <ClInclude Include="src\PlaySession.h" />
+    <ClInclude Include="src\PieSession.h" />
     <ClInclude Include="src\SceneDocument.h" />
     <ClInclude Include="src\Graph\NodeGraphPanel.h" />
     <ClInclude Include="src\Graph\NodeGraphEditorSchema.h" />

@@ -4,8 +4,6 @@
 #include "Renderer/RenderPipeline.h"
 #include "Renderer/Shadow/ShadowCascadeCalculator.h"
 #include "Renderer/SceneRenderer.h"
-#include "Renderer/Renderer2D.h"
-#include "Renderer/Renderer3D.h"
 #include "Renderer/RenderCommand.h"
 #include "Renderer/Shader.h"
 #include "Renderer/RuntimeVirtualTexture.h"
@@ -15,7 +13,6 @@
 #include "Renderer/Material.h"
 #include "Core/Deltatime.h"
 #include "Core/ResourceManager.h"
-#include "Particle/ParticleBillboard.h"
 #include "Scene/Scene.h"
 #include "Scene/Components.h"
 #include "Scene/Terrain/Terrain.h"
@@ -28,40 +25,6 @@
 #include <vector>
 
 namespace ve {
-
-namespace {
-
-    // One camera-facing quad per particle, at the emitter's chart position plus
-    // the particle's asset-space offset. Runs after the sprite batch (after
-    // present), so the depth buffer is not available and every particle draws
-    // over the scene.
-    void drawParticles(const Ref<Scene>& scene, const RenderContext& ctx,
-                       const std::vector<uint32_t>& entities) {
-        // Particle assets are authored Z-up; the world is Y-up. One conversion,
-        // shared with nothing else -- the preview draws asset space directly.
-        const glm::mat3 assetToChart = ParticleBillboard::spaceToWorld();
-
-        for (uint32_t entityId : entities) {
-            const ParticleComponent& comp = scene->getComponent<ParticleComponent>(entityId);
-            const ParticleDataSet* data = comp.particleData();
-            const EmitterAsset* source = comp.emitterAsset();
-            if (!data || !source)
-                continue;
-
-            const ve::Vec3 origin = scene->getComponent<TransformComponent>(entityId).position;
-            auto toRenderSpace = [&ctx, &assetToChart, &origin](const glm::vec3& local) {
-                return toRenderSpaceChart(origin + ve::Vec3(assetToChart * local), ctx);
-            };
-
-            ParticleBillboard::draw(*source, *data, toRenderSpace,
-                                    comp.tint, comp.particleSize);
-        }
-
-        // Every emitter's quads go out in one instanced draw.
-        ParticleBillboard::flush(ctx.viewMatrix, ctx.projMatrix);
-    }
-
-}
 
 SceneViewRenderer::SceneViewRenderer(const Ref<Scene>& scene)
     : m_scene(scene)
@@ -237,10 +200,13 @@ void SceneViewRenderer::render(Camera& camera, const Ref<RenderPipeline>& pipeli
 
     ctx.drawMeshCommands.clear();
     ctx.drawLightCommands.clear();
+    ctx.drawSpriteCommands.clear();
+    ctx.drawParticleCommands.clear();
 
     m_sceneRenderer->collectAllMesh(ctx);
     m_sceneRenderer->collectAllLight(ctx);
     m_sceneRenderer->collectAllSprites(ctx);
+    m_sceneRenderer->collectAllParticles(ctx);
 
     // Built and refreshed here, the single point both Play and the editor view go
     // through, so the two render paths cannot disagree about its content.
@@ -376,44 +342,6 @@ void SceneViewRenderer::render(Camera& camera, const Ref<RenderPipeline>& pipeli
 
     pipeline->render(ctx);
     camera.endFrame();
-
-    // Present already cleared + filled the target; draw the component-driven
-    // game content (skybox + sprites) on top of it. The RVT debug view replaces
-    // the whole image, so it suppresses this overlay.
-    target->bind();
-
-    const bool rvtDebugView = ctx.rvt != nullptr && ctx.rvtDebugView != 0;
-
-    if (!rvtDebugView && cubemap) {
-        Renderer3D::setSkyboxTexture(cubemap);
-        Renderer3D::drawSkybox(ctx.viewMatrix, ctx.projMatrix);
-    }
-
-    // Sprite and particle quads are game content drawn on top of the PBR output.
-    // Sprites stay in the 2D batch; particles are one instanced draw of their
-    // own, which binds its own program, so the batch is flushed first.
-    const std::vector<uint32_t> particleEntities =
-        m_scene->getRegistry().group<TransformComponent, ParticleComponent>();
-
-    if (!rvtDebugView && !ctx.drawSpriteCommands.empty()) {
-        Renderer2D::beginScene(ctx.projMatrix * ctx.viewMatrix);
-        for (auto& cmd : ctx.drawSpriteCommands) {
-            Renderer2D::drawQuad(renderModelMatrix(cmd.transform, cmd.worldPosition, ctx), cmd.size, cmd.textureHandle);
-        }
-        Renderer2D::endScene();
-    }
-
-    if (!rvtDebugView && !particleEntities.empty()) {
-        // Only the present blit wrote this target's depth; testing particles
-        // against it would tie them to a screen-filling quad's depth.
-        RenderCommand::setDepthTesting(false);
-        Renderer2D::setBlending(true);
-        drawParticles(m_scene, ctx, particleEntities);
-        Renderer2D::setBlending(false);
-        RenderCommand::setDepthTesting(true);
-    }
-
-    target->unbind();
 }
 
 }

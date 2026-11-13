@@ -24,6 +24,7 @@ namespace ve {
         rp.speed = 0.0f;
         rp.format.clear();
         rp.enableEdit = true;
+        rp.replicated = false;
         rp.options.clear();
 
         size_t pos = 0;
@@ -55,6 +56,7 @@ namespace ve {
             else if (key == "format")   rp.format = value;
             else if (key == "text")     rp.text = value;
             else if (key == "readonly") rp.enableEdit = !(value == "true" || value == "1");
+            else if (key == "net")      rp.replicated = (value == "replicated" || value == "true" || value == "1");
             else if (key == "options") {
                 size_t s = 0;
                 while (s <= value.size()) {

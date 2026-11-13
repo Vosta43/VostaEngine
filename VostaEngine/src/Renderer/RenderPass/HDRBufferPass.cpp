@@ -4,44 +4,13 @@
 #include "Renderer/RenderCommand.h"
 #include "Core/ResourceManager.h"
 #include "Renderer/Material.h"
-#include "Renderer/Buffer.h"
 #include "Renderer/SpaceBackgroundUniforms.h"
 
 namespace ve {
 
-
-	void HDRBufferPass::init(){
-
-		float vertices[] = {
-			-1.0f, -1.0f,  // bottom left
-			1.0f, -1.0f,  // bottom right
-			1.0f,  1.0f,  // top right
-			-1.0f,  1.0f   // top left
-		};
-		uint32_t indices[] = { 0, 1, 2, 2, 3, 0 };
-
-		m_fullscreenQuad = VertexArray::create();
-		auto vb = VertexBuffer::create(vertices, sizeof(vertices));
-		BufferLayout layout = {
-			{ ShaderDataType::Float2, "a_Position" }
-		};
-		vb->setLayout(layout);
-		m_fullscreenQuad->addVertexBuffer(vb);
-
-		auto ib = IndexBuffer::create(indices, 6);
-		m_fullscreenQuad->setIndexBuffer(ib);
-	}
-
 	void HDRBufferPass::execute(RenderContext& ctx) {
 
-		if (!m_target) {
-			return;
-		}
-
-		m_target->bind();
-		RenderCommand::setViewport(ctx.viewPortX, ctx.viewPortY, ctx.viewPortWidth, ctx.viewPortHeight);
-		RenderCommand::setClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		RenderCommand::clear();
+		if (!beginPass(ctx)) return;
 
 		if (!m_shader) {
 			return;
@@ -187,11 +156,8 @@ namespace ve {
 			m_shader->setInt("u_LightCount", 0);
 		}
 
-		m_fullscreenQuad->bind();
-		RenderCommand::drawIndexed(m_fullscreenQuad);
+		drawFullscreenQuad();
 		m_shader->unbind();
-
-		m_fullscreenQuad->unbind();
 
 		m_shader->unbindLightSSBO();
 

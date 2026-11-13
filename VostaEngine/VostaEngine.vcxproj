@@ -74,7 +74,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NOMINMAX;_DEBUG;_CONSOLE;VE_BUILD_DLL;JPH_OBJECT_STREAM;JPH_USE_SSE4_1;JPH_USE_SSE4_2;JPH_USE_AVX;JPH_USE_AVX2;JPH_USE_LZCNT;JPH_USE_TZCNT;JPH_USE_F16C;JPH_USE_FMADD;ZSTD_DISABLE_ASM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NOMINMAX;_DEBUG;_CONSOLE;VE_BUILD_DLL;JPH_OBJECT_STREAM;JPH_USE_SSE4_1;JPH_USE_SSE4_2;JPH_USE_AVX;JPH_USE_AVX2;JPH_USE_LZCNT;JPH_USE_TZCNT;JPH_USE_F16C;JPH_USE_FMADD;ZSTD_DISABLE_ASM;_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -91,7 +91,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NOMINMAX;NDEBUG;_CONSOLE;VE_BUILD_DLL;JPH_OBJECT_STREAM;JPH_USE_SSE4_1;JPH_USE_SSE4_2;JPH_USE_AVX;JPH_USE_AVX2;JPH_USE_LZCNT;JPH_USE_TZCNT;JPH_USE_F16C;JPH_USE_FMADD;ZSTD_DISABLE_ASM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NOMINMAX;NDEBUG;_CONSOLE;VE_BUILD_DLL;JPH_OBJECT_STREAM;JPH_USE_SSE4_1;JPH_USE_SSE4_2;JPH_USE_AVX;JPH_USE_AVX2;JPH_USE_LZCNT;JPH_USE_TZCNT;JPH_USE_F16C;JPH_USE_FMADD;ZSTD_DISABLE_ASM;_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -106,12 +106,12 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NOMINMAX;_DEBUG;_CONSOLE;VE_BUILD_DLL;IMGUI_IMPL_OPENGL_LOADER_GLAD;JPH_OBJECT_STREAM;JPH_USE_SSE4_1;JPH_USE_SSE4_2;JPH_USE_AVX;JPH_USE_AVX2;JPH_USE_LZCNT;JPH_USE_TZCNT;JPH_USE_F16C;JPH_USE_FMADD;ZSTD_DISABLE_ASM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;_DEBUG;_CONSOLE;VE_BUILD_DLL;IMGUI_IMPL_OPENGL_LOADER_GLAD;JPH_OBJECT_STREAM;JPH_USE_SSE4_1;JPH_USE_SSE4_2;JPH_USE_AVX;JPH_USE_AVX2;JPH_USE_LZCNT;JPH_USE_TZCNT;JPH_USE_F16C;JPH_USE_FMADD;ZSTD_DISABLE_ASM;_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;$(VostaEngineDir)thirdparty\miniaudio-master;$(VostaEngineDir)thirdparty\stb_vorbis;$(VostaEngineDir)thirdparty\zstd-dev\lib;$(VostaEngineDir)thirdparty\Monocypher;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;$(VostaEngineDir)thirdparty\miniaudio-master;$(VostaEngineDir)thirdparty\stb_vorbis;$(VostaEngineDir)thirdparty\zstd-dev\lib;$(VostaEngineDir)thirdparty\Monocypher;$(VostaEngineDir)thirdparty\enet;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>vepch.h</PrecompiledHeaderFile>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
@@ -121,7 +121,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(VostaEngineDir)x64\$(Configuration)\;$(VostaEngineDir)thirdparty\GLFW\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>glfw3.lib;%(AdditionalDependencies);Imgui.lib;Jolt.lib;winhttp.lib;dbghelp.lib;ntdll.lib</AdditionalDependencies>
+      <AdditionalDependencies>glfw3.lib;%(AdditionalDependencies);Imgui.lib;Jolt.lib;winhttp.lib;dbghelp.lib;ntdll.lib;ws2_32.lib;winmm.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -130,12 +130,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NOMINMAX;NDEBUG;_CONSOLE;VE_BUILD_DLL;IMGUI_IMPL_OPENGL_LOADER_GLAD;JPH_OBJECT_STREAM;JPH_USE_SSE4_1;JPH_USE_SSE4_2;JPH_USE_AVX;JPH_USE_AVX2;JPH_USE_LZCNT;JPH_USE_TZCNT;JPH_USE_F16C;JPH_USE_FMADD;ZSTD_DISABLE_ASM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;NDEBUG;_CONSOLE;VE_BUILD_DLL;IMGUI_IMPL_OPENGL_LOADER_GLAD;JPH_OBJECT_STREAM;JPH_USE_SSE4_1;JPH_USE_SSE4_2;JPH_USE_AVX;JPH_USE_AVX2;JPH_USE_LZCNT;JPH_USE_TZCNT;JPH_USE_F16C;JPH_USE_FMADD;ZSTD_DISABLE_ASM;_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;$(VostaEngineDir)thirdparty\miniaudio-master;$(VostaEngineDir)thirdparty\stb_vorbis;$(VostaEngineDir)thirdparty\zstd-dev\lib;$(VostaEngineDir)thirdparty\Monocypher;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VostaEngineDir)thirdparty\stb_image;$(VostaEngineDir)thirdparty\stb_truetype;$(VostaEngineDir)thirdparty\ufbx;$(VostaEngineDir)thirdparty\glm;$(VostaEngineDir)thirdparty\GLAD\include;$(VostaEngineDir)src\Core;$(VostaEngineDir)thirdparty\IMGUI\backends;$(VostaEngineDir)thirdparty\IMGUIZMO;$(VostaEngineDir)thirdparty\IMGUI;$(VostaEngineDir)src;$(VostaEngineDir)thirdparty\GLFW\include;$(VostaEngineDir)thirdparty\JSON\include;$(VostaEngineDir)thirdparty\FastNoiseLite;$(VostaEngineDir)thirdparty\Jolt;$(VostaEngineDir)thirdparty\miniaudio-master;$(VostaEngineDir)thirdparty\stb_vorbis;$(VostaEngineDir)thirdparty\zstd-dev\lib;$(VostaEngineDir)thirdparty\Monocypher;$(VostaEngineDir)thirdparty\enet;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>vepch.h</PrecompiledHeaderFile>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
@@ -145,7 +145,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(VostaEngineDir)x64\$(Configuration)\;$(VostaEngineDir)thirdparty\GLFW\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>glfw3.lib;%(AdditionalDependencies);Imgui.lib;Jolt.lib;winhttp.lib;dbghelp.lib;ntdll.lib</AdditionalDependencies>
+      <AdditionalDependencies>glfw3.lib;%(AdditionalDependencies);Imgui.lib;Jolt.lib;winhttp.lib;dbghelp.lib;ntdll.lib;ws2_32.lib;winmm.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -161,10 +161,18 @@
     <ClCompile Include="src\Audio\AudioDecode.cpp" />
     <ClCompile Include="src\Audio\AudioDevice.cpp" />
     <ClCompile Include="src\Audio\SoundAsset.cpp" />
+    <ClCompile Include="src\Network\NetClock.cpp" />
+    <ClCompile Include="src\Network\NetSession.cpp" />
+    <ClCompile Include="src\Network\RepConnection.cpp" />
+    <ClCompile Include="src\Network\RepLayout.cpp" />
+    <ClCompile Include="src\Network\Rpc.cpp" />
+    <ClCompile Include="src\Network\SnapshotView.cpp" />
     <ClCompile Include="src\Core\Application.cpp" />
     <ClCompile Include="src\Core\ComponentRegistry.cpp" />
     <ClCompile Include="src\Core\Compression.cpp" />
     <ClCompile Include="src\Core\GameModuleHost.cpp" />
+    <ClCompile Include="src\Core\InputGate.cpp" />
+    <ClCompile Include="src\Core\WorldContext.cpp" />
     <ClCompile Include="src\Core\AssetConfig.cpp" />
     <ClCompile Include="src\Core\EnginePaths.cpp" />
     <ClCompile Include="src\Core\Deltatime.cpp" />
@@ -304,7 +312,7 @@
     <ClCompile Include="src\Renderer\RenderPass\CloudPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\CloudTAAPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\VolumetricLightPass.cpp" />
-    <ClCompile Include="src\Renderer\RenderPass\GBufferPass.cpp" />
+    <ClCompile Include="src\Renderer\RenderPass\DrawPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\HDRBufferPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\PostBufferPass.cpp" />
     <ClCompile Include="src\Renderer\RenderPass\ShadowPass.cpp" />
@@ -374,6 +382,33 @@
       <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="thirdparty\Monocypher\monocypher.c">
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\callbacks.c">
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\compress.c">
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\host.c">
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\list.c">
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\packet.c">
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\peer.c">
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\protocol.c">
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\unix.c">
+      <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="thirdparty\enet\win32.c">
       <PrecompiledHeader Condition="'$(Platform)'=='x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="thirdparty\zstd-dev\lib\common\debug.c">
@@ -463,6 +498,15 @@
     <ClInclude Include="src\Asset\PakFormat.h" />
     <ClInclude Include="src\Asset\PakKey.h" />
     <ClInclude Include="src\Asset\PakReader.h" />
+    <ClInclude Include="src\Network\BitReader.h" />
+    <ClInclude Include="src\Network\BitWriter.h" />
+    <ClInclude Include="src\Network\NetClock.h" />
+    <ClInclude Include="src\Network\NetHandle.h" />
+    <ClInclude Include="src\Network\NetSession.h" />
+    <ClInclude Include="src\Network\RepConnection.h" />
+    <ClInclude Include="src\Network\RepLayout.h" />
+    <ClInclude Include="src\Network\Rpc.h" />
+    <ClInclude Include="src\Network\SnapshotView.h" />
     <ClInclude Include="thirdparty\Monocypher\monocypher.h" />
     <ClInclude Include="src\Build\Packager.h" />
     <ClInclude Include="src\Build\PakWriter.h" />
@@ -499,6 +543,8 @@
     <ClInclude Include="src\Core\Application.h" />
     <ClInclude Include="src\Core\GameModule.h" />
     <ClInclude Include="src\Core\GameModuleHost.h" />
+    <ClInclude Include="src\Core\InputGate.h" />
+    <ClInclude Include="src\Core\WorldContext.h" />
     <ClInclude Include="src\Core\AssetConfig.h" />
     <ClInclude Include="src\Core\EnginePaths.h" />
     <ClInclude Include="src\Core\AssetHandle.h" />
@@ -657,11 +703,12 @@
     <ClInclude Include="src\Renderer\RenderPass\CloudPass.h" />
     <ClInclude Include="src\Renderer\RenderPass\CloudTAAPass.h" />
     <ClInclude Include="src\Renderer\RenderPass\VolumetricLightPass.h" />
-    <ClInclude Include="src\Renderer\RenderPass\GBufferPass.h" />
+    <ClInclude Include="src\Renderer\RenderPass\DrawPass.h" />
     <ClInclude Include="src\Renderer\RenderPass\HDRBufferPass.h" />
     <ClInclude Include="src\Renderer\RenderPass\PostBufferPass.h" />
     <ClInclude Include="src\Renderer\RenderPass\ShadowPass.h" />
     <ClInclude Include="src\Renderer\RenderPass\RenderPassBase.h" />
+    <ClInclude Include="src\Renderer\RenderPass\RenderPassRegistry.h" />
     <ClInclude Include="src\Renderer\RenderPass\PassBinding.h" />
     <ClInclude Include="src\Renderer\RenderPass\PresentPass.h" />
     <ClInclude Include="src\Renderer\RenderPass\RVTBakePass.h" />

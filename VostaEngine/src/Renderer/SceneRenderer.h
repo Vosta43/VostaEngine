@@ -26,6 +26,7 @@ namespace ve {
 		void collectAllMesh(RenderContext& ctx);
 		void collectAllLight(RenderContext& ctx);
 		void collectAllSprites(RenderContext& ctx);
+		void collectAllParticles(RenderContext& ctx);
 
 	private:
 		Ref<Scene> m_scene;		

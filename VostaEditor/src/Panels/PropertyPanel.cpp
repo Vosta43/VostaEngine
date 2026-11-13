@@ -73,6 +73,13 @@ void PropertyPanel::onGuiRender(uint32_t& selectedEntity)
         m_pendingTileOp = PendingTileOp::None;
     }
 
+    // Deferred for the same reason: adding a collider reallocates component
+    // storage, so it must land before this frame's snapshot is taken.
+    if (m_sceneContext && m_pendingFittedCollider != UINT32_MAX) {
+        fitColliderToMesh(m_pendingFittedCollider);
+        m_pendingFittedCollider = UINT32_MAX;
+    }
+
     if (selectedEntity == UINT32_MAX) {
         ImGui::Text("No entity selected");
         ImGui::End();
@@ -88,7 +95,7 @@ void PropertyPanel::onGuiRender(uint32_t& selectedEntity)
 
         // Route known component types to their custom drawers.
         if (typeName == "StaticMeshComponent") {
-            drawStaticMeshComponent(static_cast<StaticMeshComponent*>(compPtr));
+            drawStaticMeshComponent(selectedEntity, static_cast<StaticMeshComponent*>(compPtr));
             continue;
         }
 
@@ -546,7 +553,42 @@ void PropertyPanel::drawComboProperty(void* ptr, const ReflectionProperty& prop)
 // -----------------------------------------------------------------------
 // Component-level custom drawers
 // -----------------------------------------------------------------------
-void PropertyPanel::drawStaticMeshComponent(StaticMeshComponent* comp)
+void PropertyPanel::fitColliderToMesh(uint32_t entityId)
+{
+    auto& registry = m_sceneContext->getRegistry();
+    Entity entity = m_sceneContext->getEntity(entityId);
+    if (!registry.has<StaticMeshComponent>(entity) || !registry.has<TransformComponent>(entity))
+        return;
+
+    auto mesh = ResourceManager::get<StaticMesh>(
+        registry.get<StaticMeshComponent>(entity).staticMeshHandle);
+    if (!mesh)
+        return;
+
+    const glm::vec3 scale = glm::abs(registry.get<TransformComponent>(entity).scale);
+    const glm::vec3 half = glm::abs(mesh->getAabbMax() - mesh->getAabbMin()) * scale * 0.5f;
+
+    RigidBodyComponent* body = registry.has<RigidBodyComponent>(entity)
+        ? &registry.get<RigidBodyComponent>(entity)
+        : &m_sceneContext->assignComponent<RigidBodyComponent>(entity);
+
+    switch (body->shape) {
+        case 0: // Box
+            body->halfExtents = glm::max(half, glm::vec3(0.01f));
+            break;
+        case 1: // Sphere
+            body->radius = std::max({ half.x, half.y, half.z, 0.01f });
+            break;
+        case 2: // Capsule
+            body->radius = std::max(half.x, half.z);
+            body->halfHeight = std::max(half.y - body->radius, 0.01f);
+            break;
+        default:
+            break;
+    }
+}
+
+void PropertyPanel::drawStaticMeshComponent(uint32_t entityId, StaticMeshComponent* comp)
 {
     const auto& props = ReflectionSystem::getProperties("StaticMeshComponent");
 
@@ -604,6 +646,25 @@ void PropertyPanel::drawStaticMeshComponent(StaticMeshComponent* comp)
         comp->submeshEntries.clear();
     }
     ImGui::EndGroup();
+
+    // --- Collider from mesh bounds ---
+    ImGui::Separator();
+    const bool hasMesh = comp->staticMeshHandle.isValid();
+    const bool hasCollider = m_sceneContext->getRegistry().has<RigidBodyComponent>(entityId);
+    ImGui::BeginDisabled(!hasMesh);
+    if (ImGui::Button(hasCollider ? "Fit Collider to Mesh" : "Add Collider from Mesh",
+                      ImVec2(-1.0f, 0.0f))) {
+        m_pendingFittedCollider = entityId;
+    }
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        if (!hasMesh)
+            ImGui::SetTooltip("Assign a static mesh first.");
+        else if (hasCollider)
+            ImGui::SetTooltip("Refit the collider to the mesh bounds.\nSizes are baked from the current transform scale.");
+        else
+            ImGui::SetTooltip("Add a Box collider sized to the mesh bounds,\nscaled by the transform.");
+    }
 
     // Lazy-populate submesh entries from the loaded mesh.
     if (comp->submeshEntries.empty() && comp->staticMeshHandle.isValid()) {

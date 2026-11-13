@@ -7,6 +7,8 @@ set(ENGINE_SOURCES
     src/Core/ComponentRegistry.cpp
     src/Core/Compression.cpp
     src/Core/GameModuleHost.cpp
+    src/Core/InputGate.cpp
+    src/Core/WorldContext.cpp
     src/Core/AssetConfig.cpp
     src/Core/AssetLoadQueue.cpp
     src/Core/EnginePaths.cpp
@@ -23,6 +25,14 @@ set(ENGINE_SOURCES
     src/Core/Vfs.cpp
     src/Core/Window.cpp
     src/Core/vepch.cpp
+
+    # Network
+    src/Network/NetClock.cpp
+    src/Network/NetSession.cpp
+    src/Network/RepConnection.cpp
+    src/Network/RepLayout.cpp
+    src/Network/Rpc.cpp
+    src/Network/SnapshotView.cpp
 
     # Platform / Windowing
     src/Platform/WindowInput.cpp
@@ -78,7 +88,7 @@ set(ENGINE_SOURCES
     src/Renderer/UniformBuffer.cpp
     src/Renderer/VertexArray.cpp
     src/Renderer/RenderPass/RenderPassBase.cpp
-    src/Renderer/RenderPass/GBufferPass.cpp
+    src/Renderer/RenderPass/DrawPass.cpp
     src/Renderer/RenderPass/HDRBufferPass.cpp
     src/Renderer/RenderPass/CloudPass.cpp
     src/Renderer/RenderPass/CloudTAAPass.cpp
@@ -235,6 +245,15 @@ set(ENGINE_SOURCES
     thirdparty/stb_vorbis/stb_vorbis.c
     thirdparty/ufbx/ufbx.c
     thirdparty/Monocypher/monocypher.c
+    thirdparty/enet/callbacks.c
+    thirdparty/enet/compress.c
+    thirdparty/enet/host.c
+    thirdparty/enet/list.c
+    thirdparty/enet/packet.c
+    thirdparty/enet/peer.c
+    thirdparty/enet/protocol.c
+    thirdparty/enet/unix.c
+    thirdparty/enet/win32.c
     # zstd: compression only for the packager (no dictBuilder / legacy)
     thirdparty/zstd-dev/lib/common/debug.c
     thirdparty/zstd-dev/lib/common/entropy_common.c
@@ -313,6 +332,18 @@ if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
     target_link_libraries(ProfilerSmoke PRIVATE dbghelp ntdll)
 endif()
 
+# ── Replication smoke test (two processes over localhost) ───────────────
+if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    add_executable(NetSmoke tests/NetSmoke/main.cpp)
+    target_include_directories(NetSmoke PRIVATE
+        ${ENGINE_ROOT}
+        ${ENGINE_ROOT}/src
+        ${ENGINE_ROOT}/thirdparty/glm
+        ${ENGINE_ROOT}/thirdparty/IMGUI
+    )
+    target_link_libraries(NetSmoke PRIVATE VostaEngine)
+endif()
+
 # ── Jolt Physics (vendored, see THIRD_PARTY_NOTICES.md) ─────────────────
 add_subdirectory(thirdparty/Jolt)
 
@@ -336,6 +367,7 @@ target_include_directories(VostaEngine
         ${ENGINE_ROOT}/thirdparty/stb_vorbis
         ${ENGINE_ROOT}/thirdparty/zstd-dev/lib
         ${ENGINE_ROOT}/thirdparty/Monocypher
+        ${ENGINE_ROOT}/thirdparty/enet
 )
 
 # ── GLFW (pre-built binary, vendored) ───────────────────────────────────
@@ -364,9 +396,12 @@ target_link_libraries(VostaEngine
         Jolt
 )
 
+# ENet's win32.c still calls gethostbyname.
+target_compile_definitions(VostaEngine PRIVATE _WINSOCK_DEPRECATED_NO_WARNINGS)
+
 # ── WinHTTP — transport for the AI client (system library, ties to no source) ─
 if(WIN32)
-    target_link_libraries(VostaEngine PRIVATE winhttp dbghelp ntdll)
+    target_link_libraries(VostaEngine PRIVATE winhttp dbghelp ntdll ws2_32 winmm)
 endif()
 
 # ── libdl — dlopen/dlsym for GameModuleHost (empty on macOS) ─────────────
@@ -389,6 +424,15 @@ set_source_files_properties(
 set_source_files_properties(
     thirdparty/ufbx/ufbx.c
     thirdparty/Monocypher/monocypher.c
+    thirdparty/enet/callbacks.c
+    thirdparty/enet/compress.c
+    thirdparty/enet/host.c
+    thirdparty/enet/list.c
+    thirdparty/enet/packet.c
+    thirdparty/enet/peer.c
+    thirdparty/enet/protocol.c
+    thirdparty/enet/unix.c
+    thirdparty/enet/win32.c
     PROPERTIES
         SKIP_PRECOMPILE_HEADERS ON
 )

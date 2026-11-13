@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cstdio>
 #include <filesystem>
 #include <string>
 
@@ -62,7 +63,7 @@ namespace ve {
         m_editorView.setSpawnPlacement([this]() { return newEntityPlacement(); });
 
         m_toolbar.setCallbacks({
-            [this]() { startPlay(); },
+            [this]() { startPlay(m_toolbar.playerCount() > 1, m_toolbar.playerCount()); },
             [this]() { stopPlay(); }
         });
 
@@ -126,7 +127,7 @@ namespace ve {
                     // The stroke itself is driven from the viewport's own mouse
                     // state below (see the ImGui brush block). Picking is off during
                     // a play session too.
-                    if (m_showTerrainBrush || m_playSession.isLive())
+                    if (m_showTerrainBrush || m_pie.isLive())
                         return;
 
                     float fboY = (float)m_sceneView.getHeight() - m_mouseViewportPos.y;
@@ -222,7 +223,7 @@ namespace ve {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::Begin("Viewport");
         {
-            m_toolbar.onGuiRender(m_sceneView, m_editorView.getScene(), m_playSession);
+            m_toolbar.onGuiRender(m_sceneView, m_editorView.getScene(), m_pie);
 
             ImVec2 viewportPos = ImGui::GetCursorScreenPos();
             ImVec2 viewportSize = ImGui::GetContentRegionAvail();
@@ -231,44 +232,51 @@ namespace ve {
             glm::vec2 size(viewportSize.x, viewportSize.y);
             Application::get().getGuiLayer()->setViewportBounds(pos, size);
             Application::get().getGuiLayer()->setViewportWindowHovered(ImGui::IsWindowHovered());
-            // Camera input follows viewport hover, computed by the Gui layer.
-            m_sceneView.setInputEnabled(Application::get().isViewportHovered());
+            // Camera input follows viewport hover, computed by the Gui layer. A
+            // live PIE owns the viewport (its tiles read the keyboard), so the
+            // editor camera stays parked.
+            m_sceneView.setInputEnabled(!m_pie.isLive() && Application::get().isViewportHovered());
 
-            // The terrain brush is driven from ImGui's mouse state, not the
-            // MouseMoved event: the Gui layer marks mouse-move events handled
-            // (io.WantCaptureMouse && !viewport-window-hovered) while a button is
-            // held over the viewport, so an event-driven brush froze the cursor
-            // ring and could not advance a drag. The rect test is geometric, so it
-            // keeps working mid-drag.
-            const bool mouseInViewport = viewportSize.x > 0.0f && viewportSize.y > 0.0f
-                && ImGui::IsMouseHoveringRect(viewportPos,
-                       ImVec2(viewportPos.x + viewportSize.x, viewportPos.y + viewportSize.y), false);
-            if (mouseInViewport) {
-                const ImVec2 mp = ImGui::GetMousePos();
-                m_mouseViewportPos = { mp.x - viewportPos.x, mp.y - viewportPos.y };
+            if (m_pie.isLive()) {
+                renderPieViewport(viewportPos.x, viewportPos.y, viewportSize.x, viewportSize.y);
             }
-            // Hold-to-paint: only a physically held LMB advances the stroke, so a
-            // click paints one dab and releasing ends it.
-            if (!m_playSession.isLive() && m_showTerrainBrush && mouseInViewport
-                && !ImGuizmo::IsOver() && !ImGuizmo::IsUsing()
-                && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-                m_terrainPainting = true;
-                paintTerrain();
-            } else {
-                m_terrainPainting = false;
-            }
+            else {
+                // The terrain brush is driven from ImGui's mouse state, not the
+                // MouseMoved event: the Gui layer marks mouse-move events handled
+                // (io.WantCaptureMouse && !viewport-window-hovered) while a button is
+                // held over the viewport, so an event-driven brush froze the cursor
+                // ring and could not advance a drag. The rect test is geometric, so it
+                // keeps working mid-drag.
+                const bool mouseInViewport = viewportSize.x > 0.0f && viewportSize.y > 0.0f
+                    && ImGui::IsMouseHoveringRect(viewportPos,
+                           ImVec2(viewportPos.x + viewportSize.x, viewportPos.y + viewportSize.y), false);
+                if (mouseInViewport) {
+                    const ImVec2 mp = ImGui::GetMousePos();
+                    m_mouseViewportPos = { mp.x - viewportPos.x, mp.y - viewportPos.y };
+                }
+                // Hold-to-paint: only a physically held LMB advances the stroke, so a
+                // click paints one dab and releasing ends it.
+                if (!m_pie.isLive() && m_showTerrainBrush && mouseInViewport
+                    && !ImGuizmo::IsOver() && !ImGuizmo::IsUsing()
+                    && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                    m_terrainPainting = true;
+                    paintTerrain();
+                } else {
+                    m_terrainPainting = false;
+                }
 
-            if (viewportSize.x > 0 && viewportSize.y > 0) {
-                m_sceneView.setSize((uint32_t)viewportSize.x, (uint32_t)viewportSize.y);
-                m_overlays.ensurePickTarget((uint32_t)viewportSize.x, (uint32_t)viewportSize.y);
+                if (viewportSize.x > 0 && viewportSize.y > 0) {
+                    m_sceneView.setSize((uint32_t)viewportSize.x, (uint32_t)viewportSize.y);
+                    m_overlays.ensurePickTarget((uint32_t)viewportSize.x, (uint32_t)viewportSize.y);
 
-                ImGui::Image((void*)(intptr_t)m_sceneView.getColorAttachmentId(),
-                    viewportSize, ImVec2(0, 1), ImVec2(1, 0));
+                    ImGui::Image((void*)(intptr_t)m_sceneView.getColorAttachmentId(),
+                        viewportSize, ImVec2(0, 1), ImVec2(1, 0));
 
-                m_overlays.drawOverlays(m_sceneView, m_editorView.getScene(), m_selectedEntity,
-                                        viewportPos, viewportSize, mouseInViewport,
-                                        m_playSession.isLive(), m_showTerrainBrush,
-                                        m_terrainEditor, m_mouseViewportPos);
+                    m_overlays.drawOverlays(m_sceneView, m_editorView.getScene(), m_selectedEntity,
+                                            viewportPos, viewportSize, mouseInViewport,
+                                            m_pie.isLive(), m_showTerrainBrush,
+                                            m_terrainEditor, m_mouseViewportPos);
+                }
             }
         }
         ImGui::End();
@@ -315,7 +323,7 @@ namespace ve {
                 // Project/scene switching and saving are disabled while a play
                 // session is live: the viewport renders the runtime duplicate and
                 // the authored document must not move.
-                ImGui::BeginDisabled(m_playSession.isLive());
+                ImGui::BeginDisabled(m_pie.isLive());
 
                 if (ImGui::MenuItem("New Project..."))
                     m_dialogs.openNewProject();
@@ -337,6 +345,40 @@ namespace ve {
                 ImGui::EndDisabled();
 
                 ImGui::Separator();
+
+                pushFileMenuFont();
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Play"))
+            {
+                ImGui::PopFont();
+
+                ImGui::BeginDisabled(m_pie.isLive());
+                if (ImGui::MenuItem("Play (Offline)"))
+                    startPlay(false, 1);
+                if (ImGui::MenuItem("Play (2 Players)"))
+                    startPlay(true, 2);
+                if (ImGui::MenuItem("Play (3 Players)"))
+                    startPlay(true, 3);
+                if (ImGui::MenuItem("Play (4 Players)"))
+                    startPlay(true, 4);
+                ImGui::EndDisabled();
+
+                ImGui::Separator();
+                if (m_pie.isLive()) {
+                    if (m_pie.state() == PieSession::State::Play) {
+                        if (ImGui::MenuItem("Pause"))
+                            m_pie.pause();
+                    }
+                    else if (ImGui::MenuItem("Resume")) {
+                        m_pie.resume();
+                    }
+                    if (ImGui::MenuItem("Step"))
+                        m_pie.stepOnce();
+                    if (ImGui::MenuItem("Stop"))
+                        stopPlay();
+                }
 
                 pushFileMenuFont();
                 ImGui::EndMenu();
@@ -383,7 +425,7 @@ namespace ve {
 
     bool EditorLayer::saveScene()
     {
-        if (m_playSession.isLive()) {
+        if (m_pie.isLive()) {
             VE_CORE_WARN_PRINT("%s", "Cannot save the scene while a play session is running.");
             return false;
         }
@@ -417,7 +459,7 @@ namespace ve {
         if (m_pendingLoad)
             return false;
 
-        if (m_playSession.isLive()) {
+        if (m_pie.isLive()) {
             VE_CORE_WARN_PRINT("%s", "Cannot open a scene while a play session is running.");
             return false;
         }
@@ -610,43 +652,113 @@ namespace ve {
         return camera.getPosition() + ve::Vec3(front * kSpawnStandoff);
     }
 
-    void EditorLayer::startPlay() {
-        if (m_playSession.isLive())
+    void EditorLayer::startPlay(bool listenServer, int players) {
+        if (m_pie.isLive())
             return;
 
-        // Gameplay module, if the project ships one. Absent is not an error: the
-        // session still clones and ticks the scene, just with no gameplay code.
-        const std::string dllPath = (getProjectRoot() / "Binaries" / "game.dll").string();
+        PieConfig config;
+        config.listenServer = listenServer;
+        config.players = std::clamp(players, 1, 4);
 
-        if (!m_playSession.play(Application::get(), m_editorView.getScene(), dllPath))
+        // The gameplay module is optional, exactly as in a module-less UE
+        // project: offline play still works. A module that exists but fails to
+        // load aborts the whole session instead of leaving a silent client.
+        std::string modulePath = (getProjectRoot() / "Binaries" / "game.dll").string();
+        std::error_code existsEc;
+        if (!std::filesystem::exists(modulePath, existsEc)) {
+            if (config.players > 1)
+                VE_CORE_WARN_PRINT("%s", "PIE: no gameplay module, testing replication only");
+            modulePath.clear();
+        }
+
+        SceneViewConfig viewConfig = editorViewConfig();
+        const std::string& projectPipeline = m_document.project().pipeline;
+        if (!projectPipeline.empty())
+            viewConfig.pipelinePath = projectPipeline;
+
+        // Seed the tiles with the camera the user is looking through, matching
+        // UE: Play starts at the editor view, and only a scene camera takes over.
+        if (!m_pie.start(Application::get(), m_editorView.getScene(), modulePath, config, viewConfig,
+                         &m_sceneView.getCamera()))
             return;
 
-        m_prePlayCameraSource = m_sceneView.getCameraSource();
-        m_prePlayCameraEntity = m_sceneView.getSceneCameraEntity();
-
-        // Editor-only interaction points at the authored scene; drop it and point
-        // the viewport at the runtime duplicate.
+        // Editor-only interaction points at the authored scene; the authored
+        // view stays bound but is not drawn while the tiles are up.
         m_selectedEntity = UINT32_MAX;
         m_overlays.cancelPick();
         m_showTerrainBrush = false;
         m_terrainPainting = false;
-
-        m_sceneView.setScene(m_playSession.runtimeScene());
-        m_sceneView.setCameraSource(SceneView::CameraSource::Scene);
         m_editorView.setLocked(true);
     }
 
     void EditorLayer::stopPlay() {
-        if (!m_playSession.isLive())
+        if (!m_pie.isLive())
             return;
 
-        m_playSession.stop();
+        m_pie.stop();
 
         m_editorView.setLocked(false);
-        m_sceneView.setScene(m_editorView.getScene());
-        m_sceneView.setCameraSource(m_prePlayCameraSource);
-        m_sceneView.setSceneCameraEntity(m_prePlayCameraEntity);
         m_selectedEntity = UINT32_MAX;
+    }
+
+    void EditorLayer::renderPieViewport(float originX, float originY, float width, float height) {
+        const size_t count = m_pie.worldCount();
+        if (count == 0 || width <= 0.0f || height <= 0.0f)
+            return;
+
+        // One world fills the viewport; three become a column strip; anything
+        // else is a 2-wide grid (2 -> one row, 4 -> two rows).
+        const int cols = count == 1 ? 1 : (count == 3 ? 3 : 2);
+        const int rows = static_cast<int>((count + cols - 1) / cols);
+        const float gap = 2.0f;
+        const float tileW = (width - gap * (cols - 1)) / static_cast<float>(cols);
+        const float tileH = (height - gap * (rows - 1)) / static_cast<float>(rows);
+        if (tileW <= 0.0f || tileH <= 0.0f)
+            return;
+
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+        for (size_t i = 0; i < count; ++i) {
+            PieSession::World& world = m_pie.world(i);
+            if (!world.view)
+                continue;
+
+            const int col = static_cast<int>(i) % cols;
+            const int row = static_cast<int>(i) / cols;
+            const ImVec2 tilePos(originX + col * (tileW + gap), originY + row * (tileH + gap));
+            const ImVec2 tileSize(tileW, tileH);
+
+            world.view->setSize(static_cast<uint32_t>(tileW), static_cast<uint32_t>(tileH));
+
+            ImGui::SetCursorScreenPos(tilePos);
+            ImGui::Image((void*)(intptr_t)world.view->getColorAttachmentId(), tileSize,
+                         ImVec2(0, 1), ImVec2(1, 0));
+
+            // Hover hands the keyboard to a tile: one keystroke must reach one
+            // world, never every client at once.
+            if (ImGui::IsItemHovered())
+                m_pie.setFocusedWorld(i);
+
+            const bool focused = m_pie.focusedWorld() == i;
+            const ImU32 frameColor = focused ? IM_COL32(255, 180, 60, 255) : IM_COL32(0, 0, 0, 110);
+            drawList->AddRect(tilePos, ImVec2(tilePos.x + tileW, tilePos.y + tileH), frameColor,
+                              0.0f, 0, focused ? 2.0f : 1.0f);
+
+            drawList->AddText(ImVec2(tilePos.x + 6, tilePos.y + 4),
+                              IM_COL32(255, 255, 255, 230), world.label.c_str());
+
+            if (NetSession* net = world.ctx->network()) {
+                const NetStats& stats = net->stats();
+                char line[160];
+                std::snprintf(line, sizeof(line), "peers %zu  objs %llu  rpc %llu  err %llu",
+                    net->peerCount(),
+                    static_cast<unsigned long long>(stats.objectsApplied),
+                    static_cast<unsigned long long>(stats.rpcsReceived),
+                    static_cast<unsigned long long>(stats.parseErrors));
+                drawList->AddText(ImVec2(tilePos.x + 6, tilePos.y + 22),
+                                  IM_COL32(205, 225, 255, 210), line);
+            }
+        }
     }
 
     void EditorLayer::onUpdate() {
@@ -672,16 +784,21 @@ namespace ve {
 
         m_document.syncTerrainDataDirty(m_editorView.getScene());
 
-        // Drive the runtime scene while a play session is live. Runs before the
-        // view renders so this frame shows the tick's result.
-        m_playSession.tick(DeltaTime::get().getDeltaTime());
+        // Drive every PIE world. Runs before the tiles render so this frame shows
+        // the tick's result.
+        m_pie.update(DeltaTime::get().getDeltaTime());
 
-        // Particles preview on the authored scene while editing. A live session
-        // ticks its own cloned scene, so the two never advance twice.
-        if (!m_playSession.isLive()) {
+        // While editing: particles preview on the authored scene. A live session
+        // ticks its own cloned scenes, so nothing advances twice.
+        if (!m_pie.isLive()) {
             if (Ref<Scene> scene = m_editorView.getScene())
                 scene->tickParticles(DeltaTime::get().getDeltaTime());
         }
+
+        // The authored view renders only while editing; its camera and the
+        // camera sidecar are editor state, not part of the play session.
+        if (m_pie.isLive())
+            return;
 
         // Camera update + aspect/viewport + scene render, all owned by the view.
         // The fly-speed boost scales the speed for just this update, then the base
@@ -701,9 +818,8 @@ namespace ve {
         m_cameraStore.maybeAutosave(m_sceneView, m_document.currentPath(),
                                     ImGui::GetTime(), ImGui::IsAnyMouseDown());
 
-        // Overlay: light + camera billboard icons (editor gizmos). Skipped while a
-        // play session is live.
-        m_overlays.renderBillboards(m_sceneView, m_editorView.getScene(), m_playSession.isLive());
+        // Overlay: light + camera billboard icons (editor gizmos).
+        m_overlays.renderBillboards(m_sceneView, m_editorView.getScene(), false);
 
         if (m_overlays.needsPick()) {
             const int32_t picked = m_overlays.performPick(m_sceneView, m_editorView.getScene());

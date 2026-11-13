@@ -1,6 +1,6 @@
 #include "Viewport/ViewportToolbar.h"
 
-#include "PlaySession.h"
+#include "PieSession.h"
 
 #include "imgui.h"
 
@@ -68,7 +68,7 @@ void ViewportToolbar::attach() {
     m_stopIcon       = Texture2D::create("VostaEditor/resources/icons/stop.png");
 }
 
-void ViewportToolbar::onGuiRender(SceneView& view, const Ref<Scene>& scene, PlaySession& play) {
+void ViewportToolbar::onGuiRender(SceneView& view, const Ref<Scene>& scene, PieSession& play) {
     // The toolbar is drawn 1.2x above the base UI scale.
     ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 1.2f);
     ImGui::PushItemWidth(240.0f);
@@ -207,10 +207,14 @@ void ViewportToolbar::onGuiRender(SceneView& view, const Ref<Scene>& scene, Play
     // becomes Pause/Resume, Step and Stop.
     ImGui::SameLine(0.0f, 24.0f);
     if (!play.isLive()) {
+        static const char* kPlayerCounts[] = { "1 (Offline)", "2 Players", "3 Players", "4 Players" };
+        ImGui::SetNextItemWidth(110.0f);
+        ImGui::Combo("##piePlayers", &m_players, kPlayerCounts, 4);
+        ImGui::SameLine(0.0f, 6.0f);
         if (iconButton("##play", "Play", m_playIcon))
             if (m_callbacks.onPlay) m_callbacks.onPlay();
     } else {
-        if (play.state() == PlaySession::State::Play) {
+        if (play.state() == PieSession::State::Play) {
             if (iconButton("##pause", "Pause", m_pauseIcon))
                 play.pause();
         } else {

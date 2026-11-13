@@ -51,7 +51,7 @@ private:
     void drawAssetHandleProperty(void* ptr, const ReflectionProperty& prop);
 
     // Component-level custom drawers.
-    void drawStaticMeshComponent(StaticMeshComponent* comp);
+    void drawStaticMeshComponent(uint32_t entityId, StaticMeshComponent* comp);
     void drawTerrainComponent(uint32_t& entityId, TerrainComponent* comp);
     // The scene's shared terrain parameters: source, material, tile scale and
     // LOD. One per scene, so every edit re-bakes and re-places all tiles.
@@ -61,6 +61,11 @@ private:
     // Re-bake after the user picks a terrain source, then reconcile the tile with
     // the grid so its coordinate matches where it actually sits.
     void applyTerrainSource(uint32_t entityId, TerrainComponent* comp);
+
+    // Adds a RigidBodyComponent fitted to the entity's mesh AABB, or refits the
+    // existing one. Sizes are baked from the current transform scale, because
+    // the physics collider does not follow TransformComponent's scale.
+    void fitColliderToMesh(uint32_t entityId);
 
     // Shared: texture selector with preview, search combo, and clear button.
     void drawTexturePropertyWidget(const std::string& label, AssetHandle& textureHandle, AssetHandle materialHandle);
@@ -78,6 +83,10 @@ private:
     enum class PendingTileOp { None, Add, Remove, EnsureSystem };
     PendingTileOp m_pendingTileOp = PendingTileOp::None;
     glm::ivec2 m_pendingTileCoord = glm::ivec2(0);
+
+    // Same reason as the tile ops: generating a collider may add a component,
+    // which reallocates the storage this frame's component pointers came from.
+    uint32_t m_pendingFittedCollider = UINT32_MAX;
 
     // "Add Component" popup state.
     bool m_showAddComponentPopup = false;

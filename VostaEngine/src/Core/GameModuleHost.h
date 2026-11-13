@@ -3,6 +3,7 @@
 #include "Core.h"
 #include "GameModule.h"
 
+#include <memory>
 #include <string>
 
 namespace ve {
@@ -10,6 +11,7 @@ namespace ve {
 	class Application;
 	class Scene;
 	class ECSystemBase;
+	class GameModuleLibrary;
 
 	// Loads one game-module shared library and drives its GameModule lifecycle.
 	// One module per host. The platform loader is LoadLibraryExA on Windows and
@@ -25,9 +27,12 @@ namespace ve {
 
 		// Loads dllPath, resolves the factory, version-checks it and calls
 		// GameModule::onLoad(app). Remembers &app for the matching unload().
+		// Several hosts may load the same DLL: the library is held by reference, so
+		// the DLL stays mapped and its reflection/RPC tables stay live until the
+		// last host unloads.
 		bool load(Application& app, const std::string& dllPath);
 
-		// Calls GameModule::onUnload, destroys the module and frees the DLL.
+		// Calls GameModule::onUnload, destroys the module and releases the library.
 		// No-op when nothing is loaded.
 		void unload();
 
@@ -46,10 +51,9 @@ namespace ve {
 		const std::string& lastError() const { return m_lastError; }
 
 	private:
-		void* m_osHandle = nullptr;          // HMODULE or dlopen handle
 		GameModule* m_module = nullptr;
 		Application* m_app = nullptr;
-		VeDestroyGameModuleFn m_destroyFn = nullptr;
+		std::shared_ptr<GameModuleLibrary> m_library;
 		Ref<ECSystemBase> m_tick;            // session-scoped, lives on m_scene
 		Scene* m_scene = nullptr;
 		std::string m_lastError;

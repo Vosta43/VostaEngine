@@ -23,6 +23,9 @@
 #include "Asset/BuiltinReousrces.h"
 #include "Audio/AudioDevice.h"
 #include "Particle/ParticleSelfTest.h"
+#include "Network/NetSession.h"
+#include "Network/RepLayout.h"
+#include "Core/WorldContext.h"
 
 #if defined(VE_PLATFORM_WINDOWS)
 #include <objbase.h>
@@ -36,6 +39,8 @@ namespace ve {
 
         s_instance = this;
 
+        m_network = std::make_unique<NetSession>();
+
         // Claim the STA before anything else touches COM. miniaudio opens the
         // audio device below and would otherwise initialise this thread as MTA;
         // the shell's IFileDialog::Show deadlocks on an MTA thread whenever it
@@ -47,6 +52,20 @@ namespace ve {
         // Register engine-owned assets (default material, ...) before any scene
         // or layer can ask for them.
         BuiltinResources::init();
+
+        // Build replication layouts from the properties registered so far; a
+        // game module rebuilds after its own replicated fields register.
+        {
+            std::vector<std::string> errors;
+            if (RepLayoutRegistry::get().rebuild(errors)) {
+                VE_CORE_SUCCESS("Replication layouts built: "
+                    << RepLayoutRegistry::get().layoutCount() << " classes");
+            }
+            else {
+                for (const std::string& error : errors)
+                    VE_CORE_ERROR_PRINT("RepLayout: %s", error.c_str());
+            }
+        }
 
 #ifdef _DEBUG
         // Run before the audio device so the tests work on machines without an
@@ -61,7 +80,7 @@ namespace ve {
         m_dispatcher = std::make_unique<EventDispatcher>();
         VE_CORE_SUCCESS("Event dispatcher initialized");
 
-        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.14 dev", m_dispatcher.get());
+        m_window = std::make_unique<Window>(1500, 980, "VostaEngine 0.2.15 dev", m_dispatcher.get());
         VE_CORE_SUCCESS("Window created");
 
         m_shaderLibrary = std::make_unique<ShaderLibrary>();
@@ -132,6 +151,10 @@ namespace ve {
                 layer->onUpdate();
             }
 
+            // After the layers: the play session has already stepped the runtime
+            // scene, so snapshots describe this frame rather than the last one.
+            m_network->update(DeltaTime::get().getDeltaTime());
+
             m_GuiLayer->begin();
             for (Layer* layer : m_layerStack) {
                 layer->onUIRender();
@@ -189,6 +212,21 @@ namespace ve {
 
     ShaderLibrary& Application::getShaderLibrary() {
         return *m_shaderLibrary;
+    }
+
+    NetSession* Application::getNetwork() const {
+        // An offline world has no session of its own; fall through to the inert
+        // process-wide one so module code can keep treating the pointer as
+        // non-null (its role is None), as it did before multi-world PIE.
+        if (m_activeWorld) {
+            if (NetSession* net = m_activeWorld->network())
+                return net;
+        }
+        return m_network.get();
+    }
+
+    int Application::getLocalPlayerIndex() const {
+        return m_activeWorld ? m_activeWorld->localPlayerIndex() : 0;
     }
 
     GuiLayer* Application::getGuiLayer() {

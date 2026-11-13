@@ -1,43 +1,11 @@
 #include "vepch.h"
 #include "CloudPass.h"
 #include "Renderer/RenderCommand.h"
-#include "Renderer/Buffer.h"
 
 namespace ve {
 
-	void CloudPass::init() {
-		float vertices[] = {
-			-1.0f, -1.0f,  // bottom left
-			1.0f, -1.0f,  // bottom right
-			1.0f,  1.0f,  // top right
-			-1.0f,  1.0f   // top left
-		};
-		uint32_t indices[] = { 0, 1, 2, 2, 3, 0 };
-
-		m_fullscreenQuad = VertexArray::create();
-		auto vb = VertexBuffer::create(vertices, sizeof(vertices));
-		BufferLayout layout = {
-			{ ShaderDataType::Float2, "a_Position" }
-		};
-		vb->setLayout(layout);
-		m_fullscreenQuad->addVertexBuffer(vb);
-
-		auto ib = IndexBuffer::create(indices, 6);
-		m_fullscreenQuad->setIndexBuffer(ib);
-	}
-
 	void CloudPass::execute(RenderContext& ctx) {
-		if (!m_target) {
-			return;
-		}
-
-		m_target->bind();
-		// bind() already forces the half-res viewport; set it explicitly anyway.
-		// Do NOT use ctx.viewPortWidth/Height — that is full-res and would crop
-		// the quad to the top-left quadrant of the half-res buffer.
-		RenderCommand::setViewport(0, 0, m_target->getWidth(), m_target->getHeight());
-		RenderCommand::setClearColor(0.0f, 0.0f, 0.0f, 1.0f);   // alpha 1 = fully transparent
-		RenderCommand::clear();
+		if (!beginPass(ctx)) return;
 
 		// The shader samples the baked Worley textures, so they must all be
 		// present: an unbound sampler3D reads (0,0,0,1) -> worleyFbm=0 ->
@@ -113,9 +81,7 @@ namespace ve {
 				m_shader->setTexture("u_WeatherMap", ctx.cloudWeatherMap, 13);
 				m_shader->setFloat("u_CloudHeightGradientWeight", c.heightGradientWeight);
 
-				m_fullscreenQuad->bind();
-				RenderCommand::drawIndexed(m_fullscreenQuad);
-				m_fullscreenQuad->unbind();
+				drawFullscreenQuad();
 				m_shader->unbind();
 			}
 		}

@@ -80,18 +80,20 @@ namespace ve {
 
 	VESTRUCT(TransformComponent)
 	struct TransformComponent {
+		// TODO: replicated for the demo only -- not settled, and inert unless a NetSession runs.
+
 		// Authoritative world position. Double under VE_LARGE_WORLD_COORDINATES, so a
 		// planet-scale coordinate survives storage; the render path narrows it only
 		// after subtracting the frame's origin.
-		VEPROPERTY(TransformComponent, ve::Vec3, position, "position", "type=drag")
+		VEPROPERTY(TransformComponent, ve::Vec3, position, "position", "type=drag,net=replicated")
 		ve::Vec3 position{ 0.0 };
 
 		// Orientation and scale stay float32: both are O(1) and carry no precision
 		// risk -- only translation grows with the world.
-		VEPROPERTY(TransformComponent, glm::quat, rotation, "rotation", "type=drag")
+		VEPROPERTY(TransformComponent, glm::quat, rotation, "rotation", "type=drag,net=replicated")
 		glm::quat rotation{ 1.0f, 0.0f, 0.0f, 0.0f };
 
-		VEPROPERTY(TransformComponent, glm::vec3, scale, "scale", "type=drag")
+		VEPROPERTY(TransformComponent, glm::vec3, scale, "scale", "type=drag,net=replicated")
 		glm::vec3 scale{ 1.0f };
 
 		TransformComponent() = default;
@@ -140,10 +142,10 @@ namespace ve {
 		float defense;
 
 	};
-	// DEBUG
+	// DEBUG: replication test fixture only -- no engine or gameplay system reads it.
 	VESTRUCT(Player)
 	struct Player {
-		VEPROPERTY(Player, float, health, "health", "type=drag,minValue=0,maxValue=100")
+		VEPROPERTY(Player, float, health, "health", "type=drag,minValue=0,maxValue=100,net=replicated")
 		float health;
 
 		VEPROPERTY(Player, std::string, name, "name", "type=input")
@@ -206,6 +208,10 @@ namespace ve {
 		VEPROPERTY(StaticMeshComponent, AssetHandle, materialHandle, "material", "type=material")
 		AssetHandle materialHandle;
 
+		// Bitmask; RenderLayer::Default (see RenderContext.h).
+		VEPROPERTY(StaticMeshComponent, int, renderLayer, "Render Layer", "type=drag,speed=1,minValue=0,maxValue=65535")
+		int renderLayer = 1;
+
 		std::vector<SubmeshEntry> submeshEntries;
 
 		StaticMeshComponent() = default;
@@ -223,6 +229,7 @@ namespace ve {
 		void serialize(JsonWriter& w) const {
 			writeAssetPath<StaticMesh>(w, "staticMesh", staticMeshHandle);
 			writeAssetPath<Material>(w, "material", materialHandle);
+			w.set("renderLayer", renderLayer);
 
 			w.beginArray("submeshes", submeshEntries.size());
 			for (const auto& entry : submeshEntries) {
@@ -236,6 +243,7 @@ namespace ve {
 		void deserialize(const JsonReader& r) {
 			staticMeshHandle = readAssetPath<StaticMesh>(r, "staticMesh");
 			materialHandle = readAssetPath<Material>(r, "material");
+			renderLayer = r.getInt("renderLayer", renderLayer);
 
 			const size_t submeshCount = r.arraySize("submeshes");
 			submeshEntries.resize(submeshCount);
@@ -315,6 +323,10 @@ namespace ve {
 		VEPROPERTY(SpriteRendererComponent, AssetHandle, textureHandle, "textureHandle", "type=texture")
 		AssetHandle textureHandle;
 		glm::vec2 size;
+
+		// Bitmask; RenderLayer::Transparent (see RenderContext.h).
+		VEPROPERTY(SpriteRendererComponent, int, renderLayer, "Render Layer", "type=drag,speed=1,minValue=0,maxValue=65535")
+		int renderLayer = 2;
 		
 		SpriteRendererComponent() = default;
 		SpriteRendererComponent(const glm::vec2& size, AssetHandle textureHandle)
@@ -325,11 +337,13 @@ namespace ve {
 		void serialize(JsonWriter& w) const {
 			w.set("size", size);
 			writeAssetPath<Texture2D>(w, "texture", textureHandle);
+			w.set("renderLayer", renderLayer);
 		}
 
 		void deserialize(const JsonReader& r) {
 			size = r.getVec2("size", size);
 			textureHandle = readAssetPath<Texture2D>(r, "texture");
+			renderLayer = r.getInt("renderLayer", renderLayer);
 		}
 
 	};

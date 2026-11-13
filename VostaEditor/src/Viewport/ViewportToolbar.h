@@ -6,7 +6,7 @@
 
 namespace ve {
 
-class PlaySession;
+class PieSession;
 
 // The viewport toolbar strip: FPS readout, an editor-camera popup (world
 // position, fly speed, view distance), wireframe / ground-grid toggles, the
@@ -30,7 +30,10 @@ public:
 
     // Draws the strip inline, into whatever window is current. `scene` is the
     // authored scene the view-camera picker lists cameras from.
-    void onGuiRender(SceneView& view, const Ref<Scene>& scene, PlaySession& play);
+    void onGuiRender(SceneView& view, const Ref<Scene>& scene, PieSession& play);
+
+    // Player count the Play button asks for (1 = offline).
+    int playerCount() const { return m_players + 1; }
 
     // Camera fly-speed boost. The multiplier is applied by the layer for the one
     // frame the camera updates in -- CameraController itself stays boost-agnostic,
@@ -66,6 +69,8 @@ private:
     bool  m_showGlobe = false;
     bool  m_vsync = false;
     int   m_rvtDebug = 0;
+    // Play asks for playerCount() worlds: 0 -> offline, 1..3 -> 2..4 players.
+    int   m_players = 1;
     // Resource residency budget in MB (0 = eviction off).
     int   m_resourceBudgetMB = 1024;
 };

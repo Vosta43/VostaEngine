@@ -1,7 +1,6 @@
 #pragma once
 
 #include "RenderPassBase.h"
-#include "Renderer/VertexArray.h"
 
 namespace ve {
 
@@ -12,11 +11,7 @@ namespace ve {
 	// (skybox, sprites) draws on top of a complete image.
 	class PresentPass : public RenderPassBase {
 	public:
-		void init() override;
 		void execute(RenderContext& ctx) override;
-
-	private:
-		Ref<VertexArray> m_fullscreenQuad;
 	};
 
 }

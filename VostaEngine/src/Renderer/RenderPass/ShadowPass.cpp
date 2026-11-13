@@ -20,12 +20,7 @@ namespace ve {
 			return;
 		}
 
-		m_target->bind();
-		RenderCommand::setViewport(0, 0, m_target->getWidth(), m_target->getHeight());
-		// Depth mask must be on before the clear: glClear respects it.
-		RenderCommand::setDepthTesting(true);
-		RenderCommand::setDepthMask(true);
-		RenderCommand::clear();
+		if (!beginPass(ctx)) return;
 
 		if (!m_shader) {
 			m_target->unbind();

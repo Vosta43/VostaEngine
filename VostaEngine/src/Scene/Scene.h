@@ -21,6 +21,10 @@ namespace ve {
 
 		void onUpdate(float deltaTime);
 
+		// Runs exactly one fixed simulation step, bypassing the accumulator.
+		// For paused single-stepping, where a sub-step delay must still tick.
+		void stepFixed();
+
         // Advances particle components only. The editor calls this for the authored
         // scene while editing, where the ECS graph must not run.
         void tickParticles(float deltaTime);
@@ -31,6 +35,12 @@ namespace ve {
         void updateAudioListener();
         void tickAudio();
         void stopAudio();
+
+        // Gate for the two calls above. Several runtime worlds share one mixer
+        // (multi-world PIE), so only the focused world advances audio -- otherwise
+        // every world's listener fights over one device and all sounds stack.
+        void setAudioEnabled(bool enabled) { m_audioEnabled = enabled; }
+        bool isAudioEnabled() const { return m_audioEnabled; }
 
         void onPickingRender();
 
@@ -120,6 +130,12 @@ namespace ve {
 
         void ensurePhysicsWorld();
         void tickPhysics(float deltaTime);
+        void tickFixedStep(float fixedDt);
+
+        // Leftover frame time in fixed-step units; see Scene::onUpdate.
+        double m_fixedAccumulator = 0.0;
+
+        bool m_audioEnabled = true;
 
         // CameraController is at Editor exe. Intermediate variable
         ve::Vec3 m_cameraPosition{ 0.0 };

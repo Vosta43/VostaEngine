@@ -28,7 +28,7 @@ namespace {
 
     // Mirrors project() VERSION in CMakeLists.txt, recorded in build.json so a
     // shipped folder can be traced back to the engine that produced it.
-    constexpr const char* kEngineVersion = "0.2.14";
+    constexpr const char* kEngineVersion = "0.2.15";
 
     // zstd's default level: packaging stays interactive; shipping size is close
     // enough to level 19 for content that is mostly already-compressed images.

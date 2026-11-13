@@ -4,6 +4,7 @@
 #include "Renderer/FrameBuffer.h"
 #include "Renderer/PipelineState.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -61,13 +62,28 @@ namespace ve {
 		bool  depth = false;
 	};
 
+	// Only the fields a pass declares are changed; the rest keep whatever the
+	// backend already has bound. A pass that declares no state therefore keeps
+	// the state it inherited, which is what the pre-descriptor pipeline did.
 	struct PassStateDef {
-		bool          blend = false;
-		BlendFactor   src = BlendFactor::SrcAlpha;
-		BlendFactor   dst = BlendFactor::OneMinusSrcAlpha;
-		bool          depthTest = false;
-		bool          depthWrite = false;
-		CompareOp     depthFunc = CompareOp::Greater;
+		std::optional<bool>        blend;
+		std::optional<BlendFactor> src;
+		std::optional<BlendFactor> dst;
+		std::optional<bool>        depthTest;
+		std::optional<bool>        depthWrite;
+		std::optional<CompareOp>   depthFunc;
+	};
+
+	// Where a pass sets its viewport. Target = the whole bound framebuffer,
+	// Frame = the caller's viewport rectangle (ctx.viewPort*), Explicit = a
+	// fixed rectangle.
+	struct PassViewport {
+		enum class Mode { Target, Frame, Explicit };
+		Mode     mode = Mode::Target;
+		int32_t  x = 0;
+		int32_t  y = 0;
+		uint32_t width = 0;
+		uint32_t height = 0;
 	};
 
 	struct ConditionDef {
@@ -83,6 +99,18 @@ namespace ve {
 		UniformKind kind = UniformKind::Float;
 		float       v[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 		bool        vs[4] = { false, false, false, false };  // for Bool/int
+	};
+
+	struct PerDrawUniformDef {
+		std::string uniform;
+		std::string source;
+	};
+
+	struct DrawDef {
+		uint32_t layerMask = 0xFFFFFFFFu;
+		bool materialShader = true;
+		bool rvt = true;
+		std::vector<PerDrawUniformDef> uniforms;
 	};
 
 	enum class SettingsApply { Uniform, Resource, Pass, Variant };
@@ -112,6 +140,10 @@ namespace ve {
 		ClearDef     clear;
 		PassStateDef state;
 		bool         hasState = false;
+		PassViewport viewport;
+		bool         hasViewport = false;
+		DrawDef      draw;
+		bool         hasDraw = false;
 		ConditionDef when;
 		bool         hasCondition = false;
 	};

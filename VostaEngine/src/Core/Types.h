@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm.hpp>
+#include <gtc/quaternion.hpp>
 
 namespace ve {
 

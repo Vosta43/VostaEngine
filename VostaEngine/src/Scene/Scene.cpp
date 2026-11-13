@@ -15,7 +15,13 @@
 
 
 namespace ve {
-	
+
+	namespace {
+		// Simulation advances in fixed slices; rendering and audio stay per frame.
+		constexpr double kFixedStep = 1.0 / 60.0;
+		constexpr int kMaxFixedStepsPerFrame = 4;
+	}
+
 	Scene::Scene(){
 	
 		
@@ -33,11 +39,35 @@ namespace ve {
 
 	void Scene::onUpdate(float deltaTime){
 
-		m_ecsystemGraph.onUpdate(deltaTime);
-		tickPhysics(deltaTime);
-		tickParticles(deltaTime);
-		updateAudioListener();
-		tickAudio();
+		if (deltaTime > 0.0f)
+			m_fixedAccumulator += static_cast<double>(deltaTime);
+
+		int steps = 0;
+		while (m_fixedAccumulator >= kFixedStep && steps < kMaxFixedStepsPerFrame) {
+			tickFixedStep(static_cast<float>(kFixedStep));
+			m_fixedAccumulator -= kFixedStep;
+			++steps;
+		}
+
+		// A long hitch would otherwise queue more work than later frames can
+		// retire, turning one stall into a permanent slowdown (spiral of death).
+		if (steps == kMaxFixedStepsPerFrame && m_fixedAccumulator >= kFixedStep)
+			m_fixedAccumulator = 0.0;
+
+		if (m_audioEnabled) {
+			updateAudioListener();
+			tickAudio();
+		}
+	}
+
+	void Scene::tickFixedStep(float fixedDt) {
+		m_ecsystemGraph.onUpdate(fixedDt);
+		tickPhysics(fixedDt);
+		tickParticles(fixedDt);
+	}
+
+	void Scene::stepFixed() {
+		tickFixedStep(static_cast<float>(kFixedStep));
 	}
 
 	void Scene::ensurePhysicsWorld() {

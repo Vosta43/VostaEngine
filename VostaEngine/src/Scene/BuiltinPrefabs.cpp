@@ -5,6 +5,10 @@
 #include "Scene/Components.h"
 #include "Scene/Terrain/Terrain.h"
 
+#include "Asset/BuiltinReousrces.h"
+#include "Core/ResourceManager.h"
+#include "Renderer/StaticMesh.h"
+
 #include <glm.hpp>
 
 namespace ve {
@@ -34,6 +38,28 @@ namespace ve {
 			scene.assignComponent<NameComponent>(entity, "Mesh");
 			scene.assignComponent<TransformComponent>(entity);
 			scene.assignComponent<StaticMeshComponent>(entity);
+			return entity;
+		} };
+
+	// The mesh is 1x1x1, so halfExtents 0.5 lines the collider up with it; the
+	// collider does not follow TransformComponent's scale (see RigidBodyComponent).
+	PrefabRegistrar reg_prefabPhysicsCube{ "physics_cube", "Physics Cube", "Physics",
+		[](Scene& scene) {
+			Entity entity = scene.createEntity();
+			scene.assignComponent<NameComponent>(entity, "Cube");
+			scene.assignComponent<TransformComponent>(entity);
+
+			StaticMeshComponent mesh;
+			mesh.staticMeshHandle = ResourceManager::load<StaticMesh>(
+				"VostaEngine/resources/models/cube.obj");
+			mesh.materialHandle = BuiltinResources::getDefaultMaterial();
+			scene.assignComponent<StaticMeshComponent>(entity, mesh);
+
+			RigidBodyComponent body;
+			body.bodyType = 2; // Dynamic
+			body.shape = 0;    // Box
+			body.halfExtents = glm::vec3(0.5f);
+			scene.assignComponent<RigidBodyComponent>(entity, body);
 			return entity;
 		} };
 

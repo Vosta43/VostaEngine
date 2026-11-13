@@ -18,7 +18,22 @@
   ],
 
   "passes": [
-    { "name": "gbuffer", "type": "gbuffer", "target": "gbuffer", "shader": "gbuffer" },
+    {
+      "name": "gbuffer", "type": "drawMeshes", "target": "gbuffer", "shader": "gbuffer",
+      "state": { "blend": false, "depthTest": true, "depthWrite": true },
+      "draw": {
+        "layerMask": 1,
+        "uniforms": [
+          { "uniform": "u_ViewProj",    "source": "@camera.viewProj" },
+          { "uniform": "u_Model",       "source": "@mesh.model" },
+          { "uniform": "u_Time",        "source": "@time.total" },
+          { "uniform": "u_WorldOrigin", "source": "@world.origin" }
+        ]
+      },
+      "uniforms": [
+        { "uniform": "u_CoordMode", "kind": "Int", "x": 0.0 }
+      ]
+    },
 
     {
       "name": "post", "type": "post", "target": "post", "shader": "postprocess",

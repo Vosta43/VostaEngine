@@ -12,6 +12,7 @@
 #include "src/Core/Reflection.h"
 #include "src/Core/GameModule.h"
 #include "src/Core/GameModuleHost.h"
+#include "src/Core/WorldContext.h"
 
 
 #include "src/Input.h"
@@ -38,6 +39,9 @@
 #include "src/Physics/PhysicsWorld.h"
 #include "src/Scene/SceneSerializer.h"
 #include "src/Scene/PrefabRegistry.h"
+
+#include "src/Network/NetSession.h"
+#include "src/Network/Rpc.h"
 
 #include "src/Terrain/RuleGraph.h"
 #include "src/Terrain/RuleNodes.h"

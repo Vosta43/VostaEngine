@@ -163,12 +163,12 @@ namespace ve {
 
 		PassStateDef parseState(const JsonReader& el) {
 			PassStateDef s;
-			s.blend = el.getBool("blend", false);
-			s.src = parseBlend(el.getString("src"), BlendFactor::SrcAlpha);
-			s.dst = parseBlend(el.getString("dst"), BlendFactor::OneMinusSrcAlpha);
-			s.depthTest = el.getBool("depthTest", false);
-			s.depthWrite = el.getBool("depthWrite", false);
-			s.depthFunc = parseDepthFunc(el.getString("depthFunc"));
+			if (el.has("blend"))      s.blend = el.getBool("blend", false);
+			if (el.has("src"))        s.src = parseBlend(el.getString("src"), BlendFactor::SrcAlpha);
+			if (el.has("dst"))        s.dst = parseBlend(el.getString("dst"), BlendFactor::OneMinusSrcAlpha);
+			if (el.has("depthTest"))  s.depthTest = el.getBool("depthTest", false);
+			if (el.has("depthWrite")) s.depthWrite = el.getBool("depthWrite", false);
+			if (el.has("depthFunc"))  s.depthFunc = parseDepthFunc(el.getString("depthFunc"));
 
 			// Subkeys Vosta's RenderCommand has no way to express. Parse-and-ignore.
 			const char* unsupported[] = { "cull", "polygon_offset", "line_width", "topology", "colorWrite" };
@@ -206,6 +206,25 @@ namespace ve {
 				p.hasState = true;
 			}
 
+			if (el.has("viewport")) {
+				const JsonReader v = el.child("viewport");
+				const std::string mode = lower(v.getString("mode"));
+				p.hasViewport = true;
+				if (mode == "frame") {
+					p.viewport.mode = PassViewport::Mode::Frame;
+				}
+				else if (mode == "explicit") {
+					p.viewport.mode = PassViewport::Mode::Explicit;
+					p.viewport.x = v.getInt("x", 0);
+					p.viewport.y = v.getInt("y", 0);
+					p.viewport.width = (uint32_t)std::max(0, v.getInt("width", 0));
+					p.viewport.height = (uint32_t)std::max(0, v.getInt("height", 0));
+				}
+				else {
+					p.viewport.mode = PassViewport::Mode::Target;
+				}
+			}
+
 			if (el.has("when")) {
 				const JsonReader w = el.child("when");
 				p.when.provider = w.getString("from");
@@ -216,6 +235,22 @@ namespace ve {
 			const size_t nHist = el.arraySize("history");
 			for (size_t i = 0; i < nHist; ++i)
 				p.history.push_back(el.at("history", i).asString());
+
+			if (el.has("draw")) {
+				const JsonReader d = el.child("draw");
+				p.hasDraw = true;
+				p.draw.layerMask = (uint32_t)d.getInt("layerMask", -1);
+				p.draw.materialShader = d.getBool("materialShader", true);
+				p.draw.rvt = d.getBool("rvt", true);
+				const size_t nD = d.arraySize("uniforms");
+				for (size_t i = 0; i < nD; ++i) {
+					const JsonReader u = d.at("uniforms", i);
+					PerDrawUniformDef du;
+					du.uniform = u.getString("uniform");
+					du.source = u.getString("source");
+					p.draw.uniforms.push_back(du);
+				}
+			}
 
 			const size_t nU = el.arraySize("uniforms");
 			for (size_t i = 0; i < nU; ++i) {
@@ -357,20 +392,62 @@ namespace ve {
 			return p;
 		};
 
+		auto clearPass = [](PassDef& p, bool depth) {
+			p.clear.enabled = true;
+			p.clear.depth = depth;
+		};
+
+		auto frameViewport = [](PassDef& p) {
+			p.hasViewport = true;
+			p.viewport.mode = PassViewport::Mode::Frame;
+		};
+
 		// Fills the runtime virtual texture's pages. Declares no target: it binds
 		// its own bake framebuffer, and no-ops when the frame has no RVT.
 		PassDef rvtBake = pass("rvtBake", "rvtbake", "", "");
 
-		PassDef gbuffer = pass("gbuffer", "gbuffer", "gbuffer", "gbuffer");
+		auto opaqueState = [](PassDef& p) {
+			p.hasState = true;
+			p.state.blend = false;
+			p.state.depthTest = true;
+			p.state.depthWrite = true;
+		};
+
+		PassDef gbuffer = pass("gbuffer", "drawMeshes", "gbuffer", "gbuffer");
+		frameViewport(gbuffer);
+		clearPass(gbuffer, true);
+		opaqueState(gbuffer);
+		gbuffer.hasDraw = true;
+		gbuffer.draw.layerMask = 1u;   // RenderLayer::Default
+		gbuffer.draw.materialShader = true;
+		gbuffer.draw.rvt = true;
+		gbuffer.draw.uniforms = {
+			{ "u_ViewProj",    "@camera.viewProj" },
+			{ "u_Model",       "@mesh.model" },
+			{ "u_Time",        "@time.total" },
+			{ "u_WorldOrigin", "@world.origin" },
+		};
+		{
+			UniformValueDef coordMode;
+			coordMode.uniform = "u_CoordMode";
+			coordMode.kind = UniformKind::Int;
+			gbuffer.uniforms.push_back(coordMode);
+		}
+
+		// Cube-sphere tiles share the gbuffer target and are drawn after the meshes.
+		PassDef globe = pass("globe", "drawGlobe", "gbuffer", "");
+		opaqueState(globe);
 
 		// cloud/cloudTaa run unconditionally: with no atmosphere they clear the
 		// cloud buffer to transparent and consumers composite nothing, matching
 		// the pre-data-driven behaviour. (A `when` gate would skip them and leave
 		// stale cloud textures bound on the units consumers sample.)
 		PassDef cloud = pass("cloud", "cloud", "cloud", "volume_cloud_pass");
+		clearPass(cloud, false);
 
 		PassDef cloudTaa = pass("cloudTaa", "cloudtaa", "cloudTaaA", "cloud_taa");
 		cloudTaa.history = { "cloudTaaA", "cloudTaaB" };
+		clearPass(cloudTaa, false);
 		cloudTaa.inputs = {
 			{ "u_CloudColor", 0, "cloud", "2d", 0, false },
 			{ "u_History",    1, "@history", "2d", 0, false },
@@ -382,6 +459,7 @@ namespace ve {
 		// cloud passes run unconditionally. It clears to black when inactive.
 		PassDef volumetric = pass("volumetric", "volumetric", "volumetricA", "volumetric_light");
 		volumetric.history = { "volumetricA", "volumetricB" };
+		clearPass(volumetric, false);
 		volumetric.inputs = {
 			{ "u_DepthMap",   0,  "gbuffer", "2d", 0, true  },
 			{ "u_History",    1,  "@history","2d", 0, false },
@@ -398,6 +476,8 @@ namespace ve {
 		}
 
 		PassDef hdr = pass("hdr", "hdr", "hdr", "pbrlighting");
+		frameViewport(hdr);
+		clearPass(hdr, false);
 		hdr.inputs = {
 			{ "u_AlbedoMap",        0, "gbuffer",  "2d", 0, false },
 			{ "u_NormalMap",        1, "gbuffer",  "2d", 1, false },
@@ -416,6 +496,7 @@ namespace ve {
 
 		PassDef taa = pass("taa", "taa", "taaA", "taa");
 		taa.history = { "taaA", "taaB" };
+		clearPass(taa, false);
 		taa.inputs = {
 			{ "u_HDRColor", 0, "@previous", "2d", 0, false },
 			{ "u_DepthMap", 1, "gbuffer",   "2d", 0, true  },
@@ -429,6 +510,8 @@ namespace ve {
 		taa.hasCondition = true;
 
 		PassDef post = pass("post", "post", "post", "postprocess");
+		frameViewport(post);
+		clearPass(post, false);
 		post.inputs = {
 			{ "u_HDRColor", 0, "@previous", "2d", 0, false },
 		};
@@ -439,13 +522,37 @@ namespace ve {
 			{ "u_DepthMap",      1, "gbuffer",   "2d", 0, true  },
 		};
 
+		// Component-driven game content, composited into the presented image.
+		// Skybox and sprites inherit the presented state, as the host overlay did.
+		PassDef skybox = pass("skybox", "drawSkybox", "@output", "");
+		skybox.when.provider = "hasSkybox";
+		skybox.hasCondition = true;
+		frameViewport(skybox);
+
+		PassDef sprites = pass("sprites", "drawSprites", "@output", "");
+		frameViewport(sprites);
+		sprites.hasDraw = true;
+		sprites.draw.layerMask = 2u;   // RenderLayer::Transparent
+
+		PassDef particles = pass("particles", "drawParticles", "@output", "");
+		frameViewport(particles);
+		particles.hasState = true;
+		particles.state.blend = true;
+		particles.state.src = BlendFactor::SrcAlpha;
+		particles.state.dst = BlendFactor::OneMinusSrcAlpha;
+		particles.state.depthTest = false;
+		particles.hasDraw = true;
+		particles.draw.layerMask = 2u;   // RenderLayer::Transparent
+
 		// Bake inspector: overwrites the presented image while the RVT debug view
-		// is on. Gated, so it costs nothing otherwise.
+		// is on. Gated, so it costs nothing otherwise. Stays last so it covers the
+		// overlays above.
 		PassDef rvtDebug = pass("rvtDebug", "rvtdbg", "@default", "rvt_debug");
 		rvtDebug.when.provider = "rvtDebug";
 		rvtDebug.hasCondition = true;
 
-		c.passes = { rvtBake, gbuffer, cloud, cloudTaa, volumetric, hdr, taa, post, present, rvtDebug };
+		c.passes = { rvtBake, gbuffer, globe, cloud, cloudTaa, volumetric, hdr, taa,
+		             post, present, skybox, sprites, particles, rvtDebug };
 		return c;
 	}
 

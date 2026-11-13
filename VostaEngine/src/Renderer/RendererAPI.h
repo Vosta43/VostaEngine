@@ -99,6 +99,10 @@ namespace ve {
         // changed GL (third-party UI, legacy code mid-migration). The next
         // applyPipelineState re-sends every field instead of diffing.
         virtual void invalidateStateCache() = 0;
+        // The state the backend believes is bound. A caller that wants to change
+        // one field merges it here and submits the result through
+        // applyPipelineState, so the rest of the state is not silently reset.
+        virtual RenderStateDesc currentState() const = 0;
         virtual void setDepthFunc(CompareOp func) = 0;
         virtual void setDepthMask(bool enabled) = 0;
         virtual void setBlend(bool enabled) = 0;

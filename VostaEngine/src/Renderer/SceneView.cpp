@@ -53,7 +53,12 @@ namespace ve {
         m_cameraController.setActive(false);
     }
 
-    SceneView::~SceneView() = default;
+    SceneView::~SceneView() {
+        if (!m_dispatcher)
+            return;
+        for (uint64_t id : m_subscriptionIds)
+            m_dispatcher->unsubscribe(id);
+    }
 
     void SceneView::onAttach() {
         if (m_attached) return;
@@ -76,11 +81,12 @@ namespace ve {
         m_sceneCamera.setProjectionType(m_config.perspective);
 
         auto* dispatcher = Application::get().getDispatcher();
-        dispatcher->subscribe(Event::Type::MouseScrolled,
+        m_dispatcher = dispatcher;
+        m_subscriptionIds[0] = dispatcher->subscribe(Event::Type::MouseScrolled,
             [this](Event& e) { handleScroll(e); });
-        dispatcher->subscribe(Event::Type::MouseButtonPressed,
+        m_subscriptionIds[1] = dispatcher->subscribe(Event::Type::MouseButtonPressed,
             [this](Event& e) { handleMousePressed(e); });
-        dispatcher->subscribe(Event::Type::MouseButtonReleased,
+        m_subscriptionIds[2] = dispatcher->subscribe(Event::Type::MouseButtonReleased,
             [this](Event& e) { handleMouseReleased(e); });
     }
 

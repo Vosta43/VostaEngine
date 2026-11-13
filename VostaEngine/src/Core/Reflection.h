@@ -11,16 +11,19 @@ namespace ve {
 
 
 	struct ReflectionProperty {
-		std::string name;
+		std::string name;      // editor display label, e.g. "static mesh"
+		std::string fieldName; // C++ member name, e.g. "staticMeshHandle"
 		std::string typeName; // raw type : int/std::string/float/Handle(Customized val)
 		void* offset = nullptr; //deprecated
 		std::function<void*(void*)> getter;
-		
+
 		bool enableEdit = true;
+		bool replicated = false;
 		// none/drag/input (Implement 3 only currently)
 		// META FORMAT:
 		// EXAMPLE: VEPROPERTY(TransformComponent,glm::mat4,transform,"transform","type=drag,minValue=5,maxValue=10")
 		// EXAMPLE: VEPROPERTY(TransformComponent,glm::mat4,transform,"transform","type=drag")
+		// EXAMPLE: VEPROPERTY(Player,float,health,"health","type=drag,net=replicated")
 		
 		std::string meta;
 		std::string uiType;
@@ -125,6 +128,7 @@ namespace ve {
         autoRegister##propertyName() { \
             ReflectionProperty rp; \
             rp.name = displayName; \
+            rp.fieldName = #propertyName; \
 			rp.typeName = #propertyType; \
             rp.meta = metaStr; \
             parseMeta(metaStr, rp); \

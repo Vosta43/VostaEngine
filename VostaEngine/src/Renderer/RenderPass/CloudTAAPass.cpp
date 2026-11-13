@@ -2,30 +2,8 @@
 #include "CloudTAAPass.h"
 #include "PassBinding.h"
 #include "Renderer/RenderCommand.h"
-#include "Renderer/Buffer.h"
 
 namespace ve {
-
-    void CloudTAAPass::init() {
-        float vertices[] = {
-            -1.0f, -1.0f,  // bottom left
-             1.0f, -1.0f,  // bottom right
-             1.0f,  1.0f,  // top right
-            -1.0f,  1.0f   // top left
-        };
-        uint32_t indices[] = { 0, 1, 2, 2, 3, 0 };
-
-        m_fullscreenQuad = VertexArray::create();
-        auto vb = VertexBuffer::create(vertices, sizeof(vertices));
-        BufferLayout layout = {
-            { ShaderDataType::Float2, "a_Position" }
-        };
-        vb->setLayout(layout);
-        m_fullscreenQuad->addVertexBuffer(vb);
-
-        auto ib = IndexBuffer::create(indices, 6);
-        m_fullscreenQuad->setIndexBuffer(ib);
-    }
 
     void CloudTAAPass::execute(RenderContext& ctx) {
         // When there is nothing to accumulate, hand consumers the raw cloud
@@ -61,10 +39,7 @@ namespace ve {
         m_lastWidth = writeBuffer->getWidth();
         m_lastHeight = writeBuffer->getHeight();
 
-        writeBuffer->bind();
-        RenderCommand::setViewport(0, 0, writeBuffer->getWidth(), writeBuffer->getHeight());
-        RenderCommand::setClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        RenderCommand::clear();
+        if (!beginPass(ctx, writeBuffer)) return;
 
         m_shader->bind();
         // u_CloudColor (the raw frame) and u_History (the read half) come from the
@@ -87,9 +62,7 @@ namespace ve {
             1.0f / (float)writeBuffer->getWidth(),
             1.0f / (float)writeBuffer->getHeight()));
 
-        m_fullscreenQuad->bind();
-        RenderCommand::drawIndexed(m_fullscreenQuad);
-        m_fullscreenQuad->unbind();
+        drawFullscreenQuad();
 
         m_shader->unbind();
         writeBuffer->unbind();

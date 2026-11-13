@@ -2,32 +2,10 @@
 #include "VolumetricLightPass.h"
 #include "PassBinding.h"
 #include "Renderer/RenderCommand.h"
-#include "Renderer/Buffer.h"
 
 #include <string>
 
 namespace ve {
-
-    void VolumetricLightPass::init() {
-        float vertices[] = {
-            -1.0f, -1.0f,  // bottom left
-             1.0f, -1.0f,  // bottom right
-             1.0f,  1.0f,  // top right
-            -1.0f,  1.0f   // top left
-        };
-        uint32_t indices[] = { 0, 1, 2, 2, 3, 0 };
-
-        m_fullscreenQuad = VertexArray::create();
-        auto vb = VertexBuffer::create(vertices, sizeof(vertices));
-        BufferLayout layout = {
-            { ShaderDataType::Float2, "a_Position" }
-        };
-        vb->setLayout(layout);
-        m_fullscreenQuad->addVertexBuffer(vb);
-
-        auto ib = IndexBuffer::create(indices, 6);
-        m_fullscreenQuad->setIndexBuffer(ib);
-    }
 
     void VolumetricLightPass::execute(RenderContext& ctx) {
         Ref<Framebuffer> writeBuffer = hasHistory() ? historyWrite(ctx.frameIndex) : m_target;
@@ -40,10 +18,7 @@ namespace ve {
         m_lastWidth = writeBuffer->getWidth();
         m_lastHeight = writeBuffer->getHeight();
 
-        writeBuffer->bind();
-        RenderCommand::setViewport(0, 0, writeBuffer->getWidth(), writeBuffer->getHeight());
-        RenderCommand::setClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        RenderCommand::clear();
+        if (!beginPass(ctx, writeBuffer)) return;
 
         // Needs a sun (the shadow cascades only exist with an atmosphere) and a
         // medium dense enough to scatter. Otherwise the cleared black buffer is
@@ -97,9 +72,7 @@ namespace ve {
                 1.0f / (float)writeBuffer->getHeight()));
             m_shader->setFloat("u_FrameIndex", (float)ctx.frameIndex);
 
-            m_fullscreenQuad->bind();
-            RenderCommand::drawIndexed(m_fullscreenQuad);
-            m_fullscreenQuad->unbind();
+            drawFullscreenQuad();
             m_shader->unbind();
         }
 

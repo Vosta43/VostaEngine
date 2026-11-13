@@ -49,26 +49,60 @@
   "passes": [
     {
       "name": "shadow0", "type": "shadow", "target": "shadow0", "shader": "shadow_depth",
-      "index": 0, "when": { "from": "hasAtmosphere" }
+      "index": 0, "when": { "from": "hasAtmosphere" },
+      "clear": { "depth": true },
+      "state": { "blend": false, "depthTest": true, "depthWrite": true }
     },
     {
       "name": "shadow1", "type": "shadow", "target": "shadow1", "shader": "shadow_depth",
-      "index": 1, "when": { "from": "hasAtmosphere" }
+      "index": 1, "when": { "from": "hasAtmosphere" },
+      "clear": { "depth": true },
+      "state": { "blend": false, "depthTest": true, "depthWrite": true }
     },
     {
       "name": "shadow2", "type": "shadow", "target": "shadow2", "shader": "shadow_depth",
-      "index": 2, "when": { "from": "hasAtmosphere" }
+      "index": 2, "when": { "from": "hasAtmosphere" },
+      "clear": { "depth": true },
+      "state": { "blend": false, "depthTest": true, "depthWrite": true }
     },
 
     { "name": "rvtBake", "type": "rvtbake", "target": "", "shader": "" },
 
-    { "name": "gbuffer", "type": "gbuffer", "target": "gbuffer", "shader": "gbuffer" },
+    {
+      "name": "gbuffer", "type": "drawMeshes", "target": "gbuffer", "shader": "gbuffer",
+      "viewport": { "mode": "frame" },
+      "clear": { "depth": true },
+      "state": { "blend": false, "depthTest": true, "depthWrite": true },
+      "draw": {
+        "layerMask": 1,
+        "materialShader": true,
+        "rvt": true,
+        "uniforms": [
+          { "uniform": "u_ViewProj",    "source": "@camera.viewProj" },
+          { "uniform": "u_Model",       "source": "@mesh.model" },
+          { "uniform": "u_Time",        "source": "@time.total" },
+          { "uniform": "u_WorldOrigin", "source": "@world.origin" }
+        ]
+      },
+      "uniforms": [
+        { "uniform": "u_CoordMode", "kind": "Int", "x": 0.0 }
+      ]
+    },
 
-    { "name": "cloud", "type": "cloud", "target": "cloud", "shader": "volume_cloud_pass" },
+    {
+      "name": "globe", "type": "drawGlobe", "target": "gbuffer",
+      "state": { "blend": false, "depthTest": true, "depthWrite": true }
+    },
+
+    {
+      "name": "cloud", "type": "cloud", "target": "cloud", "shader": "volume_cloud_pass",
+      "clear": { "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 }
+    },
 
     {
       "name": "cloudTaa", "type": "cloudtaa", "target": "cloudTaaA", "shader": "cloud_taa",
       "history": [ "cloudTaaA", "cloudTaaB" ],
+      "clear": { "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 },
       "inputs": [
         { "uniform": "u_CloudColor", "unit": 0, "source": "cloud" },
         { "uniform": "u_History",    "unit": 1, "source": "@history" }
@@ -78,6 +112,7 @@
     {
       "name": "volumetric", "type": "volumetric", "target": "volumetricA", "shader": "volumetric_light",
       "history": [ "volumetricA", "volumetricB" ],
+      "clear": { "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 },
       "inputs": [
         { "uniform": "u_DepthMap",   "unit": 0,  "source": "gbuffer", "depth": true },
         { "uniform": "u_History",    "unit": 1,  "source": "@history" },
@@ -92,6 +127,8 @@
 
     {
       "name": "hdr", "type": "hdr", "target": "hdr", "shader": "pbrlighting",
+      "viewport": { "mode": "frame" },
+      "clear": { "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 },
       "inputs": [
         { "uniform": "u_AlbedoMap",        "unit": 0, "source": "gbuffer", "attachment": 0 },
         { "uniform": "u_NormalMap",        "unit": 1, "source": "gbuffer", "attachment": 1 },
@@ -117,6 +154,7 @@
       "name": "taa", "type": "taa", "target": "taaA", "shader": "taa",
       "when": { "from": "taa" },
       "history": [ "taaA", "taaB" ],
+      "clear": { "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 },
       "inputs": [
         { "uniform": "u_HDRColor", "unit": 0, "source": "@previous" },
         { "uniform": "u_DepthMap", "unit": 1, "source": "gbuffer", "depth": true },
@@ -127,6 +165,8 @@
 
     {
       "name": "post", "type": "post", "target": "post", "shader": "postprocess",
+      "viewport": { "mode": "frame" },
+      "clear": { "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 },
       "inputs": [
         { "uniform": "u_HDRColor", "unit": 0, "source": "@previous" }
       ]
@@ -138,6 +178,25 @@
         { "uniform": "u_ScreenTexture", "unit": 0, "source": "@previous" },
         { "uniform": "u_DepthMap",      "unit": 1, "source": "gbuffer", "depth": true }
       ]
+    },
+
+    {
+      "name": "skybox", "type": "drawSkybox", "target": "@output",
+      "when": { "from": "hasSkybox" },
+      "viewport": { "mode": "frame" }
+    },
+
+    {
+      "name": "sprites", "type": "drawSprites", "target": "@output",
+      "viewport": { "mode": "frame" },
+      "draw": { "layerMask": 2 }
+    },
+
+    {
+      "name": "particles", "type": "drawParticles", "target": "@output",
+      "viewport": { "mode": "frame" },
+      "state": { "blend": true, "src": "src_alpha", "dst": "one_minus_src_alpha", "depthTest": false, "depthWrite": false },
+      "draw": { "layerMask": 2 }
     },
 
     {

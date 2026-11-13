@@ -8,7 +8,7 @@
 // module built from older headers reads members at the wrong offset instead of
 // failing cleanly). A host refuses to load a module built against a different
 // value.
-#define VE_GAME_MODULE_API_VERSION 3
+#define VE_GAME_MODULE_API_VERSION 1
 
 namespace ve {
 

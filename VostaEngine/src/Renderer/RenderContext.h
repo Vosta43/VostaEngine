@@ -20,7 +20,20 @@
 namespace ve {
 
 	class RuntimeVirtualTexture;
-class Material;
+	class Material;
+	class SettingsRegistry;
+	struct EmitterAsset;
+	struct ParticleDataSet;
+
+	// Bitmask an entity and a draw pass both select with. Engine passes draw
+	// Default; translucent content (sprites, particles) lives above it.
+	namespace RenderLayer {
+		enum : uint32_t {
+			Default     = 1u << 0,
+			Transparent = 1u << 1,
+			All         = 0xFFFFFFFFu
+		};
+	}
 
 	// The authoring world is a flat chart: x/z horizontal, y the altitude above sea
 	// level. The renderer draws a planet, so a chart point has to be placed onto
@@ -127,6 +140,8 @@ class Material;
 
 		uint32_t startIndex = 0;
 		uint32_t indexCount = 0;
+
+		uint32_t renderLayer = RenderLayer::Default;
 	};
 
 	struct DrawLightCommand {
@@ -149,6 +164,20 @@ class Material;
 		ve::Vec3 worldPosition{ 0.0 };
 		glm::vec2 size;
 		AssetHandle textureHandle;
+
+		uint32_t renderLayer = RenderLayer::Transparent;
+	};
+
+	// One emitter's live simulation. The owner (the scene's ParticleComponent)
+	// keeps the data alive; the draw command only points at it.
+	struct DrawParticleCommand {
+		const EmitterAsset*    asset = nullptr;
+		const ParticleDataSet* data  = nullptr;
+		ve::Vec3 origin{ 0.0 };
+		glm::vec4 tint = glm::vec4(0.55f, 0.75f, 1.0f, 1.0f);
+		float size = 30.0f;
+
+		uint32_t renderLayer = RenderLayer::Transparent;
 	};
 
 	struct RenderContext {
@@ -193,6 +222,8 @@ class Material;
 		// this frame, and FBO-name -> framebuffer. Owned by RenderPipeline.
 		const std::unordered_map<std::string, Ref<Framebuffer>>* passOutputs = nullptr;
 		const std::unordered_map<std::string, Ref<Framebuffer>>* fboRegistry = nullptr;
+		// Pipeline settings, for @settings.<name> uniform sources.
+		const SettingsRegistry* settings = nullptr;
 		// Present pass behaviour: when true, clear the output to transparent and
 		// discard sky pixels (thumbnail previews on a transparent background).
 		bool presentDiscardBackground = false;
@@ -205,6 +236,7 @@ class Material;
 		std::vector<DrawMeshCommand> drawMeshCommands;
 		std::vector<DrawLightCommand> drawLightCommands;
 		std::vector<DrawSpriteCommand> drawSpriteCommands;
+		std::vector<DrawParticleCommand> drawParticleCommands;
 
 		float deltaTime;
 		float totalTime;

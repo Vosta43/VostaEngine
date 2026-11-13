@@ -2,6 +2,11 @@
 
 #include "imgui.h"
 
+#include <algorithm>
+#include <cctype>
+#include <string>
+#include <vector>
+
 namespace ve {
 
 SceneOutliner::SceneOutliner(const Ref<Scene>& sceneContext)
@@ -69,6 +74,7 @@ void SceneOutliner::onGuiRender(uint32_t& selectedEntity)
 
     if (ImGui::Button("Create Entity", ImVec2(-1, 0))) {
         m_showEntityCreatePopup = true;
+        m_prefabSearch[0] = '\0';
     }
 
     if (m_showEntityCreatePopup) {
@@ -78,17 +84,50 @@ void SceneOutliner::onGuiRender(uint32_t& selectedEntity)
         ImGui::SetNextWindowSize(popupSize, ImGuiCond_Appearing);
         ImGui::OpenPopup("Create Entity");
         if (ImGui::BeginPopupModal("Create Entity", &m_showEntityCreatePopup, ImGuiWindowFlags_NoResize)) {
+            ImGui::SetNextItemWidth(-1.0f);
+            ImGui::InputTextWithHint("##prefabSearch", "Search...", m_prefabSearch, sizeof(m_prefabSearch));
+            ImGui::Separator();
+
+            std::string query = m_prefabSearch;
+            std::transform(query.begin(), query.end(), query.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+            const auto& prefabs = PrefabRegistry::get().list();
+
+            // Categories in first-registration order, so BuiltinPrefabs.cpp stays
+            // the single place that decides how the menu is grouped.
+            std::vector<std::string> categories;
+            for (const PrefabInfo& prefab : prefabs) {
+                if (std::find(categories.begin(), categories.end(), prefab.category) == categories.end())
+                    categories.push_back(prefab.category);
+            }
+
             // One button per registered prefab, so the editor and the agent spawn
             // from the same templates. The scroll child keeps the list usable as it
             // grows past the fixed modal size.
             ImGui::BeginChild("##prefabs");
-            for (const PrefabInfo& prefab : PrefabRegistry::get().list()) {
-                if (ImGui::Button(prefab.displayName.c_str(), ImVec2(-1.0f, 0.0f))) {
-                    Entity spawned = m_spawnPlacement
-                        ? PrefabRegistry::get().spawnAt(prefab.key, *m_sceneContext, m_spawnPlacement())
-                        : PrefabRegistry::get().spawn(prefab.key, *m_sceneContext);
-                    if (spawned.getId() != 0xFFFFFFFFu)
-                        selectedEntity = spawned.getId();
+            for (const std::string& category : categories) {
+                std::vector<const PrefabInfo*> visible;
+                for (const PrefabInfo& prefab : prefabs) {
+                    if (prefab.category != category) continue;
+
+                    std::string name = prefab.displayName;
+                    std::transform(name.begin(), name.end(), name.begin(),
+                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                    if (name.find(query) == std::string::npos) continue;
+                    visible.push_back(&prefab);
+                }
+                if (visible.empty()) continue;
+
+                ImGui::TextDisabled("%s", category.c_str());
+                for (const PrefabInfo* prefab : visible) {
+                    if (ImGui::Button(prefab->displayName.c_str(), ImVec2(-1.0f, 0.0f))) {
+                        Entity spawned = m_spawnPlacement
+                            ? PrefabRegistry::get().spawnAt(prefab->key, *m_sceneContext, m_spawnPlacement())
+                            : PrefabRegistry::get().spawn(prefab->key, *m_sceneContext);
+                        if (spawned.getId() != 0xFFFFFFFFu)
+                            selectedEntity = spawned.getId();
+                    }
                 }
             }
             ImGui::EndChild();

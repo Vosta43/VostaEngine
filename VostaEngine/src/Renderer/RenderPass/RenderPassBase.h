@@ -11,6 +11,8 @@
 
 namespace ve {
 
+	class VertexArray;
+
 	// Base for a pipeline stage. Wiring (target framebuffer, declared inputs,
 	// ping-pong history, clear, state, gating) comes from its PassDef; the
 	// subclass owns only the drawing logic in execute().
@@ -20,6 +22,11 @@ namespace ve {
 		virtual void init(); //TODO: = 0
 		//TODO: RenderContext should not be & but const&,split RenderContext into changeble part and inchangeble part.
 		virtual void execute(RenderContext& ctx) = 0;
+
+		// Bind target, set viewport, apply declared state, then clear.
+		bool beginPass(RenderContext& ctx, const Ref<Framebuffer>& overrideTarget = nullptr);
+
+		static void drawFullscreenQuad();
 
 		// Resolve framebuffers and shader from the pass description. Called by
 		// RenderPipeline before init().
@@ -32,9 +39,10 @@ namespace ve {
 		const PassDef&     def() const { return m_def; }
 		Ref<Shader>        shader() const { return m_shader; }
 
-		// Resolved write target. Null when target is "@default" (see targetsDefault).
+		// Resolved write target. Null when target is "@default" or "@output".
 		Ref<Framebuffer> target() const { return m_target; }
 		bool             targetsDefault() const { return m_targetsDefault; }
+		bool             targetsOutput() const { return m_targetsOutput; }
 
 		// Ping-pong history, selected by frame parity so it survives across
 		// frames. Valid only when the pass declared a history pair.
@@ -49,6 +57,9 @@ namespace ve {
 		// Lets a history pass report which ping-pong half it used.
 		Ref<Framebuffer> written() const { return m_written; }
 
+		// The framebuffer beginPass bound last.
+		Ref<Framebuffer> boundTarget() const { return m_boundTarget; }
+
 	protected:
 		void setWritten(const Ref<Framebuffer>& fb) { m_written = fb; }
 
@@ -57,9 +68,14 @@ namespace ve {
 		std::string      m_type;
 		Ref<Framebuffer> m_target;
 		bool             m_targetsDefault = false;
+		bool             m_targetsOutput = false;
 		Ref<Framebuffer> m_history[2];
 		Ref<Shader>      m_shader;
 		Ref<Framebuffer> m_written;
+		Ref<Framebuffer> m_boundTarget;
+
+	private:
+		static Ref<VertexArray> s_fullscreenQuad;
 	};
 
 }

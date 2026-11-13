@@ -4,7 +4,6 @@
 #include "Renderer/RenderContext.h"
 #include "Renderer/FrameBuffer.h"
 #include "Renderer/Shader.h"
-#include "Renderer/VertexArray.h"
 
 namespace ve {
 
@@ -17,12 +16,9 @@ namespace ve {
     // is read/written follows the frame parity tracked by RenderPipeline.
     class TAAPass : public RenderPassBase {
     public:
-        void init() override;
         void execute(RenderContext& ctx) override;
 
     private:
-        Ref<VertexArray> m_fullscreenQuad;
-
         bool     m_firstFrame = true;
         uint32_t m_lastWidth = 0;
         uint32_t m_lastHeight = 0;

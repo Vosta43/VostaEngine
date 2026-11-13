@@ -56,6 +56,9 @@ namespace ve {
                                             uint32_t byteStride = 0);
         // Drops the backend's cached GL state after outside code touched it.
         static void invalidateStateCache();
+        // The state the backend believes is bound; merge one field into this and
+        // pass the result to applyPipelineState to leave the rest untouched.
+        static RenderStateDesc currentState();
         // Declarative state: the backend applies only what differs from what it
         // already bound. The per-field setters below take the same path with one
         // field changed, so the two can never disagree.

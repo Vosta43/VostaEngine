@@ -1,11 +1,83 @@
 #include "vepch.h"
 #include "PassBinding.h"
+#include "Asset/BuiltinReousrces.h"
 #include "Core/Log.h"
 #include "Core/ResourceManager.h"
+#include "Renderer/LayeredShaderBuilder.h"
 #include "Renderer/RuntimeVirtualTexture.h"
 #include "Renderer/Texture.h"
+#include "Renderer/Pipeline/SettingsRegistry.h"
 
 namespace ve {
+
+	bool UniformSourceRegistry::apply(const Ref<Shader>& shader, const std::string& uniform,
+	                                  const std::string& source, const UniformSourceContext& c) const {
+		if (!shader) return false;
+
+		auto it = m_sources.find(source);
+		if (it != m_sources.end()) {
+			it->second(shader, uniform, c);
+			return true;
+		}
+
+		if (source.rfind("@settings.", 0) == 0) {
+			if (!c.ctx || !c.ctx->settings) return false;
+			shader->setFloat(uniform, c.ctx->settings->getFloat(source.substr(10), 0.0f));
+			return true;
+		}
+		return false;
+	}
+
+	const UniformSourceRegistry& UniformSourceRegistry::builtin() {
+		static const UniformSourceRegistry registry = [] {
+			UniformSourceRegistry r;
+
+			r.add("@camera.viewProj", [](const Ref<Shader>& s, const std::string& u, const UniformSourceContext& c) {
+				s->setMat4(u, c.ctx->projMatrix * c.ctx->viewMatrix);
+			});
+			r.add("@camera.viewProjNoJitter", [](const Ref<Shader>& s, const std::string& u, const UniformSourceContext& c) {
+				s->setMat4(u, c.ctx->projMatrixNoJitter * c.ctx->viewMatrix);
+			});
+			r.add("@camera.view", [](const Ref<Shader>& s, const std::string& u, const UniformSourceContext& c) {
+				s->setMat4(u, c.ctx->viewMatrix);
+			});
+			r.add("@camera.proj", [](const Ref<Shader>& s, const std::string& u, const UniformSourceContext& c) {
+				s->setMat4(u, c.ctx->projMatrix);
+			});
+			r.add("@camera.position", [](const Ref<Shader>& s, const std::string& u, const UniformSourceContext& c) {
+				s->setFloat3(u, toRenderSpaceChart(c.ctx->cameraPosition, *c.ctx));
+			});
+			r.add("@world.origin", [](const Ref<Shader>& s, const std::string& u, const UniformSourceContext& c) {
+				s->setFloat3(u, glm::vec3(c.ctx->renderOrigin));
+			});
+			r.add("@time.total", [](const Ref<Shader>& s, const std::string& u, const UniformSourceContext& c) {
+				s->setFloat(u, c.ctx->totalTime);
+			});
+			r.add("@time.delta", [](const Ref<Shader>& s, const std::string& u, const UniformSourceContext& c) {
+				s->setFloat(u, c.ctx->deltaTime);
+			});
+			r.add("@frame.index", [](const Ref<Shader>& s, const std::string& u, const UniformSourceContext& c) {
+				s->setInt(u, (int)c.ctx->frameIndex);
+			});
+			r.add("@mesh.model", [](const Ref<Shader>& s, const std::string& u, const UniformSourceContext& c) {
+				if (c.model) s->setMat4(u, *c.model);
+			});
+			r.add("@mesh.transform", [](const Ref<Shader>& s, const std::string& u, const UniformSourceContext& c) {
+				if (c.mesh) s->setMat4(u, c.mesh->transform);
+			});
+			r.add("@mesh.position", [](const Ref<Shader>& s, const std::string& u, const UniformSourceContext& c) {
+				if (c.mesh) s->setFloat3(u, toRenderSpaceChart(c.mesh->worldPosition, *c.ctx));
+			});
+			r.add("@sprite.model", [](const Ref<Shader>& s, const std::string& u, const UniformSourceContext& c) {
+				if (c.model) s->setMat4(u, *c.model);
+			});
+			r.add("@sprite.size", [](const Ref<Shader>& s, const std::string& u, const UniformSourceContext& c) {
+				if (c.sprite) s->setFloat2(u, c.sprite->size);
+			});
+			return r;
+		}();
+		return registry;
+	}
 
 	namespace {
 
@@ -67,7 +139,10 @@ namespace ve {
 	} // namespace
 
 	void bindPassInputs(RenderPassBase& pass, RenderContext& ctx) {
-		Ref<Shader> sh = pass.shader();
+		bindPassInputs(pass, ctx, pass.shader());
+	}
+
+	void bindPassInputs(RenderPassBase& pass, RenderContext& ctx, const Ref<Shader>& sh) {
 		if (!sh) return;
 
 		for (const auto& in : pass.def().inputs) {
@@ -83,7 +158,10 @@ namespace ve {
 	}
 
 	void applyPassUniforms(RenderPassBase& pass) {
-		Ref<Shader> sh = pass.shader();
+		applyPassUniforms(pass, pass.shader());
+	}
+
+	void applyPassUniforms(RenderPassBase& pass, const Ref<Shader>& sh) {
 		if (!sh) return;
 
 		for (const auto& u : pass.def().uniforms) {
@@ -116,6 +194,47 @@ namespace ve {
 		for (const auto& b : bindings.floats) shader->setFloat(b.name, b.value);
 		for (const auto& b : bindings.vec2s)  shader->setFloat2(b.name, b.value);
 		for (const auto& b : bindings.vec3s)  shader->setFloat3(b.name, b.value);
+	}
+
+	void drawGlobeTiles(RenderContext& ctx, MaterialBindingSet& scratch) {
+		// Sphere mode needs both the material and its baked atlas; the terrain's
+		// layered material gives the globe the same surface rules as the terrain.
+		// Without both, the default material still shapes a readable planet.
+		const bool sphereMode = ctx.globeMaterial != nullptr && ctx.globeWeights != nullptr;
+		Ref<Material> material = sphereMode
+			? ctx.globeMaterial
+			: ResourceManager::get<Material>(BuiltinResources::getDefaultMaterial());
+		if (!material) return;
+
+		Ref<Shader> shader = material->getShader();
+		if (!shader || !shader->isValid()) return;
+
+		shader->bind();
+		shader->setMat4("u_ViewProj", ctx.projMatrix * ctx.viewMatrix);
+		shader->setFloat("u_Time", ctx.totalTime);
+		shader->setFloat3("u_WorldOrigin", glm::vec3(ctx.renderOrigin));
+		shader->setInt("u_CoordMode", sphereMode ? 1 : 0);
+
+		material->fillBindings(scratch);
+		applyMaterialBindings(shader, scratch);
+
+		// Replace the material's own weight array with the direction-domain
+		// atlas: same unit the bindings just used, so the rebind wins.
+		if (sphereMode) {
+			ctx.globeWeights->bind(LayeredShaderBuilder::kWeightsTextureUnit);
+			shader->setInt("u_Weights", (int)LayeredShaderBuilder::kWeightsTextureUnit);
+		}
+
+		for (const auto& tile : ctx.globeTiles) {
+			if (!tile.mesh) continue;
+			shader->setMat4("u_Model", glm::translate(glm::mat4(1.0f),
+				toRenderSpace(ctx.planetCenter + tile.centerLocal, ctx.renderOrigin)));
+			tile.mesh->bind();
+			tile.mesh->draw(0, 0);
+			tile.mesh->unbind();
+		}
+
+		shader->unbind();
 	}
 
 	void bindRuntimeVirtualTexture(const Ref<Shader>& shader, const RuntimeVirtualTexture& rvt) {

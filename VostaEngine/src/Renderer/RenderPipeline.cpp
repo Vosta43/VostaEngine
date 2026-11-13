@@ -4,7 +4,7 @@
 #include "Core/Application.h"
 #include "Core/AssetConfig.h"
 #include "Core/Log.h"
-#include "Renderer/RenderPass/GBufferPass.h"
+#include "Renderer/RenderPass/DrawPass.h"
 #include "Renderer/RenderPass/ShadowPass.h"
 #include "Renderer/RenderPass/CloudPass.h"
 #include "Renderer/RenderPass/CloudTAAPass.h"
@@ -15,6 +15,7 @@
 #include "Renderer/RenderPass/PresentPass.h"
 #include "Renderer/RenderPass/RVTBakePass.h"
 #include "Renderer/RenderPass/RVTDebugPass.h"
+#include "Renderer/RenderPass/RenderPassRegistry.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -23,21 +24,28 @@ namespace ve {
 
     namespace {
 
-        // Maps a pass "type" string from the asset to a concrete pass class.
-        Ref<RenderPassBase> createPassByType(const std::string& type) {
-            if (type == "gbuffer")  return CreateRef<GBufferPass>();
-            if (type == "shadow")   return CreateRef<ShadowPass>();
-            if (type == "cloud")    return CreateRef<CloudPass>();
-            if (type == "cloudtaa") return CreateRef<CloudTAAPass>();
-            if (type == "volumetric") return CreateRef<VolumetricLightPass>();
-            if (type == "hdr")      return CreateRef<HDRBufferPass>();
-            if (type == "taa")      return CreateRef<TAAPass>();
-            if (type == "post")     return CreateRef<PostBufferPass>();
-            if (type == "present")  return CreateRef<PresentPass>();
-            if (type == "rvtbake")  return CreateRef<RVTBakePass>();
-            if (type == "rvtdbg")   return CreateRef<RVTDebugPass>();
-            VE_CORE_WARN_PRINT("RenderPipeline: unknown pass type '%s'", type.c_str());
-            return nullptr;
+        RenderPassRegistry& builtinPassRegistry() {
+            static RenderPassRegistry registry = [] {
+                RenderPassRegistry r;
+                r.add("drawFullscreen", [] { return CreateRef<DrawPass>(DrawPass::Kind::Fullscreen); });
+                r.add("drawMeshes",     [] { return CreateRef<DrawPass>(DrawPass::Kind::Meshes); });
+                r.add("drawSprites",    [] { return CreateRef<DrawPass>(DrawPass::Kind::Sprites); });
+                r.add("drawGlobe",      [] { return CreateRef<DrawPass>(DrawPass::Kind::Globe); });
+                r.add("drawSkybox",     [] { return CreateRef<DrawPass>(DrawPass::Kind::Skybox); });
+                r.add("drawParticles",  [] { return CreateRef<DrawPass>(DrawPass::Kind::Particles); });
+                r.add("shadow",     [] { return CreateRef<ShadowPass>(); });
+                r.add("cloud",      [] { return CreateRef<CloudPass>(); });
+                r.add("cloudtaa",   [] { return CreateRef<CloudTAAPass>(); });
+                r.add("volumetric", [] { return CreateRef<VolumetricLightPass>(); });
+                r.add("hdr",        [] { return CreateRef<HDRBufferPass>(); });
+                r.add("taa",        [] { return CreateRef<TAAPass>(); });
+                r.add("post",       [] { return CreateRef<PostBufferPass>(); });
+                r.add("present",    [] { return CreateRef<PresentPass>(); });
+                r.add("rvtbake",    [] { return CreateRef<RVTBakePass>(); });
+                r.add("rvtdbg",     [] { return CreateRef<RVTDebugPass>(); });
+                return r;
+            }();
+            return registry;
         }
 
     } // namespace
@@ -128,8 +136,11 @@ namespace ve {
         }
 
         for (const auto& pd : m_config.passes) {
-            auto pass = createPassByType(pd.type);
-            if (!pass) continue;
+            auto pass = builtinPassRegistry().create(pd.type);
+            if (!pass) {
+                VE_CORE_WARN_PRINT("RenderPipeline: unknown pass type '%s'", pd.type.c_str());
+                continue;
+            }
 
             Ref<Shader> shader;
             if (!pd.shader.empty())
@@ -173,6 +184,7 @@ namespace ve {
     void RenderPipeline::render(RenderContext& ctx) {
         ctx.fboRegistry = &m_fboRegistry;
         ctx.passOutputs = &m_passOutputs;
+        ctx.settings = &m_settings;
         m_passOutputs.clear();
         m_finalColor.reset();
 
@@ -196,7 +208,7 @@ namespace ve {
             if (out) {
                 m_passOutputs[pass->name()] = out;
                 lastTarget = out;
-                if (!pass->targetsDefault())
+                if (!pass->targetsDefault() && !pass->targetsOutput())
                     m_finalColor = out->getColorTexture(0);
             }
         }

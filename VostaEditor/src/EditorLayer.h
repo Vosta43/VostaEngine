@@ -8,7 +8,7 @@
 
 #include "EditorCameraStore.h"
 #include "EditorViewController.h"
-#include "PlaySession.h"
+#include "PieSession.h"
 #include "SceneDocument.h"
 
 #include "Panels/AiPanel.h"
@@ -65,10 +65,11 @@ namespace ve {
         // Raycast the terrain under the viewport cursor and paint one brush dab.
         void paintTerrain();
 
-        // Play-in-Editor transport. startPlay duplicates the scene into a runtime
-        // session and points the viewport at it; stopPlay discards it and restores
-        // the authored view.
-        void startPlay();
+        // Play-in-Editor transport. startPlay clones the authored scene once per
+        // player into PIE worlds (a listen server plus clients) and the viewport
+        // tiles them; stopPlay discards every world. The authored scene and its
+        // view are never rebound, so Stop needs no reversion pass.
+        void startPlay(bool listenServer = false, int players = 1);
         void stopPlay();
 
     private:
@@ -104,6 +105,9 @@ namespace ve {
         void stepSceneLoad();
         void finishSceneLoad(Ref<Scene> scene, std::string name, std::filesystem::path path);
         void renderSceneLoadOverlay();
+
+        // PIE tile layout: one tile per world, hover picks the focused one.
+        void renderPieViewport(float originX, float originY, float width, float height);
 
     private:
         FileBrowser m_fileBrowser;
@@ -166,12 +170,9 @@ namespace ve {
         bool m_showTerrainBrush = false;
         bool m_terrainPainting = false;
 
-        // Play-in-Editor session. While live the viewport renders its runtime
-        // duplicate and the editor panels are locked.
-        PlaySession m_playSession;
-        // Viewport camera selection captured on Play and restored on Stop.
-        SceneView::CameraSource m_prePlayCameraSource = SceneView::CameraSource::Editor;
-        Entity m_prePlayCameraEntity;
+        // Play-in-Editor session. While live the viewport tiles its worlds and
+        // the editor panels are locked.
+        PieSession m_pie;
     };
 
 }

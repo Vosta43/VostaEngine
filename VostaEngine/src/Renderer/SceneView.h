@@ -15,6 +15,7 @@ class SceneViewRenderer;
 class RenderPipeline;
 class Framebuffer;
 class Event;
+class EventDispatcher;
 struct GlobeStats;
 
 // How a view is spun up. Host-relative asset paths live here so the engine
@@ -142,6 +143,11 @@ private:
     uint32_t               m_height = 0;
     bool                   m_inputEnabled = true;
     bool                   m_attached     = false;
+
+    // Input subscriptions live as long as the view; several views can coexist
+    // (multi-world PIE), so a view that dies must drop its callbacks.
+    EventDispatcher* m_dispatcher = nullptr;
+    uint64_t         m_subscriptionIds[3] = { 0, 0, 0 };
 };
 
 }

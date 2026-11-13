@@ -2,7 +2,6 @@
 
 #include "RenderPassBase.h"
 #include "Renderer/Shader.h"
-#include "Renderer/VertexArray.h"
 
 namespace ve {
 
@@ -13,14 +12,9 @@ namespace ve {
 	// (they are conditional and have no place in the generic binder).
 	class HDRBufferPass : public RenderPassBase {
 	public:
-		void init() override;
 		void execute(RenderContext& ctx) override;
 
 	private:
-		Ref<VertexArray> m_fullscreenQuad;
-
-		// Last reported dynamic light count, so the log fires once per change
-		// instead of every frame.
 		int m_lastLightCount = -1;
 	};
 

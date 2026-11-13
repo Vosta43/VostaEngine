@@ -30,6 +30,7 @@ private:
     SpawnPlacementFn m_spawnPlacement;
     bool m_showEntityCreatePopup = false;
     bool m_locked = false;
+    char m_prefabSearch[64] = {};
 };
 
 } // namespace ve

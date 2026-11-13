@@ -2,7 +2,6 @@
 
 #include "RenderPassBase.h"
 #include "Renderer/Shader.h"
-#include "Renderer/VertexArray.h"
 
 namespace ve {
 
@@ -12,11 +11,7 @@ namespace ve {
 	// driven by engine state the binder has no vocabulary for.
 	class CloudPass : public RenderPassBase {
 	public:
-		void init() override;
 		void execute(RenderContext& ctx) override;
-
-	private:
-		Ref<VertexArray> m_fullscreenQuad;
 	};
 
 }

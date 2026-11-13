@@ -1,7 +1,6 @@
 #pragma once
 
 #include "RenderPassBase.h"
-#include "Renderer/VertexArray.h"
 
 namespace ve {
 
@@ -13,11 +12,7 @@ namespace ve {
 	// dry run of the sampling path.
 	class RVTDebugPass : public RenderPassBase {
 	public:
-		void init() override;
 		void execute(RenderContext& ctx) override;
-
-	private:
-		Ref<VertexArray> m_fullscreenQuad;
 	};
 
 }
